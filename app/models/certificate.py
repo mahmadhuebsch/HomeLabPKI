@@ -55,6 +55,7 @@ class CertCreateRequest(BaseModel):
     sans: list[str] = Field(default_factory=list)
     key_config: KeyConfig
     validity_days: int = Field(..., gt=0)
+    issuing_ca_password: str = Field(..., description="Password for issuing CA's private key")
 
 
 class CSRSignRequest(BaseModel):
@@ -64,6 +65,7 @@ class CSRSignRequest(BaseModel):
     csr_content: str  # PEM-encoded CSR content
     sans: list[str] = Field(default_factory=list)  # Override/add SANs
     validity_days: int = Field(..., gt=0)
+    issuing_ca_password: str = Field(..., description="Password for issuing CA's private key")
 
 
 class CertImportRequest(BaseModel):

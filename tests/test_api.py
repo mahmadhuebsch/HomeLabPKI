@@ -30,7 +30,7 @@ class TestCAAPI:
         payload = {
             "type": "root_ca",
             "subject": {"common_name": "API Test Root CA", "organization": "Test Org", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
 
@@ -47,7 +47,7 @@ class TestCAAPI:
         payload = {
             "type": "root_ca",
             "subject": {"common_name": "Get Test CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         create_response = client.post("/api/cas", json=payload)
@@ -73,7 +73,7 @@ class TestCAAPI:
         payload = {
             "type": "root_ca",
             "subject": {"common_name": "Delete Test CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         create_response = client.post("/api/cas", json=payload)
@@ -100,7 +100,7 @@ class TestCertificateAPI:
         ca_payload = {
             "type": "root_ca",
             "subject": {"common_name": "Cert Test CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
@@ -111,9 +111,10 @@ class TestCertificateAPI:
         cert_payload = {
             "subject": {"common_name": "api-test.com", "country": "US"},
             "sans": ["api-test.com", "*.api-test.com"],
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "cert_password_123"},
             "validity_days": 365,
             "issuing_ca_id": ca_id,
+            "issuing_ca_password": "test_password_123",
         }
 
         response = client.post("/api/certs", json=cert_payload)
@@ -128,7 +129,7 @@ class TestCertificateAPI:
         ca_payload = {
             "type": "root_ca",
             "subject": {"common_name": "List Cert CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
@@ -138,9 +139,10 @@ class TestCertificateAPI:
         cert_payload = {
             "subject": {"common_name": "list-test.com", "country": "US"},
             "sans": ["list-test.com"],
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "cert_password_123"},
             "validity_days": 365,
             "issuing_ca_id": ca_id,
+            "issuing_ca_password": "test_password_123",
         }
         client.post("/api/certs", json=cert_payload)
 
@@ -163,7 +165,7 @@ class TestDownloadAPI:
         ca_payload = {
             "type": "root_ca",
             "subject": {"common_name": "Download Test CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
@@ -183,7 +185,7 @@ class TestDownloadAPI:
         ca_payload = {
             "type": "root_ca",
             "subject": {"common_name": "DL Cert CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
@@ -193,9 +195,10 @@ class TestDownloadAPI:
         cert_payload = {
             "subject": {"common_name": "download-test.com", "country": "US"},
             "sans": ["download-test.com"],
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "cert_password_123"},
             "validity_days": 365,
             "issuing_ca_id": ca_id,
+            "issuing_ca_password": "test_password_123",
         }
         cert_response = client.post("/api/certs", json=cert_payload)
         cert_id = cert_response.json()["id"]
@@ -212,7 +215,7 @@ class TestDownloadAPI:
         ca_payload = {
             "type": "root_ca",
             "subject": {"common_name": "Chain CA", "country": "US"},
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
@@ -222,9 +225,10 @@ class TestDownloadAPI:
         cert_payload = {
             "subject": {"common_name": "chain-test.com", "country": "US"},
             "sans": ["chain-test.com"],
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "cert_password_123"},
             "validity_days": 365,
             "issuing_ca_id": ca_id,
+            "issuing_ca_password": "test_password_123",
         }
         cert_response = client.post("/api/certs", json=cert_payload)
         cert_id = cert_response.json()["id"]

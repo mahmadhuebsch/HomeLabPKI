@@ -68,8 +68,8 @@ def sample_ca_subject():
 
 @pytest.fixture
 def sample_key_config():
-    """Create a sample key configuration (RSA 2048)."""
-    return KeyConfig(algorithm="RSA", key_size=2048)
+    """Create a sample key configuration (RSA 2048) with password."""
+    return KeyConfig(algorithm="RSA", key_size=2048, password="test_password_123")
 
 
 @pytest.fixture
@@ -88,13 +88,14 @@ def sample_cert_subject():
 
 @pytest.fixture
 def sample_cert_request(sample_cert_subject, sample_key_config):
-    """Create a sample certificate creation request."""
+    """Create a sample certificate creation request with passwords."""
     return CertCreateRequest(
         subject=sample_cert_subject,
         sans=["test.example.com", "*.test.example.com", "192.168.1.100"],
         key_config=sample_key_config,
         validity_days=365,
         issuing_ca_id="root-ca-test-root-ca",
+        issuing_ca_password="test_password_123",  # Password for the issuing CA
     )
 
 
@@ -139,7 +140,8 @@ def created_intermediate_ca(ca_service, created_root_ca):
     request = CACreateRequest(
         type=CAType.INTERMEDIATE_CA,
         subject=Subject(common_name="Test Intermediate CA", organization="Test Organization", country="US"),
-        key_config=KeyConfig(algorithm="RSA", key_size=2048),
+        key_config=KeyConfig(algorithm="RSA", key_size=2048, password="intermediate_password_123"),
         validity_days=365,
+        parent_ca_password="test_password_123",  # Password for root CA
     )
     return ca_service.create_intermediate_ca(request, created_root_ca.id)

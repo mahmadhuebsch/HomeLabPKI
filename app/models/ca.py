@@ -61,11 +61,14 @@ class KeyConfig(BaseModel):
     algorithm: KeyAlgorithm
     key_size: Optional[int] = Field(None, ge=2048)  # for RSA
     curve: Optional[ECDSACurve] = None  # for ECDSA
+    password: Optional[str] = Field(
+        None, min_length=8, description="Password for key encryption (AES-256). Required for key generation."
+    )
 
     class Config:
         """Pydantic config."""
 
-        json_schema_extra = {"example": {"algorithm": "RSA", "key_size": 4096}}
+        json_schema_extra = {"example": {"algorithm": "RSA", "key_size": 4096, "password": "********"}}
 
 
 class CAConfig(BaseModel):
@@ -111,6 +114,9 @@ class CACreateRequest(BaseModel):
     key_config: KeyConfig
     validity_days: int = Field(..., gt=0)
     parent_ca_id: Optional[str] = None
+    parent_ca_password: Optional[str] = Field(
+        None, description="Password for parent CA's private key (required for intermediate CA)"
+    )
 
 
 class RootCAImportRequest(BaseModel):

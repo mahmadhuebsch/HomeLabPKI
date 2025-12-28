@@ -103,6 +103,36 @@
                             </select>
                         </div>
                     </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="keyPassword" class="form-label">Key Password *</label>
+                            <input type="password" class="form-control" id="keyPassword"
+                                   name="key_password" required minlength="8"
+                                   placeholder="Minimum 8 characters">
+                            <div class="form-text">Password to encrypt the private key (AES-256)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="keyPasswordConfirm" class="form-label">Confirm Password *</label>
+                            <input type="password" class="form-control" id="keyPasswordConfirm"
+                                   name="key_password_confirm" required minlength="8"
+                                   placeholder="Repeat password">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issuing CA Authentication -->
+            <div class="card mb-3">
+                <div class="card-header">Issuing CA Authentication</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="issuingCaPassword" class="form-label">Issuing CA Password *</label>
+                        <input type="password" class="form-control" id="issuingCaPassword"
+                               name="issuing_ca_password" required
+                               placeholder="Password for the issuing CA's private key">
+                        <div class="form-text">Required to sign the certificate</div>
+                    </div>
                 </div>
             </div>
 
@@ -160,9 +190,10 @@ function buildSubjectString(subject) {
 
 function buildKeyGenCommand(algorithm, keySize) {
     const keyFile = 'cert.key';
+    const maskedPassword = '***';  // Always mask password in preview
 
     if (algorithm === 'RSA') {
-        return `openssl genrsa -out ${keyFile} ${keySize}`;
+        return `openssl genrsa -aes256 -passout pass:${maskedPassword} -out ${keyFile} ${keySize}`;
     } else if (algorithm === 'ECDSA') {
         const curveMap = {
             'P-256': 'prime256v1',
@@ -170,9 +201,9 @@ function buildKeyGenCommand(algorithm, keySize) {
             'P-521': 'secp521r1'
         };
         const curve = curveMap[keySize] || 'prime256v1';
-        return `openssl ecparam -name ${curve} -genkey -out ${keyFile}`;
+        return `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:${curve} -aes256 -pass pass:${maskedPassword} -out ${keyFile}`;
     } else if (algorithm === 'Ed25519') {
-        return `openssl genpkey -algorithm Ed25519 -out ${keyFile}`;
+        return `openssl genpkey -algorithm Ed25519 -aes256 -pass pass:${maskedPassword} -out ${keyFile}`;
     }
     return '';
 }
@@ -180,8 +211,9 @@ function buildKeyGenCommand(algorithm, keySize) {
 function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans) {
     const keyCmd = buildKeyGenCommand(algorithm, keySize);
     const subjectStr = buildSubjectString(subject);
+    const maskedPassword = '***';
 
-    const csrCmd = `openssl req -new -key cert.key -out cert.csr -subj "${subjectStr}"`;
+    const csrCmd = `openssl req -new -key cert.key -passin pass:${maskedPassword} -out cert.csr -subj "${subjectStr}"`;
 
     // Build SAN config preview
     let sanNote = '';
@@ -195,7 +227,7 @@ function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans)
         }
     }
 
-    const certCmd = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req`;
+    const certCmd = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -passin pass:${maskedPassword} -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req`;
 
     return `${keyCmd}\n${csrCmd}\n${certCmd}${sanNote}`;
 }
@@ -290,6 +322,15 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
     e.preventDefault();
 
     const formData = new FormData(this);
+
+    // Validate password confirmation
+    const password = formData.get('key_password');
+    const passwordConfirm = formData.get('key_password_confirm');
+    if (password !== passwordConfirm) {
+        alert('Passwords do not match');
+        return;
+    }
+
     const algorithm = formData.get('algorithm');
 
     // Parse SANs
@@ -305,9 +346,11 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
         },
         sans: sans,
         key_config: {
-            algorithm: algorithm
+            algorithm: algorithm,
+            password: password  // Include password for key encryption
         },
-        validity_days: parseInt(formData.get('validity_days'))
+        validity_days: parseInt(formData.get('validity_days')),
+        issuing_ca_password: formData.get('issuing_ca_password')  // Password for signing
     };
 
     // Add key size or curve

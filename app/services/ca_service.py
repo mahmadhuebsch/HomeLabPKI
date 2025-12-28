@@ -42,14 +42,18 @@ class CAService:
         Create a new Root CA.
 
         Args:
-            request: CA creation request
+            request: CA creation request (key_config must include password)
 
         Returns:
             CA response with created CA details
 
         Raises:
-            ValueError: If CA already exists or creation fails
+            ValueError: If CA already exists, password not provided, or creation fails
         """
+        # Validate key password is provided
+        if not request.key_config.password:
+            raise ValueError("Key password is required for CA creation")
+
         # Sanitize name for directory
         ca_id = f"root-ca-{sanitize_name(request.subject.common_name)}"
         ca_dir = self.ca_data_dir / ca_id
@@ -77,7 +81,8 @@ class CAService:
 
             # Build OpenSSL command
             command = self.openssl_service.build_root_ca_command(ca_config, ca_dir)
-            ca_config.openssl_command = command
+            # Store masked command (passwords replaced with ***)
+            ca_config.openssl_command = self.openssl_service._mask_password_in_command(command)
 
             # Execute OpenSSL command
             success, stdout, stderr = self.openssl_service.execute_command(command, ca_dir)
@@ -118,15 +123,23 @@ class CAService:
         Create a new Intermediate CA under a parent CA.
 
         Args:
-            request: CA creation request
+            request: CA creation request (must include parent_ca_password)
             parent_ca_id: ID of parent CA
 
         Returns:
             CA response with created CA details
 
         Raises:
-            ValueError: If parent CA not found or creation fails
+            ValueError: If parent CA not found, password not provided, or creation fails
         """
+        # Validate key password is provided
+        if not request.key_config.password:
+            raise ValueError("Key password is required for CA creation")
+
+        # Validate parent CA password is provided
+        if not request.parent_ca_password:
+            raise ValueError("Parent CA password is required for intermediate CA creation")
+
         # Validate parent CA exists
         parent_ca_dir = self.ca_data_dir / parent_ca_id
         if not parent_ca_dir.exists():
@@ -158,9 +171,11 @@ class CAService:
             openssl_cnf = ca_dir / "openssl.cnf"
             self.openssl_service.generate_openssl_config("intermediate_ca", openssl_cnf)
 
-            # Build OpenSSL command
-            command = self.openssl_service.build_intermediate_ca_command(ca_config, ca_dir, parent_ca_dir)
-            ca_config.openssl_command = command
+            # Build OpenSSL command (pass parent CA password for signing)
+            command = self.openssl_service.build_intermediate_ca_command(
+                ca_config, ca_dir, parent_ca_dir, request.parent_ca_password
+            )
+            ca_config.openssl_command = self.openssl_service._mask_password_in_command(command)
 
             # Execute OpenSSL command
             success, stdout, stderr = self.openssl_service.execute_command(command, ca_dir)

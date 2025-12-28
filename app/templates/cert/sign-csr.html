@@ -105,6 +105,20 @@
                 </div>
             </div>
 
+            <!-- Issuing CA Authentication -->
+            <div class="card mb-3">
+                <div class="card-header">Issuing CA Authentication</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="issuingCaPassword" class="form-label">Issuing CA Password *</label>
+                        <input type="password" class="form-control" id="issuingCaPassword"
+                               name="issuing_ca_password" required
+                               placeholder="Password for the issuing CA's private key">
+                        <div class="form-text">Required to sign the certificate</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Actions -->
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
@@ -215,7 +229,8 @@ function updateCommandPreview() {
         sanNote = '\n\n# Using SANs from CSR';
     }
 
-    const command = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req${sanNote}`;
+    const maskedPassword = '***';
+    const command = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -passin pass:${maskedPassword} -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req${sanNote}`;
 
     document.getElementById('commandPreview').textContent = command;
 }
@@ -241,7 +256,8 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
         issuing_ca_id: formData.get('issuing_ca_id'),
         csr_content: csrContent,
         sans: sans,
-        validity_days: parseInt(formData.get('validity_days'))
+        validity_days: parseInt(formData.get('validity_days')),
+        issuing_ca_password: formData.get('issuing_ca_password')  // Password for signing
     };
 
     try {

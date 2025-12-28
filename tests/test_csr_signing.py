@@ -74,7 +74,11 @@ class TestCSRSigning:
     def test_sign_csr(self, cert_service, created_root_ca, sample_csr):
         """Test signing a CSR."""
         request = CSRSignRequest(
-            issuing_ca_id=created_root_ca.id, csr_content=sample_csr, sans=[], validity_days=365  # Use SANs from CSR
+            issuing_ca_id=created_root_ca.id,
+            csr_content=sample_csr,
+            sans=[],  # Use SANs from CSR
+            validity_days=365,
+            issuing_ca_password="test_password_123",
         )
 
         cert = cert_service.sign_csr(request)
@@ -96,6 +100,7 @@ class TestCSRSigning:
             csr_content=sample_csr,
             sans=["override.example.com", "*.override.example.com"],
             validity_days=365,
+            issuing_ca_password="test_password_123",
         )
 
         cert = cert_service.sign_csr(request)
@@ -106,7 +111,13 @@ class TestCSRSigning:
 
     def test_sign_csr_with_invalid_ca_fails(self, cert_service, sample_csr):
         """Test that signing CSR with invalid CA fails."""
-        request = CSRSignRequest(issuing_ca_id="nonexistent-ca", csr_content=sample_csr, sans=[], validity_days=365)
+        request = CSRSignRequest(
+            issuing_ca_id="nonexistent-ca",
+            csr_content=sample_csr,
+            sans=[],
+            validity_days=365,
+            issuing_ca_password="test_password_123",
+        )
 
         with pytest.raises(ValueError, match="Issuing CA not found"):
             cert_service.sign_csr(request)
@@ -115,7 +126,13 @@ class TestCSRSigning:
         """Test that signing invalid CSR fails."""
         invalid_csr = "-----BEGIN CERTIFICATE REQUEST-----\nINVALID\n-----END CERTIFICATE REQUEST-----"
 
-        request = CSRSignRequest(issuing_ca_id=created_root_ca.id, csr_content=invalid_csr, sans=[], validity_days=365)
+        request = CSRSignRequest(
+            issuing_ca_id=created_root_ca.id,
+            csr_content=invalid_csr,
+            sans=[],
+            validity_days=365,
+            issuing_ca_password="test_password_123",
+        )
 
         with pytest.raises(ValueError):
             cert_service.sign_csr(request)
@@ -134,9 +151,10 @@ class TestCertificateImport:
         create_request = CertCreateRequest(
             subject=Subject(common_name="import-source.com", country="US"),
             sans=["import-source.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048),
+            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
+            issuing_ca_password="test_password_123",
         )
 
         created_cert = cert_service.create_server_certificate(create_request)
@@ -177,9 +195,10 @@ class TestCertificateImport:
         create_request = CertCreateRequest(
             subject=Subject(common_name="duplicate.com", country="US"),
             sans=["duplicate.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048),
+            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
+            issuing_ca_password="test_password_123",
         )
 
         created_cert = cert_service.create_server_certificate(create_request)
@@ -203,7 +222,13 @@ class TestCSRSigningAPI:
 
     def test_sign_csr_endpoint(self, client, created_root_ca, sample_csr):
         """Test CSR signing API endpoint."""
-        payload = {"issuing_ca_id": created_root_ca.id, "csr_content": sample_csr, "sans": [], "validity_days": 365}
+        payload = {
+            "issuing_ca_id": created_root_ca.id,
+            "csr_content": sample_csr,
+            "sans": [],
+            "validity_days": 365,
+            "issuing_ca_password": "test_password_123",
+        }
 
         response = client.post("/api/certs/sign-csr", json=payload)
 
@@ -214,7 +239,13 @@ class TestCSRSigningAPI:
 
     def test_sign_csr_endpoint_with_invalid_ca(self, client, sample_csr):
         """Test CSR signing with invalid CA."""
-        payload = {"issuing_ca_id": "invalid-ca", "csr_content": sample_csr, "sans": [], "validity_days": 365}
+        payload = {
+            "issuing_ca_id": "invalid-ca",
+            "csr_content": sample_csr,
+            "sans": [],
+            "validity_days": 365,
+            "issuing_ca_password": "test_password_123",
+        }
 
         response = client.post("/api/certs/sign-csr", json=payload)
 
@@ -231,9 +262,10 @@ class TestCertificateImportAPI:
         cert_payload = {
             "subject": {"common_name": "api-import.com", "country": "US"},
             "sans": ["api-import.com"],
-            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "cert_password_123"},
             "validity_days": 365,
             "issuing_ca_id": created_root_ca.id,
+            "issuing_ca_password": "test_password_123",
         }
 
         cert_response = client.post("/api/certs", json=cert_payload)

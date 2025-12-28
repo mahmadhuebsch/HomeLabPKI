@@ -59,7 +59,7 @@ class OpenSSLService:
         Generate OpenSSL command for Root CA creation.
 
         Args:
-            config: CA configuration
+            config: CA configuration (key_config includes password)
             output_dir: Output directory for CA files
 
         Returns:
@@ -69,16 +69,18 @@ class OpenSSLService:
         key_file = "ca.key"
         cert_file = "ca.crt"
         config_file = "openssl.cnf"
+        password = config.key_config.password
 
-        # 1. Private Key Generation
+        # 1. Private Key Generation (encrypted with AES-256)
         key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
 
-        # 2. Self-Signed Certificate
+        # 2. Self-Signed Certificate (requires password to read encrypted key)
         subject = self._build_subject_string(config.subject)
         cert_cmd = (
             f"{self.openssl_path} req -new -x509 "
             f"-days {config.validity_days} "
             f"-key {key_file} "
+            f"-passin pass:{password} "
             f"-out {cert_file} "
             f'-subj "{subject}" '
             f"-config {config_file} "
@@ -87,14 +89,17 @@ class OpenSSLService:
 
         return f"{key_cmd}\n{cert_cmd}"
 
-    def build_intermediate_ca_command(self, config: CAConfig, output_dir: Path, parent_ca_dir: Path) -> str:
+    def build_intermediate_ca_command(
+        self, config: CAConfig, output_dir: Path, parent_ca_dir: Path, parent_ca_password: str
+    ) -> str:
         """
         Generate OpenSSL command for Intermediate CA.
 
         Args:
-            config: CA configuration
+            config: CA configuration (key_config includes password for new key)
             output_dir: Output directory for CA files
             parent_ca_dir: Parent CA directory
+            parent_ca_password: Password for parent CA's private key
 
         Returns:
             OpenSSL command string
@@ -104,30 +109,33 @@ class OpenSSLService:
         csr_file = "ca.csr"
         cert_file = "ca.crt"
         config_file = "openssl.cnf"
+        new_key_password = config.key_config.password
 
         # Use absolute paths for parent CA files
         parent_cert = self._path_to_posix(parent_ca_dir / "ca.crt")
         parent_key = self._path_to_posix(parent_ca_dir / "ca.key")
 
-        # 1. Private Key
+        # 1. Private Key (encrypted with AES-256)
         key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
 
-        # 2. CSR
+        # 2. CSR (requires password to read new encrypted key)
         subject = self._build_subject_string(config.subject)
         csr_cmd = (
             f"{self.openssl_path} req -new "
             f"-key {key_file} "
+            f"-passin pass:{new_key_password} "
             f"-out {csr_file} "
             f'-subj "{subject}" '
             f"-config {config_file}"
         )
 
-        # 3. Sign with Parent
+        # 3. Sign with Parent (requires parent CA password)
         cert_cmd = (
             f"{self.openssl_path} x509 -req "
             f"-in {csr_file} "
             f"-CA {parent_cert} "
             f"-CAkey {parent_key} "
+            f"-passin pass:{parent_ca_password} "
             f"-CAcreateserial "
             f"-out {cert_file} "
             f"-days {config.validity_days} "
@@ -139,16 +147,22 @@ class OpenSSLService:
         return f"{key_cmd}\n{csr_cmd}\n{cert_cmd}"
 
     def build_server_cert_command(
-        self, config: ServerCertConfig, output_dir: Path, issuing_ca_dir: Path, serial_number: str
+        self,
+        config: ServerCertConfig,
+        output_dir: Path,
+        issuing_ca_dir: Path,
+        serial_number: str,
+        issuing_ca_password: str,
     ) -> str:
         """
         Generate OpenSSL command for Server Certificate.
 
         Args:
-            config: Certificate configuration
+            config: Certificate configuration (key_config includes password for new key)
             output_dir: Output directory for cert files
             issuing_ca_dir: Issuing CA directory
             serial_number: Serial number (hex)
+            issuing_ca_password: Password for issuing CA's private key
 
         Returns:
             OpenSSL command string
@@ -158,24 +172,32 @@ class OpenSSLService:
         csr_file = "cert.csr"
         cert_file = "cert.crt"
         san_config = "san.cnf"
+        new_key_password = config.key_config.password
 
         # Use absolute paths for CA files
         ca_cert = self._path_to_posix(issuing_ca_dir / "ca.crt")
         ca_key = self._path_to_posix(issuing_ca_dir / "ca.key")
 
-        # 1. Private Key
+        # 1. Private Key (encrypted with AES-256)
         key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
 
-        # 2. CSR
+        # 2. CSR (requires password to read new encrypted key)
         subject = self._build_subject_string(config.subject)
-        csr_cmd = f"{self.openssl_path} req -new " f"-key {key_file} " f"-out {csr_file} " f'-subj "{subject}"'
+        csr_cmd = (
+            f"{self.openssl_path} req -new "
+            f"-key {key_file} "
+            f"-passin pass:{new_key_password} "
+            f"-out {csr_file} "
+            f'-subj "{subject}"'
+        )
 
-        # 3. Certificate with SANs
+        # 3. Certificate with SANs (requires CA password)
         cert_cmd = (
             f"{self.openssl_path} x509 -req "
             f"-in {csr_file} "
             f"-CA {ca_cert} "
             f"-CAkey {ca_key} "
+            f"-passin pass:{issuing_ca_password} "
             f"-set_serial 0x{serial_number} "
             f"-out {cert_file} "
             f"-days {config.validity_days} "
@@ -188,26 +210,41 @@ class OpenSSLService:
 
     def _build_key_gen_cmd(self, key_config: KeyConfig, output_file: str) -> str:
         """
-        Generate key generation command based on algorithm.
+        Generate key generation command based on algorithm with AES-256 encryption.
 
         Args:
-            key_config: Key configuration
+            key_config: Key configuration (includes password)
             output_file: Output filename (string)
 
         Returns:
-            Key generation command
+            Key generation command with password encryption
         """
+        password = key_config.password
+
         if key_config.algorithm == KeyAlgorithm.RSA:
-            return f"{self.openssl_path} genrsa " f"-out {output_file} {key_config.key_size}"
+            return (
+                f"{self.openssl_path} genrsa -aes256 "
+                f"-passout pass:{password} "
+                f"-out {output_file} {key_config.key_size}"
+            )
 
         elif key_config.algorithm == KeyAlgorithm.ECDSA:
-            # Map curve names to OpenSSL names
+            # Use genpkey for ECDSA with encryption (ecparam doesn't support direct encryption)
             curve_map = {"P-256": "prime256v1", "P-384": "secp384r1", "P-521": "secp521r1"}
             curve = curve_map.get(key_config.curve, "prime256v1")
-            return f"{self.openssl_path} ecparam " f"-name {curve} " f"-genkey -out {output_file}"
+            return (
+                f"{self.openssl_path} genpkey -algorithm EC "
+                f"-pkeyopt ec_paramgen_curve:{curve} "
+                f"-aes256 -pass pass:{password} "
+                f"-out {output_file}"
+            )
 
         elif key_config.algorithm == KeyAlgorithm.ED25519:
-            return f"{self.openssl_path} genpkey " f"-algorithm Ed25519 " f"-out {output_file}"
+            return (
+                f"{self.openssl_path} genpkey -algorithm Ed25519 "
+                f"-aes256 -pass pass:{password} "
+                f"-out {output_file}"
+            )
 
     def _build_subject_string(self, subject: Subject) -> str:
         """
@@ -236,6 +273,25 @@ class OpenSSLService:
 
         return "/" + "/".join(parts)
 
+    def _mask_password_in_command(self, command: str) -> str:
+        """
+        Mask passwords in command string for logging.
+
+        Args:
+            command: Command string that may contain passwords
+
+        Returns:
+            Command string with passwords replaced by ***
+        """
+        import re
+
+        masked = command
+        # Mask -passout pass:XXX, -passin pass:XXX, -pass pass:XXX
+        masked = re.sub(r"(-passout\s+pass:)([^\s]+)", r"\1***", masked)
+        masked = re.sub(r"(-passin\s+pass:)([^\s]+)", r"\1***", masked)
+        masked = re.sub(r"(-pass\s+pass:)([^\s]+)", r"\1***", masked)
+        return masked
+
     def execute_command(self, command: str, cwd: Path) -> Tuple[bool, str, str]:
         """
         Execute OpenSSL command.
@@ -262,7 +318,9 @@ class OpenSSLService:
             env.pop("OPENSSL_CONF", None)  # Remove OPENSSL_CONF if it exists
 
             for cmd in commands:
-                logger.info(f"Executing: {cmd}")
+                # Log with masked password for security
+                masked_cmd = self._mask_password_in_command(cmd)
+                logger.info(f"Executing: {masked_cmd}")
 
                 # Use shlex to split the command string into a list of arguments
                 # This allows us to use shell=False which is safer
@@ -472,6 +530,7 @@ subjectAltName = @alt_names
         validity_days: int,
         sans: list[str],
         output_cert: Path,
+        ca_password: str,
     ) -> str:
         """
         Sign a CSR to generate a certificate.
@@ -484,6 +543,7 @@ subjectAltName = @alt_names
             validity_days: Validity period in days
             sans: Subject Alternative Names
             output_cert: Output certificate file path
+            ca_password: Password for CA's private key
 
         Returns:
             OpenSSL command executed
@@ -511,12 +571,13 @@ subjectAltName = @alt_names
                 output_cert_posix = self._path_to_posix(output_cert)
                 san_config_posix = self._path_to_posix(san_config)
 
-                # Build signing command
+                # Build signing command (requires CA password)
                 cmd = (
                     f"{self.openssl_path} x509 -req "
                     f"-in {csr_file_posix} "
                     f"-CA {ca_cert_posix} "
                     f"-CAkey {ca_key_posix} "
+                    f"-passin pass:{ca_password} "
                     f"-set_serial 0x{serial_number} "
                     f"-out {output_cert_posix} "
                     f"-days {validity_days} "

@@ -8,7 +8,7 @@ YACertManager is designed for **development, testing, and internal infrastructur
 
 ### Private Key Storage
 
-- **Private keys are stored unencrypted** on disk
+- **Private keys are stored unencrypted** on disk. It is highly recommended to choose a strong password.
 - Ensure proper file system permissions (e.g., `chmod 600` for key files on Unix systems)
 - Consider encrypting the `ca-data` directory at the file system level
 
@@ -21,7 +21,7 @@ YACertManager is designed for **development, testing, and internal infrastructur
 ### HTTPS
 
 - The application runs over HTTP by default
-- Always use HTTPS when deploying in any networked environment
+- Always use HTTPS when deploying in any networked environment. Otherwise, the passwords are transferred unencrypted.
 - Consider using a reverse proxy (nginx, Apache, Caddy) for TLS termination
 
 ### Certificate Security
@@ -42,7 +42,7 @@ If you discover a security vulnerability, please report it responsibly:
    - Potential impact
    - Any suggested fixes
 
-We will acknowledge receipt within 48 hours and provide an estimated timeline for a fix.
+I will acknowledge receipt within 48 hours and provide an estimated timeline for a fix.
 
 ## Supported Versions
 

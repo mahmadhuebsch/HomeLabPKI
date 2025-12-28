@@ -34,14 +34,22 @@ class CertificateService:
         Create a new server certificate.
 
         Args:
-            request: Certificate creation request
+            request: Certificate creation request (must include key password and issuing CA password)
 
         Returns:
             Certificate response
 
         Raises:
-            ValueError: If issuing CA not found or creation fails
+            ValueError: If issuing CA not found, passwords not provided, or creation fails
         """
+        # Validate key password is provided
+        if not request.key_config.password:
+            raise ValueError("Key password is required for certificate creation")
+
+        # Validate issuing CA password is provided
+        if not request.issuing_ca_password:
+            raise ValueError("Issuing CA password is required for certificate creation")
+
         # Validate issuing CA exists
         issuing_ca_dir = self.ca_data_dir / request.issuing_ca_id
         if not issuing_ca_dir.exists():
@@ -80,11 +88,12 @@ class CertificateService:
             san_cnf = cert_dir / "san.cnf"
             self.openssl_service.generate_openssl_config("server_cert", san_cnf, cert_config.sans)
 
-            # Build OpenSSL command
+            # Build OpenSSL command (pass issuing CA password for signing)
             command = self.openssl_service.build_server_cert_command(
-                cert_config, cert_dir, issuing_ca_dir, serial_number
+                cert_config, cert_dir, issuing_ca_dir, serial_number, request.issuing_ca_password
             )
-            cert_config.openssl_command = command
+            # Store masked command (passwords replaced with ***)
+            cert_config.openssl_command = self.openssl_service._mask_password_in_command(command)
 
             # Execute OpenSSL command
             success, stdout, stderr = self.openssl_service.execute_command(command, cert_dir)
@@ -335,14 +344,18 @@ class CertificateService:
         Sign a CSR to create a certificate.
 
         Args:
-            request: CSR signing request
+            request: CSR signing request (must include issuing CA password)
 
         Returns:
             Certificate response
 
         Raises:
-            ValueError: If CSR is invalid or signing fails
+            ValueError: If CSR is invalid, password not provided, or signing fails
         """
+        # Validate issuing CA password is provided
+        if not request.issuing_ca_password:
+            raise ValueError("Issuing CA password is required for CSR signing")
+
         # Validate issuing CA exists
         issuing_ca_dir = self.ca_data_dir / request.issuing_ca_id
         if not issuing_ca_dir.exists():
@@ -410,13 +423,14 @@ class CertificateService:
                 validity_days=request.validity_days,
                 sans=sans,
                 output_cert=cert_file,
+                ca_password=request.issuing_ca_password,
             )
 
             # Parse the generated certificate for exact dates
             cert_pem = cert_file.read_text()
             cert_info = CertificateParser.parse_certificate_pem(cert_pem)
 
-            # Create certificate config
+            # Create certificate config (store masked command)
             cert_config = ServerCertConfig(
                 type="server_cert",
                 subject=subject,
@@ -428,7 +442,7 @@ class CertificateService:
                 not_after=cert_info["not_after"],
                 serial_number=serial_number,
                 issuing_ca="../..",
-                openssl_command=openssl_cmd,
+                openssl_command=self.openssl_service._mask_password_in_command(openssl_cmd),
                 fingerprint_sha256=cert_info.get("fingerprint_sha256"),
                 source="external",  # Mark as external (no private key)
             )
