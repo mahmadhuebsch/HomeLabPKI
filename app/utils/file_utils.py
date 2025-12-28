@@ -2,6 +2,7 @@
 
 import logging
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -34,6 +35,35 @@ class FileUtils:
         if path.exists():
             shutil.rmtree(path, ignore_errors=ignore_errors)
             logger.info(f"Deleted directory: {path}")
+
+    @staticmethod
+    def move_to_trash(path: Path) -> Path:
+        """
+        Move directory to _trash folder at same level with timestamp.
+
+        Instead of permanently deleting, moves the directory to a _trash
+        subdirectory in the parent folder with a timestamp suffix to avoid
+        naming conflicts.
+
+        Args:
+            path: Directory path to move to trash
+
+        Returns:
+            Path to the trashed directory
+
+        Raises:
+            ValueError: If path does not exist
+        """
+        if not path.exists():
+            raise ValueError(f"Path not found: {path}")
+
+        trash_dir = path.parent / "_trash"
+        trash_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dest = trash_dir / f"{path.name}_{timestamp}"
+        shutil.move(str(path), str(dest))
+        logger.info(f"Moved to trash: {path} -> {dest}")
+        return dest
 
     @staticmethod
     def copy_file(src: Path, dst: Path) -> None:
@@ -107,17 +137,17 @@ class FileUtils:
     @staticmethod
     def list_directories(path: Path) -> list[Path]:
         """
-        List all directories in given path.
+        List all directories in given path, excluding _trash folders.
 
         Args:
             path: Path to search
 
         Returns:
-            List of directory paths
+            List of directory paths (excludes _trash directories)
         """
         if not path.exists():
             return []
-        return [p for p in path.iterdir() if p.is_dir()]
+        return [p for p in path.iterdir() if p.is_dir() and p.name != "_trash"]
 
     @staticmethod
     def list_files(path: Path, pattern: str = "*") -> list[Path]:

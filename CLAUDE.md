@@ -103,7 +103,7 @@ YACertManager/
   - `list_root_cas()` - List all Root CAs
   - `list_all_intermediate_cas()` - List all Intermediate CAs across all roots
   - `get_ca()` - Get CA by ID
-  - `delete_ca()` - Delete CA and all children
+  - `delete_ca()` - Move CA to trash (soft delete)
 - CA IDs:
   - Root: `root-ca-{sanitized_cn}`
   - Intermediate: `{parent_id}/intermediate-ca-{sanitized_cn}`
@@ -115,7 +115,7 @@ YACertManager/
   - `get_certificate()` - Get certificate by ID
   - `list_certificates()` - List certificates for a CA
   - `list_all_certificates()` - List all certificates across all CAs
-  - `delete_certificate()` - Delete certificate
+  - `delete_certificate()` - Move certificate to trash (soft delete)
   - `build_certificate_chain()` - Build full chain
 - Certificate IDs: `{ca_id}/certs/{sanitized_domain}`
 
@@ -164,6 +164,14 @@ YACertManager/
 - **ECDSA**: P-256, P-384, P-521 curves
 - **Ed25519**: Modern elliptic curve
 
+### Trash Bin (Soft Delete)
+- Deleted CAs and certificates are moved to `_trash` folder instead of permanent deletion
+- Trash folder is created at the same directory level as the deleted item
+- Deleted items are renamed with timestamp suffix to avoid conflicts (e.g., `root-ca-example_20241228_143052`)
+- `_trash` folders are automatically excluded from all listings
+- No UI for restore - manual file recovery if needed
+- No auto-cleanup - items remain in trash indefinitely
+
 ## Important Implementation Details
 
 ### Path Handling
@@ -194,11 +202,25 @@ Each CA directory contains:
 - `openssl.cnf` - OpenSSL configuration
 - `certs/` - Issued certificates subdirectory
 - `intermediate-ca-*/` - Intermediate CA subdirectories
+- `_trash/` - Trash folder for deleted items (excluded from listings)
 
 Each certificate directory contains:
 - `cert.crt` - Public certificate
 - `cert.key` - Private key (unencrypted)
 - `config.yaml` - Certificate configuration
+
+### Trash Structure
+```
+ca-data/
+├── _trash/                              # Trash for deleted root CAs
+│   └── root-ca-example_20241228_143052/
+├── root-ca-example/
+│   ├── _trash/                          # Trash for deleted intermediate CAs
+│   │   └── intermediate-ca-sub_20241228_143052/
+│   └── certs/
+│       └── _trash/                      # Trash for deleted certificates
+│           └── www-example_20241228_143052/
+```
 
 ## Common Tasks
 

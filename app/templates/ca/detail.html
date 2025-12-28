@@ -212,13 +212,13 @@ function copyActiveTabContent() {
 }
 
 function confirmDelete() {
-    if (confirm(`Really delete CA "{{ ca.subject.common_name }}"?\n\nThis will also delete all Intermediate CAs and certificates!`)) {
+    if (confirm(`Move CA "{{ ca.subject.common_name }}" to trash?\n\nThis will also move all Intermediate CAs and certificates to trash.`)) {
         fetch(`/api/cas/{{ ca.id }}`, { method: 'DELETE' })
             .then(response => {
                 if (response.ok) {
                     window.location.href = '/rootcas';
                 } else {
-                    alert('Error deleting!');
+                    alert('Error moving to trash!');
                 }
             });
     }

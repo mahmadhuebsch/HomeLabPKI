@@ -34,6 +34,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Server Certificates** - Issue certificates with Subject Alternative Names (SANs)
 - **CSR Signing** - Sign external Certificate Signing Requests where private keys are managed externally
 - **Importing** - Import and track externally-signed CAs and certificates
+- **Trash Bin** - Deleted CAs and certificates are moved to trash instead of permanent deletion
 - **Multiple Certificate Formats** - View certificates in both Text (human-readable) and PEM formats
 - **Modern Web Interface** - Responsive Bootstrap 5 UI with organized navigation
 - **RESTful API** - Complete API with OpenAPI documentation

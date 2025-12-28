@@ -148,13 +148,13 @@ function copyActiveTabContent() {
 }
 
 function confirmDelete() {
-    if (confirm(`Really delete certificate "{{ cert.subject.common_name }}"?`)) {
+    if (confirm(`Move certificate "{{ cert.subject.common_name }}" to trash?`)) {
         fetch(`/api/certs/{{ cert.id }}`, { method: 'DELETE' })
             .then(response => {
                 if (response.ok) {
                     window.location.href = '/certs';
                 } else {
-                    alert('Error deleting!');
+                    alert('Error moving to trash!');
                 }
             });
     }

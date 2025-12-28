@@ -513,7 +513,10 @@ class CAService:
 
     def delete_ca(self, ca_id: str) -> None:
         """
-        Delete CA and all its contents.
+        Delete CA by moving it to trash.
+
+        Moves the CA and all its contents to a _trash folder at the same
+        directory level with a timestamp suffix.
 
         Args:
             ca_id: CA identifier
@@ -529,11 +532,12 @@ class CAService:
         intermediate_count = len(self._count_intermediate_cas(ca_dir))
         cert_count = self._count_certificates(ca_dir)
 
-        # Delete directory
-        FileUtils.delete_directory(ca_dir)
+        # Move to trash instead of permanent deletion
+        trash_path = FileUtils.move_to_trash(ca_dir)
 
         logger.warning(
-            f"Deleted CA '{ca_id}' including {intermediate_count} intermediate CAs " f"and {cert_count} certificates"
+            f"Moved CA '{ca_id}' to trash including {intermediate_count} intermediate CAs "
+            f"and {cert_count} certificates -> {trash_path}"
         )
 
     def _build_ca_response(self, ca_id: str, ca_config: CAConfig, ca_dir: Path) -> CAResponse:

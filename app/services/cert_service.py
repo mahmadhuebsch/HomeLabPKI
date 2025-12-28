@@ -238,7 +238,10 @@ class CertificateService:
 
     def delete_certificate(self, cert_id: str) -> None:
         """
-        Delete certificate.
+        Delete certificate by moving it to trash.
+
+        Moves the certificate to a _trash folder at the same directory level
+        with a timestamp suffix.
 
         Args:
             cert_id: Certificate identifier
@@ -250,10 +253,10 @@ class CertificateService:
         if not cert_dir.exists():
             raise ValueError(f"Certificate not found: {cert_id}")
 
-        # Delete directory
-        FileUtils.delete_directory(cert_dir)
+        # Move to trash instead of permanent deletion
+        trash_path = FileUtils.move_to_trash(cert_dir)
 
-        logger.info(f"Deleted certificate: {cert_id}")
+        logger.info(f"Moved certificate to trash: {cert_id} -> {trash_path}")
 
     def build_certificate_chain(self, cert_id: str) -> str:
         """

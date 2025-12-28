@@ -387,6 +387,12 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
         return;
     }
 
+    // Validate CA password
+    if (!validateIssuingCaPassword()) {
+        document.getElementById('issuingCaPassword').focus();
+        return;
+    }
+
     const formData = new FormData(this);
     const sansText = formData.get('sans');
     const sans = sansText ? sansText.split('\n').map(s => s.trim()).filter(s => s) : [];
