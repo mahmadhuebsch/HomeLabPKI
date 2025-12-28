@@ -12,6 +12,7 @@
     font-size: 0.9rem;
     white-space: pre-wrap;
     word-wrap: break-word;
+    color: #212529;
 }
 .csr-preview {
     background-color: #f8f9fa;
@@ -21,6 +22,18 @@
     font-size: 0.85rem;
     max-height: 300px;
     overflow-y: auto;
+    color: #212529;
+}
+
+[data-bs-theme="dark"] .command-preview {
+    background-color: #2b3035;
+    color: #dee2e6;
+}
+
+[data-bs-theme="dark"] .csr-preview {
+    background-color: #2b3035;
+    border-color: #495057;
+    color: #dee2e6;
 }
 </style>
 {% endblock %}
@@ -116,6 +129,7 @@
                                name="issuing_ca_password" required
                                placeholder="Password for the issuing CA's private key">
                         <div class="form-text">Required to sign the certificate</div>
+                        <div class="invalid-feedback" id="issuingCaPasswordError">CA password is required</div>
                     </div>
                 </div>
             </div>
@@ -217,6 +231,22 @@ function validateSANs() {
         errorDiv.textContent = `Invalid domain: ${invalidDomains[0]}`;
         return false;
     }
+}
+
+function validateIssuingCaPassword() {
+    const input = document.getElementById('issuingCaPassword');
+    const errorDiv = document.getElementById('issuingCaPasswordError');
+    const value = input.value;
+
+    if (!value) {
+        input.classList.remove('is-valid', 'is-invalid');
+        return false;
+    }
+
+    // CA password just needs to be non-empty
+    input.classList.remove('is-invalid');
+    input.classList.add('is-valid');
+    return true;
 }
 
 // File upload handler
@@ -337,6 +367,10 @@ document.getElementById('sans').addEventListener('input', updateCommandPreview);
 // Add SANs validation
 document.getElementById('sans').addEventListener('input', validateSANs);
 document.getElementById('sans').addEventListener('blur', validateSANs);
+
+// Add password validation
+document.getElementById('issuingCaPassword').addEventListener('input', validateIssuingCaPassword);
+document.getElementById('issuingCaPassword').addEventListener('blur', validateIssuingCaPassword);
 
 // Form submission
 document.getElementById('csrForm').addEventListener('submit', async function(e) {

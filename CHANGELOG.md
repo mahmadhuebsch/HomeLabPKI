@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web interface with Bootstrap 5
 - Certificate download functionality (cert, key, chain, fullchain)
 - Dashboard with certificate expiration overview
+- Dark Mode
 
 ### Security
 - Private key download confirmation dialogs

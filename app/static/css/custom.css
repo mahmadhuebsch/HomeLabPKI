@@ -42,3 +42,24 @@ code {
     color: #d63384;
     word-wrap: break-word;
 }
+
+/* Code block styling for certificates */
+.code-block {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+    color: #212529;
+}
+
+/* Dark mode overrides */
+[data-bs-theme="dark"] .code-block {
+    background-color: #2b3035;
+    color: #dee2e6;
+}
+
+[data-bs-theme="dark"] .list-group-item-action:hover {
+    background-color: #2b3035;
+}

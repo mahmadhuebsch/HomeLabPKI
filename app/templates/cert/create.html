@@ -12,6 +12,12 @@
     font-size: 0.9rem;
     white-space: pre-wrap;
     word-wrap: break-word;
+    color: #212529;
+}
+
+[data-bs-theme="dark"] .command-preview {
+    background-color: #2b3035;
+    color: #dee2e6;
 }
 </style>
 {% endblock %}
@@ -113,12 +119,14 @@
                                    name="key_password" required minlength="8"
                                    placeholder="Minimum 8 characters">
                             <div class="form-text">Password to encrypt the private key (AES-256)</div>
+                            <div class="invalid-feedback" id="keyPasswordError">Password must be at least 8 characters</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="keyPasswordConfirm" class="form-label">Confirm Password *</label>
                             <input type="password" class="form-control" id="keyPasswordConfirm"
                                    name="key_password_confirm" required minlength="8"
                                    placeholder="Repeat password">
+                            <div class="invalid-feedback" id="keyPasswordConfirmError">Passwords do not match</div>
                         </div>
                     </div>
                 </div>
@@ -134,6 +142,7 @@
                                name="issuing_ca_password" required
                                placeholder="Password for the issuing CA's private key">
                         <div class="form-text">Required to sign the certificate</div>
+                        <div class="invalid-feedback" id="issuingCaPasswordError">CA password is required</div>
                     </div>
                 </div>
             </div>
@@ -292,6 +301,77 @@ function validateSANs() {
         errorDiv.textContent = `Invalid domain: ${invalidDomains[0]}`;
         return false;
     }
+}
+
+// ===== Password Validation =====
+function validateKeyPassword() {
+    const input = document.getElementById('keyPassword');
+    const errorDiv = document.getElementById('keyPasswordError');
+    const value = input.value;
+
+    if (!value) {
+        input.classList.remove('is-valid', 'is-invalid');
+        return false;
+    }
+
+    if (value.length >= 8) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        // Also validate confirm field if it has a value
+        const confirmInput = document.getElementById('keyPasswordConfirm');
+        if (confirmInput.value) {
+            validateKeyPasswordConfirm();
+        }
+        return true;
+    } else {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+        errorDiv.textContent = 'Password must be at least 8 characters';
+        return false;
+    }
+}
+
+function validateKeyPasswordConfirm() {
+    const passwordInput = document.getElementById('keyPassword');
+    const confirmInput = document.getElementById('keyPasswordConfirm');
+    const errorDiv = document.getElementById('keyPasswordConfirmError');
+    const confirmValue = confirmInput.value;
+
+    if (!confirmValue) {
+        confirmInput.classList.remove('is-valid', 'is-invalid');
+        return false;
+    }
+
+    if (confirmValue === passwordInput.value && confirmValue.length >= 8) {
+        confirmInput.classList.remove('is-invalid');
+        confirmInput.classList.add('is-valid');
+        return true;
+    } else {
+        confirmInput.classList.remove('is-valid');
+        confirmInput.classList.add('is-invalid');
+        if (confirmValue !== passwordInput.value) {
+            errorDiv.textContent = 'Passwords do not match';
+        } else {
+            errorDiv.textContent = 'Password must be at least 8 characters';
+        }
+        return false;
+    }
+}
+
+function validateIssuingCaPassword() {
+    const input = document.getElementById('issuingCaPassword');
+    const errorDiv = document.getElementById('issuingCaPasswordError');
+    const value = input.value;
+
+    if (!value) {
+        input.classList.remove('is-valid', 'is-invalid');
+        return false;
+    }
+
+    // CA password just needs to be non-empty (length requirement depends on the CA)
+    input.classList.remove('is-invalid');
+    input.classList.add('is-valid');
+    return true;
 }
 
 // ===== CA Data for Prefill =====
@@ -467,6 +547,25 @@ document.addEventListener('DOMContentLoaded', function() {
         sansInput.addEventListener('blur', validateSANs);
     }
 
+    // Add password validation
+    const keyPasswordInput = document.getElementById('keyPassword');
+    if (keyPasswordInput) {
+        keyPasswordInput.addEventListener('input', validateKeyPassword);
+        keyPasswordInput.addEventListener('blur', validateKeyPassword);
+    }
+
+    const keyPasswordConfirmInput = document.getElementById('keyPasswordConfirm');
+    if (keyPasswordConfirmInput) {
+        keyPasswordConfirmInput.addEventListener('input', validateKeyPasswordConfirm);
+        keyPasswordConfirmInput.addEventListener('blur', validateKeyPasswordConfirm);
+    }
+
+    const issuingCaPasswordInput = document.getElementById('issuingCaPassword');
+    if (issuingCaPasswordInput) {
+        issuingCaPasswordInput.addEventListener('input', validateIssuingCaPassword);
+        issuingCaPasswordInput.addEventListener('blur', validateIssuingCaPassword);
+    }
+
     // Add issuing CA change listener for prefill
     const issuingCaSelect = document.getElementById('issuingCa');
     if (issuingCaSelect) {
@@ -547,14 +646,23 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
         return;
     }
 
-    // Validate password confirmation
-    const password = formData.get('key_password');
-    const passwordConfirm = formData.get('key_password_confirm');
-    if (password !== passwordConfirm) {
-        alert('Passwords do not match');
+    // Validate passwords
+    if (!validateKeyPassword()) {
+        document.getElementById('keyPassword').focus();
         return;
     }
 
+    if (!validateKeyPasswordConfirm()) {
+        document.getElementById('keyPasswordConfirm').focus();
+        return;
+    }
+
+    if (!validateIssuingCaPassword()) {
+        document.getElementById('issuingCaPassword').focus();
+        return;
+    }
+
+    const password = formData.get('key_password');
     const algorithm = formData.get('algorithm');
 
     // Parse SANs
