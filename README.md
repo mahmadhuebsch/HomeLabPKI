@@ -169,7 +169,7 @@ YACertManager provides a complete RESTful API with automatic interactive documen
 
 ### Key Security Notes
 
-- **Private Key Storage**: Private keys are stored unencrypted on disk. It is highly recommended to encrypt the `ca-data` directory at the file system level (e.g. [Cryptomator](https://github.com/cryptomator/cryptomator)).
+- **Private Key Storage**: Private keys are stored unencrypted on disk. It is highly recommended to choose a strong password and/or encrypt the `ca-data` directory at the file system level (e.g. [Cryptomator](https://github.com/cryptomator/cryptomator)).
 - **Access Control**: No built-in authentication. Deploy behind a reverse proxy with authentication for network access.
 - **HTTPS**: Always use HTTPS when deploying in any networked environment.
 - **Backup**: Regularly backup the `ca-data` directory.
