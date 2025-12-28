@@ -36,6 +36,31 @@
 <div class="card mb-4">
     <div class="card-header">Certificate Information</div>
     <div class="card-body">
+        <!-- Certificate Chain Breadcrumb -->
+        {% if cert_chain %}
+        <nav aria-label="Certificate Chain" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                {% for ca in cert_chain %}
+                <li class="breadcrumb-item">
+                    <a href="{{ ca.url }}">
+                        {% if ca.type == 'root' %}
+                        <i class="bi bi-shield-lock text-primary"></i>
+                        {% else %}
+                        <i class="bi bi-diagram-3 text-info"></i>
+                        {% endif %}
+                        {{ ca.name }}
+                    </a>
+                </li>
+                {% endfor %}
+                <li class="breadcrumb-item active" aria-current="page">
+                    <i class="bi bi-file-earmark-lock text-success"></i>
+                    {{ cert.subject.common_name }}
+                </li>
+            </ol>
+        </nav>
+        <hr>
+        {% endif %}
+
         <table class="table table-borderless">
             <tr>
                 <th>Subject:</th>

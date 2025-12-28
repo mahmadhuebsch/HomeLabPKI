@@ -12,6 +12,68 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
+def build_certificate_chain(ca_id: str, ca_service: CAService) -> list[dict]:
+    """
+    Build certificate chain from CA ID up to root.
+
+    Returns a list of dicts with name, type, url, and id for each CA in the chain.
+    The list is ordered from root to the current CA (top-down).
+    """
+    chain = []
+
+    # Parse the CA ID to extract the hierarchy
+    # Format: root-ca-xxx or root-ca-xxx/intermediate-ca-yyy
+    parts = ca_id.split("/")
+
+    if parts[0].startswith("root-ca-"):
+        # Get root CA info
+        root_id = parts[0]
+        try:
+            root_ca = ca_service.get_ca(root_id)
+            chain.append(
+                {
+                    "name": root_ca.subject.common_name,
+                    "type": "root",
+                    "url": f"/rootcas/{root_id}",
+                    "id": root_id,
+                }
+            )
+        except Exception:
+            chain.append(
+                {
+                    "name": root_id,
+                    "type": "root",
+                    "url": f"/rootcas/{root_id}",
+                    "id": root_id,
+                }
+            )
+
+        # Check for intermediate CA
+        if len(parts) >= 2 and parts[1].startswith("intermediate-ca-"):
+            intermediate_id = f"{root_id}/{parts[1]}"
+            try:
+                intermediate_ca = ca_service.get_ca(intermediate_id)
+                chain.append(
+                    {
+                        "name": intermediate_ca.subject.common_name,
+                        "type": "intermediate",
+                        "url": f"/intermediates/{intermediate_id}",
+                        "id": intermediate_id,
+                    }
+                )
+            except Exception:
+                chain.append(
+                    {
+                        "name": parts[1],
+                        "type": "intermediate",
+                        "url": f"/intermediates/{intermediate_id}",
+                        "id": intermediate_id,
+                    }
+                )
+
+    return chain
+
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Dashboard page."""
@@ -97,6 +159,9 @@ async def rootca_detail(
             except Exception as e:
                 ca_cert_text = f"Error converting to text format: {str(e)}"
 
+        # Build certificate chain (for root, shows only root itself)
+        cert_chain = build_certificate_chain(ca_id, ca_service)
+
         return templates.TemplateResponse(
             "ca/detail.html",
             {
@@ -106,6 +171,7 @@ async def rootca_detail(
                 "intermediate_cas": intermediate_cas,
                 "ca_cert_content": ca_cert_content,
                 "ca_cert_text": ca_cert_text,
+                "cert_chain": cert_chain,
             },
         )
     except ValueError as e:
@@ -177,6 +243,9 @@ async def intermediate_detail(
         ca = ca_service.get_ca(ca_id)
         certificates = cert_service.list_certificates(ca_id)
 
+        # Build certificate chain (for intermediate, shows root -> intermediate)
+        cert_chain = build_certificate_chain(ca_id, ca_service)
+
         # Read CA certificate content
         ca_cert_path = ca_service.ca_data_dir / ca_id / "ca.crt"
         ca_cert_content = FileUtils.read_file(ca_cert_path) if ca_cert_path.exists() else ""
@@ -197,6 +266,7 @@ async def intermediate_detail(
                 "certificates": certificates,
                 "ca_cert_content": ca_cert_content,
                 "ca_cert_text": ca_cert_text,
+                "cert_chain": cert_chain,
             },
         )
     except ValueError as e:
@@ -279,13 +349,25 @@ async def cert_import_form(request: Request, ca_id: str = "", ca_service: CAServ
 
 
 @router.get("/certs/{cert_id:path}", response_class=HTMLResponse)
-async def cert_detail(request: Request, cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
+async def cert_detail(
+    request: Request,
+    cert_id: str,
+    cert_service: CertificateService = Depends(get_cert_service),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """Certificate detail page."""
     try:
         from app.services.parser_service import CertificateParser
         from app.utils.file_utils import FileUtils
 
         cert = cert_service.get_certificate(cert_id)
+
+        # Build certificate chain
+        # cert_id format: root-ca-xxx/certs/cert-name or root-ca-xxx/intermediate-ca-yyy/certs/cert-name
+        # Extract CA ID by removing /certs/cert-name
+        parts = cert_id.split("/certs/")
+        issuing_ca_id = parts[0] if parts else ""
+        cert_chain = build_certificate_chain(issuing_ca_id, ca_service)
 
         # Read certificate content
         cert_path = cert_service.ca_data_dir / cert_id / "cert.crt"
@@ -300,7 +382,14 @@ async def cert_detail(request: Request, cert_id: str, cert_service: CertificateS
                 cert_text = f"Error converting to text format: {str(e)}"
 
         return templates.TemplateResponse(
-            "cert/detail.html", {"request": request, "cert": cert, "cert_content": cert_content, "cert_text": cert_text}
+            "cert/detail.html",
+            {
+                "request": request,
+                "cert": cert,
+                "cert_content": cert_content,
+                "cert_text": cert_text,
+                "cert_chain": cert_chain,
+            },
         )
     except ValueError as e:
         return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
