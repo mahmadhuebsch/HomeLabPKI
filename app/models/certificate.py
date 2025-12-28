@@ -1,9 +1,10 @@
 """Certificate data models."""
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
+from ipaddress import IPv4Address, IPv6Address
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .ca import KeyConfig, Subject
 
@@ -24,6 +25,16 @@ class ServerCertConfig(BaseModel):
     openssl_command: str = ""
     fingerprint_sha256: Optional[str] = None
     source: Literal["internal", "external"] = "internal"  # internal=we have key, external=CSR/imported
+
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
 
     def model_post_init(self, __context):
         """Calculate not_after if not set."""
@@ -57,6 +68,16 @@ class CertCreateRequest(BaseModel):
     validity_days: int = Field(..., gt=0)
     issuing_ca_password: str = Field(..., description="Password for issuing CA's private key")
 
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
+
 
 class CSRSignRequest(BaseModel):
     """Request model for signing a CSR."""
@@ -66,6 +87,16 @@ class CSRSignRequest(BaseModel):
     sans: list[str] = Field(default_factory=list)  # Override/add SANs
     validity_days: int = Field(..., gt=0)
     issuing_ca_password: str = Field(..., description="Password for issuing CA's private key")
+
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
 
 
 class CertImportRequest(BaseModel):
@@ -92,3 +123,13 @@ class CertResponse(BaseModel):
     validity_status: str
     validity_text: str
     source: Literal["internal", "external"] = "internal"
+
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
