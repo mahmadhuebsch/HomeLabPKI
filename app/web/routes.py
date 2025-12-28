@@ -18,58 +18,51 @@ def build_certificate_chain(ca_id: str, ca_service: CAService) -> list[dict]:
 
     Returns a list of dicts with name, type, url, and id for each CA in the chain.
     The list is ordered from root to the current CA (top-down).
+    Supports multiple levels of intermediate CAs.
     """
     chain = []
 
     # Parse the CA ID to extract the hierarchy
-    # Format: root-ca-xxx or root-ca-xxx/intermediate-ca-yyy
+    # Format: root-ca-xxx or root-ca-xxx/intermediate-ca-yyy or root-ca-xxx/intermediate-ca-yyy/intermediate-ca-zzz
     parts = ca_id.split("/")
 
-    if parts[0].startswith("root-ca-"):
-        # Get root CA info
-        root_id = parts[0]
+    if not parts[0].startswith("root-ca-"):
+        return chain
+
+    # Build the chain by iterating through each part
+    current_id = ""
+    for i, part in enumerate(parts):
+        if part.startswith("root-ca-"):
+            current_id = part
+            ca_type = "root"
+            url_prefix = "/rootcas"
+        elif part.startswith("intermediate-ca-"):
+            current_id = f"{current_id}/{part}" if current_id else part
+            ca_type = "intermediate"
+            url_prefix = "/intermediates"
+        else:
+            # Skip non-CA parts (like "certs")
+            continue
+
         try:
-            root_ca = ca_service.get_ca(root_id)
+            ca = ca_service.get_ca(current_id)
             chain.append(
                 {
-                    "name": root_ca.subject.common_name,
-                    "type": "root",
-                    "url": f"/rootcas/{root_id}",
-                    "id": root_id,
+                    "name": ca.subject.common_name,
+                    "type": ca_type,
+                    "url": f"{url_prefix}/{current_id}",
+                    "id": current_id,
                 }
             )
         except Exception:
             chain.append(
                 {
-                    "name": root_id,
-                    "type": "root",
-                    "url": f"/rootcas/{root_id}",
-                    "id": root_id,
+                    "name": part,
+                    "type": ca_type,
+                    "url": f"{url_prefix}/{current_id}",
+                    "id": current_id,
                 }
             )
-
-        # Check for intermediate CA
-        if len(parts) >= 2 and parts[1].startswith("intermediate-ca-"):
-            intermediate_id = f"{root_id}/{parts[1]}"
-            try:
-                intermediate_ca = ca_service.get_ca(intermediate_id)
-                chain.append(
-                    {
-                        "name": intermediate_ca.subject.common_name,
-                        "type": "intermediate",
-                        "url": f"/intermediates/{intermediate_id}",
-                        "id": intermediate_id,
-                    }
-                )
-            except Exception:
-                chain.append(
-                    {
-                        "name": parts[1],
-                        "type": "intermediate",
-                        "url": f"/intermediates/{intermediate_id}",
-                        "id": intermediate_id,
-                    }
-                )
 
     return chain
 
@@ -198,7 +191,9 @@ async def intermediate_create_form(request: Request, ca_service: CAService = Dep
     """Intermediate CA creation form."""
     try:
         # Get all root CAs and intermediate CAs for parent selection
-        available_cas = ca_service.list_root_cas()
+        root_cas = ca_service.list_root_cas()
+        intermediate_cas = ca_service.list_all_intermediate_cas()
+        available_cas = root_cas + intermediate_cas
 
         config = get_config()
         defaults = config.defaults.get("intermediate_ca", {})

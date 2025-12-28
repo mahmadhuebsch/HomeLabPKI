@@ -462,7 +462,7 @@ class CAService:
 
     def list_all_intermediate_cas(self) -> List[CAResponse]:
         """
-        List all intermediate CAs across all root CAs.
+        List all intermediate CAs across all root CAs, including nested intermediates.
 
         Returns:
             List of intermediate CA responses
@@ -472,17 +472,33 @@ class CAService:
         # Iterate through all root CAs
         for root_ca_dir in FileUtils.list_directories(self.ca_data_dir):
             if root_ca_dir.name.startswith("root-ca-"):
-                # Find intermediate CAs under this root CA
-                for intermediate_dir in self._count_intermediate_cas(root_ca_dir):
-                    try:
-                        # Build the full ID path
-                        intermediate_id = f"{root_ca_dir.name}/{intermediate_dir.name}"
-                        ca_response = self.get_ca(intermediate_id)
-                        intermediate_cas.append(ca_response)
-                    except Exception as e:
-                        logger.warning(f"Failed to load intermediate CA {intermediate_dir.name}: {e}")
+                # Recursively find all intermediate CAs under this root CA
+                self._collect_intermediate_cas_recursive(root_ca_dir, root_ca_dir.name, intermediate_cas)
 
         return intermediate_cas
+
+    def _collect_intermediate_cas_recursive(
+        self, parent_dir: Path, parent_id: str, result_list: List[CAResponse]
+    ) -> None:
+        """
+        Recursively collect all intermediate CAs under a parent directory.
+
+        Args:
+            parent_dir: Parent CA directory
+            parent_id: Parent CA ID (for building full path)
+            result_list: List to append found CAs to
+        """
+        for sub_dir in FileUtils.list_directories(parent_dir):
+            if sub_dir.name.startswith("intermediate-ca-"):
+                intermediate_id = f"{parent_id}/{sub_dir.name}"
+                try:
+                    ca_response = self.get_ca(intermediate_id)
+                    result_list.append(ca_response)
+                except Exception as e:
+                    logger.warning(f"Failed to load intermediate CA {intermediate_id}: {e}")
+
+                # Recursively search for nested intermediates
+                self._collect_intermediate_cas_recursive(sub_dir, intermediate_id, result_list)
 
     def get_ca(self, ca_id: str) -> CAResponse:
         """
@@ -590,18 +606,20 @@ class CAService:
 
     def _count_intermediate_cas(self, ca_dir: Path) -> List[Path]:
         """
-        Count intermediate CAs under a CA directory.
+        Count intermediate CAs under a CA directory (recursively).
 
         Args:
             ca_dir: CA directory
 
         Returns:
-            List of intermediate CA directories
+            List of all intermediate CA directories (including nested)
         """
         intermediates = []
         for sub_dir in FileUtils.list_directories(ca_dir):
             if sub_dir.name.startswith("intermediate-ca-"):
                 intermediates.append(sub_dir)
+                # Recursively count nested intermediates
+                intermediates.extend(self._count_intermediate_cas(sub_dir))
         return intermediates
 
     def _count_certificates(self, ca_dir: Path) -> int:
