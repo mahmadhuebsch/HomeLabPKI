@@ -199,6 +199,20 @@
 
 {% block extra_scripts %}
 <script>
+// ===== CA Data for Prefill =====
+{% if ca_type == 'intermediate' %}
+const availableCAs = {
+    {% for ca in available_cas %}
+    "{{ ca.id }}": {
+        organization: {{ ca.subject.organization | tojson if ca.subject.organization else 'null' }},
+        country: {{ ca.subject.country | tojson if ca.subject.country else 'null' }},
+        state: {{ ca.subject.state | tojson if ca.subject.state else 'null' }},
+        locality: {{ ca.subject.locality | tojson if ca.subject.locality else 'null' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+{% endif %}
+
 // ===== Command Preview Functions =====
 function buildSubjectString(subject) {
     const parts = [];
@@ -282,6 +296,33 @@ function updateCommandPreview() {
     }
 }
 
+// ===== Prefill Subject from Parent CA =====
+function prefillFromParentCA(caId) {
+    if (typeof availableCAs === 'undefined' || !caId || !availableCAs[caId]) {
+        return;
+    }
+
+    const caData = availableCAs[caId];
+
+    // Prefill fields (only if currently empty or user hasn't modified)
+    const fields = [
+        { id: 'organization', value: caData.organization },
+        { id: 'country', value: caData.country },
+        { id: 'state', value: caData.state },
+        { id: 'locality', value: caData.locality }
+    ];
+
+    fields.forEach(field => {
+        const input = document.getElementById(field.id);
+        if (input && field.value) {
+            input.value = field.value;
+        }
+    });
+
+    // Update command preview after prefill
+    updateCommandPreview();
+}
+
 // Add event listeners to all form fields for live preview
 document.addEventListener('DOMContentLoaded', function() {
     const formFields = ['commonName', 'organization', 'orgUnit', 'country', 'state', 'locality', 'algorithm', 'keySize', 'validityDays'];
@@ -292,6 +333,14 @@ document.addEventListener('DOMContentLoaded', function() {
             field.addEventListener('change', updateCommandPreview);
         }
     });
+
+    // Add parent CA change listener for prefill (intermediate CA only)
+    const parentCaSelect = document.getElementById('parentCa');
+    if (parentCaSelect) {
+        parentCaSelect.addEventListener('change', function() {
+            prefillFromParentCA(this.value);
+        });
+    }
 
     // Initial preview
     updateCommandPreview();

@@ -179,6 +179,16 @@
 
 {% block extra_scripts %}
 <script>
+// ===== CA Data for Prefill =====
+const availableCAs = {
+    {% for ca in available_cas %}
+    "{{ ca.id }}": {
+        organization: {{ ca.subject.organization | tojson if ca.subject.organization else 'null' }},
+        country: {{ ca.subject.country | tojson if ca.subject.country else 'null' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
 // ===== Command Preview Functions =====
 function buildSubjectString(subject) {
     const parts = [];
@@ -257,6 +267,31 @@ function updateCommandPreview() {
     }
 }
 
+// ===== Prefill Subject from Issuing CA =====
+function prefillFromIssuingCA(caId) {
+    if (!caId || !availableCAs[caId]) {
+        return;
+    }
+
+    const caData = availableCAs[caId];
+
+    // Prefill fields
+    const fields = [
+        { id: 'organization', value: caData.organization },
+        { id: 'country', value: caData.country }
+    ];
+
+    fields.forEach(field => {
+        const input = document.getElementById(field.id);
+        if (input && field.value) {
+            input.value = field.value;
+        }
+    });
+
+    // Update command preview after prefill
+    updateCommandPreview();
+}
+
 // Add event listeners to all form fields for live preview
 document.addEventListener('DOMContentLoaded', function() {
     const formFields = ['commonName', 'organization', 'country', 'sans', 'algorithm', 'keySize', 'validityDays'];
@@ -267,6 +302,19 @@ document.addEventListener('DOMContentLoaded', function() {
             field.addEventListener('change', updateCommandPreview);
         }
     });
+
+    // Add issuing CA change listener for prefill
+    const issuingCaSelect = document.getElementById('issuingCa');
+    if (issuingCaSelect) {
+        issuingCaSelect.addEventListener('change', function() {
+            prefillFromIssuingCA(this.value);
+        });
+
+        // Prefill on load if a CA is already selected
+        if (issuingCaSelect.value) {
+            prefillFromIssuingCA(issuingCaSelect.value);
+        }
+    }
 
     // Initial preview
     updateCommandPreview();
