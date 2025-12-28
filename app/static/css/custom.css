@@ -54,6 +54,15 @@ code {
     color: #212529;
 }
 
+/* Breadcrumb styling */
+.breadcrumb-item a {
+    text-decoration: none;
+    color: inherit;
+}
+.breadcrumb-item a:hover {
+    text-decoration: underline;
+}
+
 /* Dark mode overrides */
 [data-bs-theme="dark"] .code-block {
     background-color: #2b3035;

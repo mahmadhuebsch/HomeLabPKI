@@ -23,37 +23,29 @@
 </div>
 
 {% if root_cas %}
+    <div class="list-group">
     {% for ca in root_cas %}
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <h5 class="card-title">
-                        <i class="bi bi-shield-fill-check text-{{ ca.validity_status }}"></i>
-                        {{ ca.subject.common_name }}
-                    </h5>
-                    <p class="card-text">
-                        <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
-                        Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
-                    </p>
-                    <p class="text-muted mb-0">
-                        Organization: {{ ca.subject.organization or 'N/A' }} |
-                        {{ ca.intermediate_count }} Intermediate CA(s) |
-                        {{ ca.cert_count }} Certificate(s)
-                    </p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <a href="/rootcas/{{ ca.id }}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-eye"></i> Details
-                    </a>
-                    <a href="/download/ca/{{ ca.id }}/cert" class="btn btn-sm btn-outline-success">
-                        <i class="bi bi-download"></i> .crt
-                    </a>
-                </div>
-            </div>
+    <a href="/rootcas/{{ ca.id }}" class="list-group-item list-group-item-action">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">
+                <i class="bi bi-shield-fill-check text-{{ ca.validity_status }}"></i>
+                {{ ca.subject.common_name }}
+            </h5>
+            <small>
+                <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
+            </small>
         </div>
-    </div>
+        <p class="mb-1 text-muted">
+            Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
+        </p>
+        <small class="text-muted">
+            Organization: {{ ca.subject.organization or 'N/A' }} |
+            {{ ca.intermediate_count }} Intermediate CA(s) |
+            {{ ca.cert_count }} Certificate(s)
+        </small>
+    </a>
     {% endfor %}
+    </div>
 {% else %}
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i>

@@ -145,34 +145,40 @@
 </div>
 
 <!-- Certificate Content -->
-<div class="card mb-4">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <span>Certificate</span>
-            <button class="btn btn-sm btn-outline-secondary" onclick="copyActiveTabContent()">
-                <i class="bi bi-clipboard"></i> Copy
+<div class="accordion" id="certContentAccordion">
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingOne">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCertContent" aria-expanded="false" aria-controls="collapseCertContent">
+                Certificate Details
             </button>
-        </div>
-    </div>
-    <div class="card-body">
-        <ul class="nav nav-tabs" id="certTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-content" type="button" role="tab">
-                    Text Format
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="pem-tab" data-bs-toggle="tab" data-bs-target="#pem-content" type="button" role="tab">
-                    PEM Format
-                </button>
-            </li>
-        </ul>
-        <div class="tab-content" id="certTabContent">
-            <div class="tab-pane fade show active" id="text-content" role="tabpanel">
-                <pre id="certTextContent" class="code-block">{{ cert_text }}</pre>
-            </div>
-            <div class="tab-pane fade" id="pem-content" role="tabpanel">
-                <pre id="certPemContent" class="code-block">{{ cert_content }}</pre>
+        </h2>
+        <div id="collapseCertContent" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#certContentAccordion">
+            <div class="accordion-body">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="copyActiveTabContent()">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                <ul class="nav nav-tabs" id="certTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-content" type="button" role="tab">
+                            Text Format
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pem-tab" data-bs-toggle="tab" data-bs-target="#pem-content" type="button" role="tab">
+                            PEM Format
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="certTabContent">
+                    <div class="tab-pane fade show active" id="text-content" role="tabpanel">
+                        <pre id="certTextContent" class="code-block">{{ cert_text }}</pre>
+                    </div>
+                    <div class="tab-pane fade" id="pem-content" role="tabpanel">
+                        <pre id="certPemContent" class="code-block">{{ cert_content }}</pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

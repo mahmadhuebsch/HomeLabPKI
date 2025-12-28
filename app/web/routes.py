@@ -238,6 +238,18 @@ async def intermediate_detail(
         ca = ca_service.get_ca(ca_id)
         certificates = cert_service.list_certificates(ca_id)
 
+        # Get nested intermediate CAs under this intermediate CA
+        intermediate_cas = []
+        ca_dir = ca_service.ca_data_dir / ca_id
+        for intermediate_dir in FileUtils.list_directories(ca_dir):
+            if intermediate_dir.name.startswith("intermediate-ca-"):
+                try:
+                    intermediate_id = f"{ca_id}/{intermediate_dir.name}"
+                    intermediate_ca = ca_service.get_ca(intermediate_id)
+                    intermediate_cas.append(intermediate_ca)
+                except Exception as e:
+                    pass  # Skip if failed to load
+
         # Build certificate chain (for intermediate, shows root -> intermediate)
         cert_chain = build_certificate_chain(ca_id, ca_service)
 
@@ -259,6 +271,7 @@ async def intermediate_detail(
                 "request": request,
                 "ca": ca,
                 "certificates": certificates,
+                "intermediate_cas": intermediate_cas,
                 "ca_cert_content": ca_cert_content,
                 "ca_cert_text": ca_cert_text,
                 "cert_chain": cert_chain,
