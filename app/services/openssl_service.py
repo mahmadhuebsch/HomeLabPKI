@@ -264,9 +264,16 @@ class OpenSSLService:
             for cmd in commands:
                 logger.info(f"Executing: {cmd}")
 
-                # Use shell=True for now to avoid complex quoting issues
-                # TODO: Refactor to build commands as argument lists
-                result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True, timeout=30, env=env)
+                # Use shlex to split the command string into a list of arguments
+                # This allows us to use shell=False which is safer
+                args = shlex.split(cmd)
+
+                # On Windows, shlex.split might not handle paths with backslashes correctly if not escaped
+                # But since we are using POSIX paths (forward slashes) in our commands, it should be fine.
+                # However, the executable path itself might be an issue if it's not just "openssl".
+                # If self.openssl_path is just "openssl", it's fine.
+
+                result = subprocess.run(args, shell=False, cwd=cwd, capture_output=True, text=True, timeout=30, env=env)
 
                 all_stdout.append(result.stdout)
                 all_stderr.append(result.stderr)
@@ -385,6 +392,7 @@ subjectAltName = @alt_names
         Raises:
             ValueError: If CSR is invalid
         """
+        import shlex
         import tempfile
 
         try:
@@ -395,8 +403,11 @@ subjectAltName = @alt_names
 
             try:
                 # Parse CSR text
-                cmd = f"{self.openssl_path} req -text -noout -in {csr_file}"
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                # Use POSIX path for the file to avoid backslash issues in shlex
+                csr_file_posix = self._path_to_posix(csr_file)
+                cmd = f"{self.openssl_path} req -text -noout -in {csr_file_posix}"
+                args = shlex.split(cmd)
+                result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=10)
 
                 if result.returncode != 0:
                     raise ValueError(f"Invalid CSR: {result.stderr}")
