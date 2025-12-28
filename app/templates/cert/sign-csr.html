@@ -209,6 +209,22 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function buildSanConfig(sans) {
+    if (!sans || sans.length === 0) {
+        return '';
+    }
+
+    const sanEntries = sans.map((san, i) => `DNS.${i + 1} = ${san}`).join('\n');
+
+    return `[ v3_req ]
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+${sanEntries}`;
+}
+
 function updateCommandPreview() {
     const validityDays = document.getElementById('validityDays').value || '365';
     const sansText = document.getElementById('sans').value;
@@ -219,20 +235,29 @@ function updateCommandPreview() {
         return;
     }
 
-    let sanNote = '';
+    const maskedPassword = '***';
+    const command = `openssl x509 -req \\
+    -in cert.csr \\
+    -CA <ca.crt> \\
+    -CAkey <ca.key> \\
+    -passin pass:${maskedPassword} \\
+    -set_serial 0x<serial> \\
+    -out cert.crt \\
+    -days ${validityDays} \\
+    -sha256 \\
+    -extfile san.cnf \\
+    -extensions v3_req`;
+
+    // Build SAN config preview
+    let sanSection = '';
     if (sans && sans.length > 0) {
-        sanNote = `\n\n# SAN Configuration (san.cnf):`;
-        sans.forEach((san, idx) => {
-            sanNote += `\n# DNS.${idx + 1} = ${san}`;
-        });
+        const sanConfig = buildSanConfig(sans);
+        sanSection = `\n\n# --- san.cnf ---\n${sanConfig}`;
     } else {
-        sanNote = '\n\n# Using SANs from CSR';
+        sanSection = '\n\n# --- san.cnf ---\n# (Using SANs extracted from CSR)';
     }
 
-    const maskedPassword = '***';
-    const command = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -passin pass:${maskedPassword} -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req${sanNote}`;
-
-    document.getElementById('commandPreview').textContent = command;
+    document.getElementById('commandPreview').textContent = command + sanSection;
 }
 
 // Add event listeners for live preview

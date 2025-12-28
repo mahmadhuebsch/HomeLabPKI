@@ -230,7 +230,11 @@ function buildKeyGenCommand(algorithm, keySize) {
     const maskedPassword = '***';  // Always mask password in preview
 
     if (algorithm === 'RSA') {
-        return `openssl genrsa -aes256 -passout pass:${maskedPassword} -out ${keyFile} ${keySize}`;
+        return `openssl genrsa \\
+    -aes256 \\
+    -passout pass:${maskedPassword} \\
+    -out ${keyFile} \\
+    ${keySize}`;
     } else if (algorithm === 'ECDSA') {
         const curveMap = {
             'P-256': 'prime256v1',
@@ -238,11 +242,49 @@ function buildKeyGenCommand(algorithm, keySize) {
             'P-521': 'secp521r1'
         };
         const curve = curveMap[keySize] || 'prime256v1';
-        return `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:${curve} -aes256 -pass pass:${maskedPassword} -out ${keyFile}`;
+        return `openssl genpkey \\
+    -algorithm EC \\
+    -pkeyopt ec_paramgen_curve:${curve} \\
+    -aes256 \\
+    -pass pass:${maskedPassword} \\
+    -out ${keyFile}`;
     } else if (algorithm === 'Ed25519') {
-        return `openssl genpkey -algorithm Ed25519 -aes256 -pass pass:${maskedPassword} -out ${keyFile}`;
+        return `openssl genpkey \\
+    -algorithm Ed25519 \\
+    -aes256 \\
+    -pass pass:${maskedPassword} \\
+    -out ${keyFile}`;
     }
     return '';
+}
+
+function buildRootCAOpenSSLConfig() {
+    return `[ req ]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ca
+prompt = no
+
+[ req_distinguished_name ]
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign`;
+}
+
+function buildIntermediateCAOpenSSLConfig() {
+    return `[ req ]
+distinguished_name = req_distinguished_name
+prompt = no
+
+[ req_distinguished_name ]
+
+[ v3_intermediate_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign`;
 }
 
 function buildRootCACommand(subject, algorithm, keySize, validityDays) {
@@ -250,9 +292,18 @@ function buildRootCACommand(subject, algorithm, keySize, validityDays) {
     const subjectStr = buildSubjectString(subject);
     const maskedPassword = '***';
 
-    const certCmd = `openssl req -new -x509 -days ${validityDays} -key ca.key -passin pass:${maskedPassword} -out ca.crt -subj "${subjectStr}" -config openssl.cnf -extensions v3_ca`;
+    const certCmd = `openssl req -new -x509 \\
+    -days ${validityDays} \\
+    -key ca.key \\
+    -passin pass:${maskedPassword} \\
+    -out ca.crt \\
+    -subj "${subjectStr}" \\
+    -config openssl.cnf \\
+    -extensions v3_ca`;
 
-    return `${keyCmd}\n${certCmd}`;
+    const configPreview = buildRootCAOpenSSLConfig();
+
+    return `${keyCmd}\n\n${certCmd}\n\n# --- openssl.cnf ---\n${configPreview}`;
 }
 
 function buildIntermediateCACommand(subject, algorithm, keySize, validityDays) {
@@ -260,10 +311,28 @@ function buildIntermediateCACommand(subject, algorithm, keySize, validityDays) {
     const subjectStr = buildSubjectString(subject);
     const maskedPassword = '***';
 
-    const csrCmd = `openssl req -new -key ca.key -passin pass:${maskedPassword} -out ca.csr -subj "${subjectStr}" -config openssl.cnf`;
-    const certCmd = `openssl x509 -req -in ca.csr -CA <parent_ca.crt> -CAkey <parent_ca.key> -passin pass:${maskedPassword} -CAcreateserial -out ca.crt -days ${validityDays} -sha256 -extfile openssl.cnf -extensions v3_intermediate_ca`;
+    const csrCmd = `openssl req -new \\
+    -key ca.key \\
+    -passin pass:${maskedPassword} \\
+    -out ca.csr \\
+    -subj "${subjectStr}" \\
+    -config openssl.cnf`;
 
-    return `${keyCmd}\n${csrCmd}\n${certCmd}`;
+    const certCmd = `openssl x509 -req \\
+    -in ca.csr \\
+    -CA <parent_ca.crt> \\
+    -CAkey <parent_ca.key> \\
+    -passin pass:${maskedPassword} \\
+    -CAcreateserial \\
+    -out ca.crt \\
+    -days ${validityDays} \\
+    -sha256 \\
+    -extfile openssl.cnf \\
+    -extensions v3_intermediate_ca`;
+
+    const configPreview = buildIntermediateCAOpenSSLConfig();
+
+    return `${keyCmd}\n\n${csrCmd}\n\n${certCmd}\n\n# --- openssl.cnf ---\n${configPreview}`;
 }
 
 function updateCommandPreview() {

@@ -203,7 +203,11 @@ function buildKeyGenCommand(algorithm, keySize) {
     const maskedPassword = '***';  // Always mask password in preview
 
     if (algorithm === 'RSA') {
-        return `openssl genrsa -aes256 -passout pass:${maskedPassword} -out ${keyFile} ${keySize}`;
+        return `openssl genrsa \\
+    -aes256 \\
+    -passout pass:${maskedPassword} \\
+    -out ${keyFile} \\
+    ${keySize}`;
     } else if (algorithm === 'ECDSA') {
         const curveMap = {
             'P-256': 'prime256v1',
@@ -211,11 +215,36 @@ function buildKeyGenCommand(algorithm, keySize) {
             'P-521': 'secp521r1'
         };
         const curve = curveMap[keySize] || 'prime256v1';
-        return `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:${curve} -aes256 -pass pass:${maskedPassword} -out ${keyFile}`;
+        return `openssl genpkey \\
+    -algorithm EC \\
+    -pkeyopt ec_paramgen_curve:${curve} \\
+    -aes256 \\
+    -pass pass:${maskedPassword} \\
+    -out ${keyFile}`;
     } else if (algorithm === 'Ed25519') {
-        return `openssl genpkey -algorithm Ed25519 -aes256 -pass pass:${maskedPassword} -out ${keyFile}`;
+        return `openssl genpkey \\
+    -algorithm Ed25519 \\
+    -aes256 \\
+    -pass pass:${maskedPassword} \\
+    -out ${keyFile}`;
     }
     return '';
+}
+
+function buildSanConfig(sans) {
+    if (!sans || sans.length === 0) {
+        return '';
+    }
+
+    const sanEntries = sans.map((san, i) => `DNS.${i + 1} = ${san}`).join('\n');
+
+    return `[ v3_req ]
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+${sanEntries}`;
 }
 
 function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans) {
@@ -223,23 +252,29 @@ function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans)
     const subjectStr = buildSubjectString(subject);
     const maskedPassword = '***';
 
-    const csrCmd = `openssl req -new -key cert.key -passin pass:${maskedPassword} -out cert.csr -subj "${subjectStr}"`;
+    const csrCmd = `openssl req -new \\
+    -key cert.key \\
+    -passin pass:${maskedPassword} \\
+    -out cert.csr \\
+    -subj "${subjectStr}"`;
+
+    const certCmd = `openssl x509 -req \\
+    -in cert.csr \\
+    -CA <ca.crt> \\
+    -CAkey <ca.key> \\
+    -passin pass:${maskedPassword} \\
+    -set_serial 0x<serial> \\
+    -out cert.crt \\
+    -days ${validityDays} \\
+    -sha256 \\
+    -extfile san.cnf \\
+    -extensions v3_req`;
 
     // Build SAN config preview
-    let sanNote = '';
-    if (sans && sans.length > 0) {
-        sanNote = `\n\n# SAN Configuration (san.cnf):\n# DNS.1 = ${sans[0]}`;
-        if (sans.length > 1) {
-            sanNote += `\n# DNS.2 = ${sans[1]}`;
-        }
-        if (sans.length > 2) {
-            sanNote += `\n# ... (${sans.length} total SANs)`;
-        }
-    }
+    const sanConfig = buildSanConfig(sans);
+    const sanSection = sanConfig ? `\n\n# --- san.cnf ---\n${sanConfig}` : '';
 
-    const certCmd = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -passin pass:${maskedPassword} -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req`;
-
-    return `${keyCmd}\n${csrCmd}\n${certCmd}${sanNote}`;
+    return `${keyCmd}\n\n${csrCmd}\n\n${certCmd}${sanSection}`;
 }
 
 function updateCommandPreview() {
