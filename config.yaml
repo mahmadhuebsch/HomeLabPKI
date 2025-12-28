@@ -1,0 +1,39 @@
+# Application Settings
+app:
+  title: "YACertManager"
+  version: "1.0.0"
+  debug: true
+
+# Paths
+paths:
+  ca_data: "./ca-data"
+  logs: "./logs"
+  openssl: null  # Auto-detect (prefers paths without spaces)
+
+# Defaults
+defaults:
+  root_ca:
+    validity_days: 3650
+    key_algorithm: "RSA"
+    key_size: 4096
+
+  intermediate_ca:
+    validity_days: 1825
+    key_algorithm: "RSA"
+    key_size: 4096
+
+  server_cert:
+    validity_days: 365
+    key_algorithm: "RSA"
+    key_size: 2048
+
+# Security
+security:
+  warn_on_key_download: true
+  key_download_confirmation: true
+
+# Logging
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/yacertmanager.log"

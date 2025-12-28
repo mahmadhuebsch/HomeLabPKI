@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Certificates - YACertManager{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-file-earmark-lock"></i> Certificates</h1>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col">
+        <div class="btn-group" role="group">
+            <a href="/certs/create" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Certificate
+            </a>
+            <a href="/certs/sign-csr" class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-text"></i> Sign CSR
+            </a>
+            <a href="/certs/import" class="btn btn-outline-primary">
+                <i class="bi bi-upload"></i> Import Certificate
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if certificates %}
+    {% for cert in certificates %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h5 class="card-title">
+                        <i class="bi bi-file-earmark-lock text-primary"></i>
+                        {{ cert.subject.common_name }}
+                        {% if cert.source == 'external' %}
+                        <span class="badge bg-warning text-dark ms-2">External</span>
+                        {% endif %}
+                    </h5>
+                    <p class="card-text">
+                        <span class="badge bg-{{ cert.validity_status }}">{{ cert.validity_text }}</span>
+                        Valid until: {{ cert.not_after.strftime('%d.%m.%Y %H:%M') }}
+                    </p>
+                    {% if cert.sans and cert.sans|length > 1 %}
+                    <p class="text-muted mb-1">
+                        <small>SANs: {{ cert.sans|join(', ') }}</small>
+                    </p>
+                    {% endif %}
+                    <p class="text-muted mb-0">
+                        <small>Serial: {{ cert.serial_number }}</small>
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/certs/{{ cert.id }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Details
+                    </a>
+                    <a href="/download/cert/{{ cert.id }}/cert" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-download"></i> .crt
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No certificates available. Create a new certificate to get started.
+    </div>
+{% endif %}
+{% endblock %}

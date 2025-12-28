@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Intermediate CAs - YACertManager{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-diagram-3"></i> Intermediate CAs</h1>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col">
+        <div class="btn-group" role="group">
+            <a href="/intermediates/create" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Intermediate CA
+            </a>
+            <a href="/intermediates/import" class="btn btn-outline-primary">
+                <i class="bi bi-upload"></i> Import Intermediate CA
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if intermediate_cas %}
+    {% for ca in intermediate_cas %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h5 class="card-title">
+                        <i class="bi bi-diagram-3 text-primary"></i>
+                        {{ ca.subject.common_name }}
+                    </h5>
+                    <p class="card-text">
+                        <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
+                        Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
+                    </p>
+                    <p class="text-muted mb-0">
+                        Organization: {{ ca.subject.organization or 'N/A' }} |
+                        {{ ca.intermediate_count }} Intermediate CA(s) |
+                        {{ ca.cert_count }} Certificate(s)
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/intermediates/{{ ca.id }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No Intermediate CAs available. Create a new Intermediate CA.
+    </div>
+{% endif %}
+{% endblock %}

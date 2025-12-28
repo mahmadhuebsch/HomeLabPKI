@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cert.subject.common_name }} - YACertManager{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <a href="/certs" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>
+            {{ cert.subject.common_name }}
+            {% if cert.source == 'external' %}
+            <span class="badge bg-warning text-dark">External</span>
+            {% endif %}
+        </h1>
+        {% if cert.source == 'external' %}
+        <p class="text-muted">
+            <i class="bi bi-info-circle"></i> This certificate was signed externally or imported. Private key is not managed by this system.
+        </p>
+        {% endif %}
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-danger" onclick="confirmDelete()">
+            <i class="bi bi-trash"></i> Delete
+        </button>
+    </div>
+</div>
+
+<!-- Certificate Information -->
+<div class="card mb-4">
+    <div class="card-header">Certificate Information</div>
+    <div class="card-body">
+        <table class="table table-borderless">
+            <tr>
+                <th>Subject:</th>
+                <td>
+                    {% if cert.subject.common_name %}CN={{ cert.subject.common_name }}{% endif %}
+                    {% if cert.subject.organization %}, O={{ cert.subject.organization }}{% endif %}
+                    {% if cert.subject.country %}, C={{ cert.subject.country }}{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Subject Alternative Names:</th>
+                <td>
+                    {% if cert.sans %}
+                        {% for san in cert.sans %}
+                            <span class="badge bg-secondary">{{ san }}</span>
+                        {% endfor %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Validity:</th>
+                <td>
+                    {{ cert.not_before.strftime('%d.%m.%Y %H:%M') }} - {{ cert.not_after.strftime('%d.%m.%Y %H:%M') }}
+                    <span class="badge bg-{{ cert.validity_status }}">{{ cert.validity_text }}</span>
+                </td>
+            </tr>
+            <tr>
+                <th>Serial Number:</th>
+                <td><code>{{ cert.serial_number }}</code></td>
+            </tr>
+            <tr>
+                <th>Fingerprint (SHA256):</th>
+                <td><code>{{ cert.fingerprint_sha256 }}</code></td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<!-- Downloads -->
+<div class="card mb-4">
+    <div class="card-header">Downloads</div>
+    <div class="card-body">
+        <a href="/download/cert/{{ cert.id }}/cert" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-download"></i> Certificate (.crt)
+        </a>
+        {% if cert.source != 'external' %}
+        <a href="/download/cert/{{ cert.id }}/key" class="btn btn-sm btn-outline-warning"
+           onclick="return confirm('Warning: This downloads the private key! Only for authorized personnel!')">
+            <i class="bi bi-download"></i> Private Key (.key)
+        </a>
+        {% endif %}
+        <a href="/download/cert/{{ cert.id }}/fullchain" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-download"></i> Full Chain (.pem)
+        </a>
+    </div>
+</div>
+
+<!-- Certificate Content -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Certificate</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="copyActiveTabContent()">
+                <i class="bi bi-clipboard"></i> Copy
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs" id="certTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-content" type="button" role="tab">
+                    Text Format
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pem-tab" data-bs-toggle="tab" data-bs-target="#pem-content" type="button" role="tab">
+                    PEM Format
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content" id="certTabContent">
+            <div class="tab-pane fade show active" id="text-content" role="tabpanel">
+                <pre id="certTextContent" style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; margin-top: 1rem;">{{ cert_text }}</pre>
+            </div>
+            <div class="tab-pane fade" id="pem-content" role="tabpanel">
+                <pre id="certPemContent" style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; margin-top: 1rem;">{{ cert_content }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function copyActiveTabContent() {
+    // Determine which tab is active
+    const activeTab = document.querySelector('#certTabs .nav-link.active');
+    let content = '';
+
+    if (activeTab.id === 'text-tab') {
+        content = document.getElementById('certTextContent').textContent;
+    } else if (activeTab.id === 'pem-tab') {
+        content = document.getElementById('certPemContent').textContent;
+    }
+
+    navigator.clipboard.writeText(content);
+    alert('Certificate content copied!');
+}
+
+function confirmDelete() {
+    if (confirm(`Really delete certificate "{{ cert.subject.common_name }}"?`)) {
+        fetch(`/api/certs/{{ cert.id }}`, { method: 'DELETE' })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/certs';
+                } else {
+                    alert('Error deleting!');
+                }
+            });
+    }
+}
+</script>
+{% endblock %}

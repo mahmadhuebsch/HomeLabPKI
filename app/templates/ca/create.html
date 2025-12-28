@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Create {{ 'Root CA' if ca_type == 'root' else 'Intermediate CA' }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.command-preview {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1>
+            {% if ca_type == 'root' %}
+                <i class="bi bi-shield-fill-plus"></i> Create Root CA
+            {% else %}
+                <i class="bi bi-diagram-3"></i> Create Intermediate CA
+            {% endif %}
+        </h1>
+
+        <form id="caForm">
+            <input type="hidden" name="type" value="{{ ca_type }}_ca">
+
+            <!-- Parent CA Auswahl (nur bei Intermediate) -->
+            {% if ca_type == 'intermediate' %}
+            <div class="card mb-3">
+                <div class="card-header">Parent CA</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="parentCa" class="form-label">Parent CA *</label>
+                        <select class="form-select" id="parentCa" name="parent_ca_id" required>
+                            <option value="">-- Select a CA --</option>
+                            {% for ca in available_cas %}
+                            <option value="{{ ca.id }}">{{ ca.subject.common_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Subject Information -->
+            <div class="card mb-3">
+                <div class="card-header">Subject Information</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="commonName" class="form-label">Common Name (CN) *</label>
+                        <input type="text" class="form-control" id="commonName"
+                               name="common_name" required
+                               placeholder="e.g. My Root CA">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="organization" class="form-label">Organization (O)</label>
+                            <input type="text" class="form-control" id="organization"
+                                   name="organization"
+                                   placeholder="e.g. ACME Corp">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="orgUnit" class="form-label">Organizational Unit (OU)</label>
+                            <input type="text" class="form-control" id="orgUnit"
+                                   name="organizational_unit"
+                                   placeholder="e.g. IT Security">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="country" class="form-label">Country (C)</label>
+                            <input type="text" class="form-control" id="country"
+                                   name="country" maxlength="2"
+                                   placeholder="DE">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="state" class="form-label">State/Province (ST)</label>
+                            <input type="text" class="form-control" id="state"
+                                   name="state"
+                                   placeholder="Hessen">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="locality" class="form-label">Locality (L)</label>
+                            <input type="text" class="form-control" id="locality"
+                                   name="locality"
+                                   placeholder="Frankfurt">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Configuration -->
+            <div class="card mb-3">
+                <div class="card-header">Key Configuration</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="algorithm" class="form-label">Algorithm *</label>
+                            <select class="form-select" id="algorithm" name="algorithm" required>
+                                <option value="RSA" selected>RSA</option>
+                                <option value="ECDSA">ECDSA</option>
+                                <option value="Ed25519">Ed25519</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3" id="keySizeContainer">
+                            <label for="keySize" class="form-label">Key Size *</label>
+                            <select class="form-select" id="keySize" name="key_size">
+                                <option value="2048">2048 bit</option>
+                                <option value="4096" selected>4096 bit (recommended)</option>
+                                <option value="8192">8192 bit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Validity -->
+            <div class="card mb-3">
+                <div class="card-header">Validity</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="validityDays" class="form-label">Validity Period (Days) *</label>
+                        <input type="number" class="form-control" id="validityDays"
+                               name="validity_days"
+                               value="{{ defaults.validity_days or (3650 if ca_type == 'root' else 1825) }}"
+                               min="1" required>
+                        <div class="form-text">
+                            Default: {{ '3650 days (10 years)' if ca_type == 'root' else '1825 days (5 years)' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Create CA
+                </button>
+                <a href="/rootcas" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Command Preview -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-terminal"></i> OpenSSL Command Preview
+            </div>
+            <div class="card-body">
+                <div class="command-preview" id="commandPreview">
+                    <span class="text-muted">Fill out the form to see the command...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ===== Command Preview Functions =====
+function buildSubjectString(subject) {
+    const parts = [];
+    if (subject.country) parts.push(`C=${subject.country}`);
+    if (subject.state) parts.push(`ST=${subject.state}`);
+    if (subject.locality) parts.push(`L=${subject.locality}`);
+    if (subject.organization) parts.push(`O=${subject.organization}`);
+    if (subject.organizational_unit) parts.push(`OU=${subject.organizational_unit}`);
+    if (subject.common_name) parts.push(`CN=${subject.common_name}`);
+    return parts.length > 0 ? '/' + parts.join('/') : '';
+}
+
+function buildKeyGenCommand(algorithm, keySize) {
+    const keyFile = 'ca.key';
+
+    if (algorithm === 'RSA') {
+        return `openssl genrsa -out ${keyFile} ${keySize}`;
+    } else if (algorithm === 'ECDSA') {
+        const curveMap = {
+            'P-256': 'prime256v1',
+            'P-384': 'secp384r1',
+            'P-521': 'secp521r1'
+        };
+        const curve = curveMap[keySize] || 'prime256v1';
+        return `openssl ecparam -name ${curve} -genkey -out ${keyFile}`;
+    } else if (algorithm === 'Ed25519') {
+        return `openssl genpkey -algorithm Ed25519 -out ${keyFile}`;
+    }
+    return '';
+}
+
+function buildRootCACommand(subject, algorithm, keySize, validityDays) {
+    const keyCmd = buildKeyGenCommand(algorithm, keySize);
+    const subjectStr = buildSubjectString(subject);
+
+    const certCmd = `openssl req -new -x509 -days ${validityDays} -key ca.key -out ca.crt -subj "${subjectStr}" -config openssl.cnf -extensions v3_ca`;
+
+    return `${keyCmd}\n${certCmd}`;
+}
+
+function buildIntermediateCACommand(subject, algorithm, keySize, validityDays) {
+    const keyCmd = buildKeyGenCommand(algorithm, keySize);
+    const subjectStr = buildSubjectString(subject);
+
+    const csrCmd = `openssl req -new -key ca.key -out ca.csr -subj "${subjectStr}" -config openssl.cnf`;
+    const certCmd = `openssl x509 -req -in ca.csr -CA <parent_ca.crt> -CAkey <parent_ca.key> -CAcreateserial -out ca.crt -days ${validityDays} -sha256 -extfile openssl.cnf -extensions v3_intermediate_ca`;
+
+    return `${keyCmd}\n${csrCmd}\n${certCmd}`;
+}
+
+function updateCommandPreview() {
+    const caType = document.querySelector('input[name="type"]').value;
+    const algorithm = document.getElementById('algorithm').value;
+    const keySize = document.getElementById('keySize').value || '4096';
+    const validityDays = document.getElementById('validityDays').value || (caType === 'root_ca' ? '3650' : '1825');
+
+    const subject = {
+        common_name: document.getElementById('commonName').value,
+        organization: document.getElementById('organization').value,
+        organizational_unit: document.getElementById('orgUnit').value,
+        country: document.getElementById('country').value,
+        state: document.getElementById('state').value,
+        locality: document.getElementById('locality').value
+    };
+
+    let command = '';
+    if (caType === 'root_ca') {
+        command = buildRootCACommand(subject, algorithm, keySize, validityDays);
+    } else {
+        command = buildIntermediateCACommand(subject, algorithm, keySize, validityDays);
+    }
+
+    const previewElement = document.getElementById('commandPreview');
+    if (command && subject.common_name) {
+        previewElement.innerHTML = command;
+    } else {
+        previewElement.innerHTML = '<span class="text-muted">Fill out the form to see the command...</span>';
+    }
+}
+
+// Add event listeners to all form fields for live preview
+document.addEventListener('DOMContentLoaded', function() {
+    const formFields = ['commonName', 'organization', 'orgUnit', 'country', 'state', 'locality', 'algorithm', 'keySize', 'validityDays'];
+    formFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', updateCommandPreview);
+            field.addEventListener('change', updateCommandPreview);
+        }
+    });
+
+    // Initial preview
+    updateCommandPreview();
+});
+
+// Algorithm change handler
+document.getElementById('algorithm').addEventListener('change', function() {
+    const algorithm = this.value;
+    const container = document.getElementById('keySizeContainer');
+    const select = document.getElementById('keySize');
+
+    select.innerHTML = '';
+
+    if (algorithm === 'Ed25519') {
+        container.style.display = 'none';
+    } else if (algorithm === 'ECDSA') {
+        container.style.display = 'block';
+        const curves = [
+            { value: 'P-256', label: 'P-256 (256 bit)' },
+            { value: 'P-384', label: 'P-384 (384 bit)' },
+            { value: 'P-521', label: 'P-521 (521 bit)' }
+        ];
+        curves.forEach(curve => {
+            const option = document.createElement('option');
+            option.value = curve.value;
+            option.textContent = curve.label;
+            if (curve.value === 'P-256') option.selected = true;
+            select.appendChild(option);
+        });
+        select.name = 'curve';
+    } else {  // RSA
+        container.style.display = 'block';
+        const sizes = [
+            { value: 2048, label: '2048 bit' },
+            { value: 4096, label: '4096 bit (recommended)' },
+            { value: 8192, label: '8192 bit' }
+        ];
+        sizes.forEach(size => {
+            const option = document.createElement('option');
+            option.value = size.value;
+            option.textContent = size.label;
+            if (size.value === 4096) option.selected = true;
+            select.appendChild(option);
+        });
+        select.name = 'key_size';
+    }
+
+    // Update preview after algorithm change
+    updateCommandPreview();
+});
+
+// Form submission
+document.getElementById('caForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    // Build request object
+    const caType = formData.get('type');
+    const algorithm = formData.get('algorithm');
+
+    const request = {
+        type: caType,
+        subject: {
+            common_name: formData.get('common_name'),
+            organization: formData.get('organization') || null,
+            organizational_unit: formData.get('organizational_unit') || null,
+            country: formData.get('country') || null,
+            state: formData.get('state') || null,
+            locality: formData.get('locality') || null
+        },
+        key_config: {
+            algorithm: algorithm
+        },
+        validity_days: parseInt(formData.get('validity_days'))
+    };
+
+    // Add key size or curve based on algorithm
+    if (algorithm === 'RSA') {
+        request.key_config.key_size = parseInt(formData.get('key_size'));
+    } else if (algorithm === 'ECDSA') {
+        request.key_config.curve = formData.get('key_size');  // Actually the curve
+    }
+
+    // Add parent CA ID for intermediate
+    if (caType === 'intermediate_ca') {
+        request.parent_ca_id = formData.get('parent_ca_id');
+    }
+
+    try {
+        const response = await fetch('/api/cas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            window.location.href = `/rootcas/${result.id}`;
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.detail}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
+</script>
+{% endblock %}

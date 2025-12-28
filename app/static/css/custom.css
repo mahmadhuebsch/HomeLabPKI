@@ -1,0 +1,44 @@
+/* Custom CSS for YACertManager */
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-fluid {
+    flex: 1;
+}
+
+footer {
+    margin-top: auto;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.sticky-top {
+    position: sticky;
+    top: 20px;
+    z-index: 1020;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.badge {
+    font-weight: normal;
+}
+
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+}
+
+code {
+    font-size: 0.875em;
+    color: #d63384;
+    word-wrap: break-word;
+}

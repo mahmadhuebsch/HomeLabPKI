@@ -1,0 +1,1 @@
+"""YACertManager Application."""

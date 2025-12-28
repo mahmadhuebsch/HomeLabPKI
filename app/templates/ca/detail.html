@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ca.subject.common_name }} - YACertManager{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <a href="/rootcas" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>{{ ca.subject.common_name }}</h1>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-danger" onclick="confirmDelete()">
+            <i class="bi bi-trash"></i> Delete
+        </button>
+    </div>
+</div>
+
+<!-- Certificate Information -->
+<div class="card mb-4">
+    <div class="card-header">Certificate Information</div>
+    <div class="card-body">
+        <table class="table table-borderless">
+            <tr>
+                <th>Subject:</th>
+                <td>
+                    {% if ca.subject.common_name %}CN={{ ca.subject.common_name }}{% endif %}
+                    {% if ca.subject.organization %}, O={{ ca.subject.organization }}{% endif %}
+                    {% if ca.subject.organizational_unit %}, OU={{ ca.subject.organizational_unit }}{% endif %}
+                    {% if ca.subject.country %}, C={{ ca.subject.country }}{% endif %}
+                    {% if ca.subject.state %}, ST={{ ca.subject.state }}{% endif %}
+                    {% if ca.subject.locality %}, L={{ ca.subject.locality }}{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Validity:</th>
+                <td>
+                    {{ ca.not_before.strftime('%d.%m.%Y %H:%M') }} - {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
+                    <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
+                </td>
+            </tr>
+            <tr>
+                <th>Fingerprint (SHA256):</th>
+                <td><code>{{ ca.fingerprint_sha256 }}</code></td>
+            </tr>
+            <tr>
+                <th>Type:</th>
+                <td>{{ 'Root CA' if ca.type.value == 'root_ca' else 'Intermediate CA' }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<!-- Downloads -->
+<div class="card mb-4">
+    <div class="card-header">Downloads</div>
+    <div class="card-body">
+        <a href="/download/ca/{{ ca.id }}/cert" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-download"></i> Certificate (.crt)
+        </a>
+        <a href="/download/ca/{{ ca.id }}/key" class="btn btn-sm btn-outline-warning"
+           onclick="return confirm('Warning: This downloads the private key! Only for authorized personnel!')">
+            <i class="bi bi-download"></i> Private Key (.key)
+        </a>
+    </div>
+</div>
+
+<!-- CA Certificate Content -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>CA Certificate</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="copyActiveTabContent()">
+                <i class="bi bi-clipboard"></i> Copy
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs" id="certTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-content" type="button" role="tab">
+                    Text Format
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pem-tab" data-bs-toggle="tab" data-bs-target="#pem-content" type="button" role="tab">
+                    PEM Format
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content" id="certTabContent">
+            <div class="tab-pane fade show active" id="text-content" role="tabpanel">
+                <pre id="certTextContent" style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; margin-top: 1rem;">{{ ca_cert_text }}</pre>
+            </div>
+            <div class="tab-pane fade" id="pem-content" role="tabpanel">
+                <pre id="certPemContent" style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; margin-top: 1rem;">{{ ca_cert_content }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Intermediate CAs (only shown for Root CAs) -->
+{% if ca.type.value == 'root_ca' %}
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Intermediate CAs ({{ intermediate_cas|length }})</span>
+            <a href="/intermediates/create?parent_ca_id={{ ca.id }}" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle"></i> New Intermediate CA
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if intermediate_cas %}
+            <div class="list-group">
+                {% for int_ca in intermediate_cas %}
+                <a href="/intermediates/{{ int_ca.id }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">
+                            <i class="bi bi-diagram-3 text-primary"></i>
+                            {{ int_ca.subject.common_name }}
+                        </h6>
+                        <small>
+                            <span class="badge bg-{{ int_ca.validity_status }}">{{ int_ca.validity_text }}</span>
+                        </small>
+                    </div>
+                    <p class="mb-1 text-muted">
+                        Valid until: {{ int_ca.not_after.strftime('%d.%m.%Y %H:%M') }} |
+                        {{ int_ca.cert_count }} Certificate(s)
+                    </p>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No Intermediate CAs available.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Certificates -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Certificates ({{ certificates|length }})</span>
+            <div class="btn-group" role="group">
+                <a href="/certs/create?ca_id={{ ca.id }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-circle"></i> New Certificate
+                </a>
+                <a href="/certs/sign-csr?ca_id={{ ca.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-file-earmark-text"></i> Sign CSR
+                </a>
+                <a href="/certs/import?ca_id={{ ca.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-upload"></i> Import
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if certificates %}
+            <div class="list-group">
+                {% for cert in certificates %}
+                <a href="/certs/{{ cert.id }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">
+                            {{ cert.subject.common_name }}
+                            {% if cert.source == 'external' %}
+                            <span class="badge bg-warning text-dark">External</span>
+                            {% endif %}
+                        </h6>
+                        <small>
+                            <span class="badge bg-{{ cert.validity_status }}">{{ cert.validity_text }}</span>
+                        </small>
+                    </div>
+                    <p class="mb-1 text-muted">
+                        Serial: {{ cert.serial_number }} | Valid until: {{ cert.not_after.strftime('%d.%m.%Y') }}
+                    </p>
+                    {% if cert.sans %}
+                    <small>SANs: {{ cert.sans|join(', ') }}</small>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No certificates available.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function copyActiveTabContent() {
+    // Determine which tab is active
+    const activeTab = document.querySelector('#certTabs .nav-link.active');
+    let content = '';
+
+    if (activeTab.id === 'text-tab') {
+        content = document.getElementById('certTextContent').textContent;
+    } else if (activeTab.id === 'pem-tab') {
+        content = document.getElementById('certPemContent').textContent;
+    }
+
+    navigator.clipboard.writeText(content);
+    alert('Certificate content copied!');
+}
+
+function confirmDelete() {
+    if (confirm(`Really delete CA "{{ ca.subject.common_name }}"?\n\nThis will also delete all Intermediate CAs and certificates!`)) {
+        fetch(`/api/cas/{{ ca.id }}`, { method: 'DELETE' })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/rootcas';
+                } else {
+                    alert('Error deleting!');
+                }
+            });
+    }
+}
+</script>
+{% endblock %}

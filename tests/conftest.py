@@ -1,0 +1,158 @@
+"""Pytest configuration and shared fixtures."""
+
+import pytest
+import tempfile
+import shutil
+from pathlib import Path
+from datetime import datetime, timedelta
+
+from fastapi.testclient import TestClient
+from app.models.ca import CAConfig, CACreateRequest, CAType, Subject, KeyConfig
+from app.models.certificate import CertCreateRequest
+from app.services.openssl_service import OpenSSLService
+from app.services.ca_service import CAService
+from app.services.cert_service import CertificateService
+
+
+@pytest.fixture(scope="session")
+def test_data_dir():
+    """Create a temporary directory for test data."""
+    temp_dir = tempfile.mkdtemp(prefix="yacertmanager_test_")
+    yield Path(temp_dir)
+    # Cleanup
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def ca_data_dir(test_data_dir):
+    """Create a fresh CA data directory for each test."""
+    ca_dir = test_data_dir / f"ca_data_{datetime.now().timestamp()}"
+    ca_dir.mkdir(parents=True, exist_ok=True)
+    yield ca_dir
+    # Cleanup after test
+    if ca_dir.exists():
+        shutil.rmtree(ca_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def openssl_service():
+    """Create OpenSSL service instance."""
+    return OpenSSLService()
+
+
+@pytest.fixture
+def ca_service(ca_data_dir, openssl_service):
+    """Create CA service instance with test directory."""
+    return CAService(ca_data_dir, openssl_service)
+
+
+@pytest.fixture
+def cert_service(ca_data_dir, openssl_service):
+    """Create Certificate service instance with test directory."""
+    return CertificateService(ca_data_dir, openssl_service)
+
+
+@pytest.fixture
+def sample_ca_subject():
+    """Create a sample CA subject."""
+    return Subject(
+        common_name="Test Root CA",
+        organization="Test Organization",
+        organizational_unit="Test Unit",
+        country="US",
+        state="California",
+        locality="San Francisco"
+    )
+
+
+@pytest.fixture
+def sample_key_config():
+    """Create a sample key configuration (RSA 2048)."""
+    return KeyConfig(
+        algorithm="RSA",
+        key_size=2048
+    )
+
+
+@pytest.fixture
+def sample_root_ca_request(sample_ca_subject, sample_key_config):
+    """Create a sample Root CA creation request."""
+    return CACreateRequest(
+        type=CAType.ROOT_CA,
+        subject=sample_ca_subject,
+        key_config=sample_key_config,
+        validity_days=365
+    )
+
+
+@pytest.fixture
+def sample_cert_subject():
+    """Create a sample certificate subject."""
+    return Subject(
+        common_name="test.example.com",
+        organization="Test Organization",
+        country="US"
+    )
+
+
+@pytest.fixture
+def sample_cert_request(sample_cert_subject, sample_key_config):
+    """Create a sample certificate creation request."""
+    return CertCreateRequest(
+        subject=sample_cert_subject,
+        sans=["test.example.com", "*.test.example.com", "192.168.1.100"],
+        key_config=sample_key_config,
+        validity_days=365,
+        issuing_ca_id="root-ca-test-root-ca"
+    )
+
+
+@pytest.fixture
+def client(ca_data_dir, openssl_service):
+    """Create FastAPI test client with isolated test directory."""
+    from main import app
+    from app.api.dependencies import get_ca_service, get_cert_service, get_ca_data_dir
+    from app.services.ca_service import CAService
+    from app.services.cert_service import CertificateService
+
+    # Override dependencies to use test directory
+    def override_ca_data_dir():
+        return ca_data_dir
+
+    def override_ca_service():
+        return CAService(ca_data_dir, openssl_service)
+
+    def override_cert_service():
+        return CertificateService(ca_data_dir, openssl_service)
+
+    app.dependency_overrides[get_ca_data_dir] = override_ca_data_dir
+    app.dependency_overrides[get_ca_service] = override_ca_service
+    app.dependency_overrides[get_cert_service] = override_cert_service
+
+    client = TestClient(app)
+    yield client
+
+    # Clean up
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def created_root_ca(ca_service, sample_root_ca_request):
+    """Create a test Root CA and return its response."""
+    return ca_service.create_root_ca(sample_root_ca_request)
+
+
+@pytest.fixture
+def created_intermediate_ca(ca_service, created_root_ca):
+    """Create a test Intermediate CA under the root CA."""
+    request = CACreateRequest(
+        type=CAType.INTERMEDIATE_CA,
+        subject=Subject(
+            common_name="Test Intermediate CA",
+            organization="Test Organization",
+            country="US"
+        ),
+        key_config=KeyConfig(algorithm="RSA", key_size=2048),
+        validity_days=365
+    )
+    return ca_service.create_intermediate_ca(request, created_root_ca.id)

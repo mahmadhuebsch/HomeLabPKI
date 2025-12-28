@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Sign CSR - YACertManager{% endblock %}
+
+{% block extra_head %}
+<style>
+.command-preview {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.csr-preview {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1><i class="bi bi-file-earmark-text"></i> Sign Certificate Signing Request (CSR)</h1>
+        <p class="text-muted">Sign an external CSR where the private key is managed separately</p>
+
+        <form id="csrForm">
+            <!-- Issuing CA -->
+            <div class="card mb-3">
+                <div class="card-header">Issuing CA</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="issuingCa" class="form-label">Signing CA *</label>
+                        <select class="form-select" id="issuingCa" name="issuing_ca_id" required>
+                            <option value="">-- Select a CA --</option>
+                            {% for ca in available_cas %}
+                            <option value="{{ ca.id }}" {% if ca.id == selected_ca_id %}selected{% endif %}>
+                                {{ ca.subject.common_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Choose which CA will sign this CSR</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CSR Upload -->
+            <div class="card mb-3">
+                <div class="card-header">CSR Content</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="csrFile" class="form-label">Upload CSR File *</label>
+                        <input type="file" class="form-control" id="csrFile" accept=".csr,.pem" required>
+                        <div class="form-text">Upload a PEM-encoded Certificate Signing Request (.csr or .pem file)</div>
+                    </div>
+
+                    <div class="mb-3" id="csrPreviewContainer" style="display: none;">
+                        <label class="form-label">CSR Preview:</label>
+                        <div class="csr-preview" id="csrPreview"></div>
+                    </div>
+
+                    <div id="csrInfoContainer" style="display: none;">
+                        <hr>
+                        <h6>Extracted CSR Information:</h6>
+                        <table class="table table-sm">
+                            <tbody id="csrInfoTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subject Alternative Names (SANs) -->
+            <div class="card mb-3">
+                <div class="card-header">Subject Alternative Names (SANs)</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="sans" class="form-label">Alternative Domain Names</label>
+                        <textarea class="form-control" id="sans" name="sans" rows="3"
+                                  placeholder="Leave empty to use SANs from CSR, or enter custom SANs:&#10;example.com&#10;*.example.com&#10;www.example.com"></textarea>
+                        <div class="form-text">Leave empty to use SANs from CSR, or add custom SANs (one per line). Wildcards (*) allowed.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Validity -->
+            <div class="card mb-3">
+                <div class="card-header">Validity</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="validityDays" class="form-label">Validity Period (Days) *</label>
+                        <input type="number" class="form-control" id="validityDays"
+                               name="validity_days"
+                               value="{{ defaults.validity_days or 365 }}"
+                               min="1" required>
+                        <div class="form-text">Default: 365 days (1 year)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                    <i class="bi bi-check-circle"></i> Sign CSR
+                </button>
+                <a href="/certs" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Command Preview -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-terminal"></i> OpenSSL Command Preview
+            </div>
+            <div class="card-body">
+                <div class="command-preview" id="commandPreview">
+                    <span class="text-muted">Upload a CSR to see the command...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let csrContent = '';
+
+// File upload handler
+document.getElementById('csrFile').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) {
+        csrContent = '';
+        document.getElementById('csrPreviewContainer').style.display = 'none';
+        document.getElementById('csrInfoContainer').style.display = 'none';
+        document.getElementById('submitBtn').disabled = true;
+        return;
+    }
+
+    try {
+        csrContent = await file.text();
+
+        // Show CSR preview
+        document.getElementById('csrPreview').textContent = csrContent;
+        document.getElementById('csrPreviewContainer').style.display = 'block';
+
+        // Parse CSR to show information
+        // Note: In a real implementation, this would make an API call to parse the CSR
+        // For now, we'll just display basic info
+        displayCSRInfo(csrContent);
+
+        document.getElementById('submitBtn').disabled = false;
+        updateCommandPreview();
+    } catch (error) {
+        alert(`Error reading file: ${error.message}`);
+        csrContent = '';
+        document.getElementById('submitBtn').disabled = true;
+    }
+});
+
+function displayCSRInfo(csrContent) {
+    const container = document.getElementById('csrInfoContainer');
+    const table = document.getElementById('csrInfoTable');
+
+    // Extract basic info using regex (simplified)
+    const subjectMatch = csrContent.match(/Subject:.*$/m);
+    const subject = subjectMatch ? subjectMatch[0] : 'Unable to parse subject';
+
+    table.innerHTML = `
+        <tr>
+            <th width="30%">Subject</th>
+            <td>${escapeHtml(subject)}</td>
+        </tr>
+        <tr>
+            <th>Algorithm</th>
+            <td>Will be determined during signing</td>
+        </tr>
+    `;
+
+    container.style.display = 'block';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function updateCommandPreview() {
+    const validityDays = document.getElementById('validityDays').value || '365';
+    const sansText = document.getElementById('sans').value;
+    const sans = sansText ? sansText.split('\n').map(s => s.trim()).filter(s => s) : [];
+
+    if (!csrContent) {
+        document.getElementById('commandPreview').innerHTML = '<span class="text-muted">Upload a CSR to see the command...</span>';
+        return;
+    }
+
+    let sanNote = '';
+    if (sans && sans.length > 0) {
+        sanNote = `\n\n# SAN Configuration (san.cnf):`;
+        sans.forEach((san, idx) => {
+            sanNote += `\n# DNS.${idx + 1} = ${san}`;
+        });
+    } else {
+        sanNote = '\n\n# Using SANs from CSR';
+    }
+
+    const command = `openssl x509 -req -in cert.csr -CA <ca.crt> -CAkey <ca.key> -set_serial 0x<serial> -out cert.crt -days ${validityDays} -sha256 -extfile san.cnf -extensions v3_req${sanNote}`;
+
+    document.getElementById('commandPreview').textContent = command;
+}
+
+// Add event listeners for live preview
+document.getElementById('validityDays').addEventListener('input', updateCommandPreview);
+document.getElementById('sans').addEventListener('input', updateCommandPreview);
+
+// Form submission
+document.getElementById('csrForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    if (!csrContent) {
+        alert('Please upload a CSR file');
+        return;
+    }
+
+    const formData = new FormData(this);
+    const sansText = formData.get('sans');
+    const sans = sansText ? sansText.split('\n').map(s => s.trim()).filter(s => s) : [];
+
+    const request = {
+        issuing_ca_id: formData.get('issuing_ca_id'),
+        csr_content: csrContent,
+        sans: sans,
+        validity_days: parseInt(formData.get('validity_days'))
+    };
+
+    try {
+        const response = await fetch('/api/certs/sign-csr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            window.location.href = `/certs/${result.id}`;
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.detail}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
+</script>
+{% endblock %}

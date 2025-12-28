@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}Import Root CA - YACertManager{% endblock %}
+
+{% block extra_head %}
+<style>
+.cert-preview {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1><i class="bi bi-upload"></i> Import Root CA</h1>
+        <p class="text-muted">Import an external Root CA certificate for tracking and management</p>
+
+        <form id="importForm">
+            <!-- CA Certificate Upload -->
+            <div class="card mb-3">
+                <div class="card-header">CA Certificate *</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="certFile" class="form-label">Upload CA Certificate File *</label>
+                        <input type="file" class="form-control" id="certFile" accept=".crt,.pem,.cer" required>
+                        <div class="form-text">Upload the Root CA certificate (.crt, .pem, or .cer file)</div>
+                    </div>
+
+                    <div class="mb-3" id="certPreviewContainer" style="display: none;">
+                        <label class="form-label">Certificate Preview:</label>
+                        <div class="cert-preview" id="certPreview"></div>
+                    </div>
+
+                    <div id="certInfoContainer" style="display: none;">
+                        <hr>
+                        <h6>Extracted CA Information:</h6>
+                        <table class="table table-sm">
+                            <tbody id="certInfoTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Private Key Upload (Optional) -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Private Key (Optional)</span>
+                        <span class="badge bg-secondary">Optional</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="keyFile" class="form-label">Upload Private Key File (Optional)</label>
+                        <input type="file" class="form-control" id="keyFile" accept=".key,.pem">
+                        <div class="form-text">Optionally upload the private key for this CA if available</div>
+                    </div>
+
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Security Notice:</strong> Only upload the private key if you intend to use this CA
+                        for signing certificates. Private keys are stored unencrypted on disk.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CA Name -->
+            <div class="card mb-3">
+                <div class="card-header">CA Identifier</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="caName" class="form-label">CA Name *</label>
+                        <input type="text" class="form-control" id="caName" name="ca_name" required
+                               placeholder="e.g. imported-company-root-ca">
+                        <div class="form-text">Unique identifier for this CA (used for storage, will be sanitized)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                    <i class="bi bi-upload"></i> Import Root CA
+                </button>
+                <a href="/rootcas" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> About Importing Root CAs
+            </div>
+            <div class="card-body">
+                <p><strong>What is Root CA import?</strong></p>
+                <p class="text-muted small">
+                    Importing allows you to track and manage Root CAs that were created externally
+                    within this management interface.
+                </p>
+
+                <hr>
+
+                <p><strong>What gets stored?</strong></p>
+                <ul class="text-muted small">
+                    <li>CA certificate file (ca.crt)</li>
+                    <li>CA metadata and configuration</li>
+                    <li>Subject and validity information</li>
+                    <li>Private key (if provided)</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>With Private Key:</strong></p>
+                <p class="text-muted small">
+                    If you provide the private key, this CA can be used to:
+                </p>
+                <ul class="text-muted small">
+                    <li>Create Intermediate CAs</li>
+                    <li>Sign certificates</li>
+                    <li>Full CA functionality</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Without Private Key:</strong></p>
+                <p class="text-muted small">
+                    Without the private key, this CA can only be used for:
+                </p>
+                <ul class="text-muted small">
+                    <li>Tracking and monitoring</li>
+                    <li>Viewing certificate details</li>
+                    <li>Building trust chains</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let certContent = '';
+let keyContent = '';
+
+// Certificate file upload handler
+document.getElementById('certFile').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) {
+        certContent = '';
+        document.getElementById('certPreviewContainer').style.display = 'none';
+        document.getElementById('certInfoContainer').style.display = 'none';
+        document.getElementById('submitBtn').disabled = true;
+        return;
+    }
+
+    try {
+        certContent = await file.text();
+
+        // Show certificate preview
+        document.getElementById('certPreview').textContent = certContent;
+        document.getElementById('certPreviewContainer').style.display = 'block';
+
+        // Parse certificate to show information
+        displayCertInfo(certContent);
+
+        // Auto-populate CA name from filename (without extension)
+        const fileName = file.name.replace(/\.(crt|pem|cer)$/i, '');
+        const caNameInput = document.getElementById('caName');
+        if (!caNameInput.value) {
+            caNameInput.value = fileName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        }
+
+        document.getElementById('submitBtn').disabled = false;
+    } catch (error) {
+        alert(`Error reading file: ${error.message}`);
+        certContent = '';
+        document.getElementById('submitBtn').disabled = true;
+    }
+});
+
+// Private key file upload handler
+document.getElementById('keyFile').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) {
+        keyContent = '';
+        return;
+    }
+
+    try {
+        keyContent = await file.text();
+    } catch (error) {
+        alert(`Error reading key file: ${error.message}`);
+        keyContent = '';
+    }
+});
+
+function displayCertInfo(certContent) {
+    const container = document.getElementById('certInfoContainer');
+    const table = document.getElementById('certInfoTable');
+
+    // Check if it's a valid PEM certificate
+    const isPEM = certContent.includes('-----BEGIN CERTIFICATE-----') &&
+                  certContent.includes('-----END CERTIFICATE-----');
+
+    if (isPEM) {
+        table.innerHTML = `
+            <tr>
+                <th width="30%">Format</th>
+                <td><span class="badge bg-success">Valid PEM Certificate</span></td>
+            </tr>
+            <tr>
+                <th>Type</th>
+                <td><span class="badge bg-primary">Root CA</span></td>
+            </tr>
+            <tr>
+                <th>Note</th>
+                <td class="text-muted">Certificate details will be extracted upon import</td>
+            </tr>
+        `;
+    } else {
+        table.innerHTML = `
+            <tr>
+                <th width="30%">Format</th>
+                <td><span class="badge bg-warning">Unknown format</span></td>
+            </tr>
+            <tr>
+                <th>Note</th>
+                <td class="text-muted">File should be PEM-encoded (-----BEGIN CERTIFICATE-----)</td>
+            </tr>
+        `;
+    }
+
+    container.style.display = 'block';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Form submission
+document.getElementById('importForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    if (!certContent) {
+        alert('Please upload a CA certificate file');
+        return;
+    }
+
+    const formData = new FormData(this);
+
+    const request = {
+        ca_cert_content: certContent,
+        ca_name: formData.get('ca_name'),
+        ca_key_content: keyContent || null
+    };
+
+    try {
+        const response = await fetch('/api/cas/import-root', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            window.location.href = `/rootcas/${result.id}`;
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.detail}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
+</script>
+{% endblock %}
