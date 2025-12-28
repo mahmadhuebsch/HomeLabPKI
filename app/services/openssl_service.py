@@ -350,7 +350,14 @@ class OpenSSLService:
             logger.error(f"Command execution error: {e}")
             return False, "", str(e)
 
-    def generate_openssl_config(self, config_type: str, output_file: Path, sans: Optional[list[str]] = None) -> None:
+    def generate_openssl_config(
+        self,
+        config_type: str,
+        output_file: Path,
+        sans: Optional[list[str]] = None,
+        key_usage: Optional[list[str]] = None,
+        extended_key_usage: Optional[list[str]] = None,
+    ) -> None:
         """
         Generate openssl.cnf file.
 
@@ -358,13 +365,15 @@ class OpenSSLService:
             config_type: Type of config ("root_ca", "intermediate_ca", "server_cert")
             output_file: Output file path
             sans: List of Subject Alternative Names (for server_cert)
+            key_usage: List of Key Usage values (for server_cert)
+            extended_key_usage: List of Extended Key Usage values (for server_cert)
         """
         if config_type == "root_ca":
             content = self._get_root_ca_config()
         elif config_type == "intermediate_ca":
             content = self._get_intermediate_ca_config()
         elif config_type == "server_cert":
-            content = self._get_server_cert_config(sans or [])
+            content = self._get_server_cert_config(sans or [], key_usage, extended_key_usage)
         else:
             raise ValueError(f"Unknown config type: {config_type}")
 
@@ -405,21 +414,36 @@ basicConstraints = critical, CA:true, pathlen:0
 keyUsage = critical, digitalSignature, cRLSign, keyCertSign
 """
 
-    def _get_server_cert_config(self, sans: list[str]) -> str:
+    def _get_server_cert_config(
+        self,
+        sans: list[str],
+        key_usage: list[str] | None = None,
+        extended_key_usage: list[str] | None = None,
+    ) -> str:
         """
         Get OpenSSL config for Server Certificate.
 
         Args:
             sans: List of Subject Alternative Names
+            key_usage: List of Key Usage values (default: digitalSignature, keyEncipherment)
+            extended_key_usage: List of Extended Key Usage values (default: serverAuth)
 
         Returns:
             OpenSSL config content
         """
+        # Use defaults if not provided
+        if key_usage is None or len(key_usage) == 0:
+            key_usage = ["digitalSignature", "keyEncipherment"]
+        if extended_key_usage is None or len(extended_key_usage) == 0:
+            extended_key_usage = ["serverAuth"]
+
+        ku_str = ", ".join(key_usage)
+        eku_str = ", ".join(extended_key_usage)
         san_entries = "\n".join([f"DNS.{i+1} = {san}" for i, san in enumerate(sans)])
 
         return f"""[ v3_req ]
-keyUsage = digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
+keyUsage = critical, {ku_str}
+extendedKeyUsage = {eku_str}
 subjectAltName = @alt_names
 
 [ alt_names ]
@@ -531,6 +555,8 @@ subjectAltName = @alt_names
         sans: list[str],
         output_cert: Path,
         ca_password: str,
+        key_usage: Optional[list[str]] = None,
+        extended_key_usage: Optional[list[str]] = None,
     ) -> str:
         """
         Sign a CSR to generate a certificate.
@@ -544,6 +570,8 @@ subjectAltName = @alt_names
             sans: Subject Alternative Names
             output_cert: Output certificate file path
             ca_password: Password for CA's private key
+            key_usage: List of Key Usage values
+            extended_key_usage: List of Extended Key Usage values
 
         Returns:
             OpenSSL command executed
@@ -559,9 +587,9 @@ subjectAltName = @alt_names
                 f.write(csr_content)
                 csr_file = Path(f.name)
 
-            # Generate SAN config
+            # Generate SAN config with extensions
             san_config = output_cert.parent / "san.cnf"
-            self.generate_openssl_config("server_cert", san_config, sans)
+            self.generate_openssl_config("server_cert", san_config, sans, key_usage, extended_key_usage)
 
             try:
                 # Convert paths to POSIX format

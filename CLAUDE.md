@@ -121,12 +121,15 @@ YACertManager/
 
 ### 4. Parser Service (`app/services/parser_service.py`)
 - Parses X.509 certificates using cryptography library
-- **NEW**: Converts certificates to text format using OpenSSL
+- Converts certificates to text format using OpenSSL
+- Extracts Key Usage and Extended Key Usage extensions
 - Key methods:
-  - `parse_certificate()` - Extract certificate data
+  - `parse_certificate()` - Extract certificate data including extensions
   - `certificate_to_text()` - Convert to human-readable text format
   - `get_validity_status()` - Check expiration status
   - `verify_key_pair()` - Verify cert/key match
+  - `_extract_key_usage()` - Extract Key Usage extension values
+  - `_extract_extended_key_usage()` - Extract Extended Key Usage values
 
 ### 5. YAML Service (`app/services/yaml_service.py`)
 - Handles YAML serialization/deserialization
@@ -171,6 +174,25 @@ YACertManager/
 - `_trash` folders are automatically excluded from all listings
 - No UI for restore - manual file recovery if needed
 - No auto-cleanup - items remain in trash indefinitely
+
+### Certificate Extensions (Key Usage / Extended Key Usage)
+- Users can select Key Usage and Extended Key Usage when creating server certificates
+- Extension presets available for common use cases:
+  - **TLS Server**: digitalSignature, keyEncipherment + serverAuth (default)
+  - **TLS Client**: digitalSignature + clientAuth
+  - **TLS Server + Client**: digitalSignature, keyEncipherment + serverAuth, clientAuth
+  - **Code Signing**: digitalSignature + codeSigning
+  - **Email (S/MIME)**: digitalSignature, keyEncipherment + emailProtection
+  - **Timestamping**: digitalSignature + timeStamping
+  - **OCSP Signing**: digitalSignature + OCSPSigning
+  - **Custom**: User selects individual Key Usage and Extended Key Usage values
+- Forbidden extensions for end-entity certificates (CA-only):
+  - `keyCertSign` - only for CA certificates
+  - `cRLSign` - only for CA certificates
+  - `anyExtendedKeyUsage` - not allowed at all
+- Extensions are displayed on certificate and CA detail pages as badges
+- Extensions are parsed from imported certificates for display
+- Applies to: Certificate creation form and CSR signing form
 
 ## Important Implementation Details
 

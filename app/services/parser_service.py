@@ -87,6 +87,8 @@ class CertificateParser:
                 "fingerprint_sha256": cert.fingerprint(hashes.SHA256()).hex(":").upper(),
                 "sans": CertificateParser._extract_sans(cert),
                 "is_ca": CertificateParser._is_ca(cert),
+                "key_usage": CertificateParser._extract_key_usage(cert),
+                "extended_key_usage": CertificateParser._extract_extended_key_usage(cert),
             }
 
         except Exception as e:
@@ -181,6 +183,89 @@ class CertificateParser:
             return bc.value.ca
         except x509.ExtensionNotFound:
             return False
+
+    @staticmethod
+    def _extract_key_usage(cert: x509.Certificate) -> list[str]:
+        """
+        Extract Key Usage extension values.
+
+        Args:
+            cert: Certificate object
+
+        Returns:
+            List of Key Usage strings (e.g., ["digitalSignature", "keyEncipherment"])
+        """
+        try:
+            ku_ext = cert.extensions.get_extension_for_oid(x509.ExtensionOID.KEY_USAGE)
+            ku = ku_ext.value
+            usage_list = []
+
+            # Map cryptography attributes to OpenSSL-style names
+            if ku.digital_signature:
+                usage_list.append("digitalSignature")
+            if ku.content_commitment:  # Also known as nonRepudiation
+                usage_list.append("nonRepudiation")
+            if ku.key_encipherment:
+                usage_list.append("keyEncipherment")
+            if ku.data_encipherment:
+                usage_list.append("dataEncipherment")
+            if ku.key_agreement:
+                usage_list.append("keyAgreement")
+            if ku.key_cert_sign:
+                usage_list.append("keyCertSign")
+            if ku.crl_sign:
+                usage_list.append("cRLSign")
+            # encipher_only and decipher_only only valid with key_agreement
+            try:
+                if ku.encipher_only:
+                    usage_list.append("encipherOnly")
+            except ValueError:
+                pass  # Not set when key_agreement is False
+            try:
+                if ku.decipher_only:
+                    usage_list.append("decipherOnly")
+            except ValueError:
+                pass  # Not set when key_agreement is False
+
+            return usage_list
+        except x509.ExtensionNotFound:
+            return []
+
+    @staticmethod
+    def _extract_extended_key_usage(cert: x509.Certificate) -> list[str]:
+        """
+        Extract Extended Key Usage extension values.
+
+        Args:
+            cert: Certificate object
+
+        Returns:
+            List of Extended Key Usage strings (e.g., ["serverAuth", "clientAuth"])
+        """
+        # Map OIDs to human-readable names
+        eku_oid_map = {
+            x509.ExtendedKeyUsageOID.SERVER_AUTH: "serverAuth",
+            x509.ExtendedKeyUsageOID.CLIENT_AUTH: "clientAuth",
+            x509.ExtendedKeyUsageOID.CODE_SIGNING: "codeSigning",
+            x509.ExtendedKeyUsageOID.EMAIL_PROTECTION: "emailProtection",
+            x509.ExtendedKeyUsageOID.TIME_STAMPING: "timeStamping",
+            x509.ExtendedKeyUsageOID.OCSP_SIGNING: "OCSPSigning",
+        }
+
+        try:
+            eku_ext = cert.extensions.get_extension_for_oid(x509.ExtensionOID.EXTENDED_KEY_USAGE)
+            eku_list = []
+
+            for oid in eku_ext.value:
+                if oid in eku_oid_map:
+                    eku_list.append(eku_oid_map[oid])
+                else:
+                    # Include unknown OIDs as dotted string
+                    eku_list.append(oid.dotted_string)
+
+            return eku_list
+        except x509.ExtensionNotFound:
+            return []
 
     @staticmethod
     def get_validity_status(not_before: datetime, not_after: datetime) -> tuple[str, str]:

@@ -559,6 +559,18 @@ class CAService:
         # Get validity status
         status_class, status_text = CertificateParser.get_validity_status(ca_config.not_before, ca_config.not_after)
 
+        # Parse extensions from certificate
+        key_usage = []
+        extended_key_usage = []
+        cert_path = ca_dir / "ca.crt"
+        if cert_path.exists():
+            try:
+                cert_info = CertificateParser.parse_certificate(cert_path)
+                key_usage = cert_info.get("key_usage", [])
+                extended_key_usage = cert_info.get("extended_key_usage", [])
+            except Exception as e:
+                logger.warning(f"Failed to parse extensions for CA {ca_id}: {e}")
+
         return CAResponse(
             id=ca_id,
             path=str(ca_dir),
@@ -572,6 +584,8 @@ class CAService:
             cert_count=cert_count,
             validity_status=status_class,
             validity_text=status_text,
+            key_usage=key_usage,
+            extended_key_usage=extended_key_usage,
         )
 
     def _count_intermediate_cas(self, ca_dir: Path) -> List[Path]:

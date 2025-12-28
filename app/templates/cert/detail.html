@@ -72,6 +72,30 @@
                 <th>Fingerprint (SHA256):</th>
                 <td><code>{{ cert.fingerprint_sha256 }}</code></td>
             </tr>
+            <tr>
+                <th>Key Usage:</th>
+                <td>
+                    {% if cert.key_usage %}
+                        {% for ku in cert.key_usage %}
+                            <span class="badge bg-info">{{ ku }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Extended Key Usage:</th>
+                <td>
+                    {% if cert.extended_key_usage %}
+                        {% for eku in cert.extended_key_usage %}
+                            <span class="badge bg-success">{{ eku }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
         </table>
     </div>
 </div>

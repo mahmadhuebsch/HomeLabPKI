@@ -53,6 +53,30 @@
                 <th>Type:</th>
                 <td>{{ 'Root CA' if ca.type.value == 'root_ca' else 'Intermediate CA' }}</td>
             </tr>
+            <tr>
+                <th>Key Usage:</th>
+                <td>
+                    {% if ca.key_usage %}
+                        {% for ku in ca.key_usage %}
+                            <span class="badge bg-info">{{ ku }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Extended Key Usage:</th>
+                <td>
+                    {% if ca.extended_key_usage %}
+                        {% for eku in ca.extended_key_usage %}
+                            <span class="badge bg-success">{{ eku }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
         </table>
     </div>
 </div>

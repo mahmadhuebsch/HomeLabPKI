@@ -151,3 +151,5 @@ class CAResponse(BaseModel):
     cert_count: int = 0
     validity_status: str
     validity_text: str
+    key_usage: list[str] = Field(default_factory=list)
+    extended_key_usage: list[str] = Field(default_factory=list)

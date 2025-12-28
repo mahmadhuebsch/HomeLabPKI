@@ -90,6 +90,92 @@
                 </div>
             </div>
 
+            <!-- Certificate Extensions -->
+            <div class="card mb-3">
+                <div class="card-header">Certificate Extensions</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="extensionPreset" class="form-label">Extension Preset *</label>
+                        <select class="form-select" id="extensionPreset" name="extension_preset">
+                            <option value="tls-server" selected>TLS Server</option>
+                            <option value="tls-client">TLS Client</option>
+                            <option value="tls-both">TLS Server + Client</option>
+                            <option value="code-signing">Code Signing</option>
+                            <option value="email">Email (S/MIME)</option>
+                            <option value="timestamping">Timestamping</option>
+                            <option value="ocsp">OCSP Signing</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                        <div class="form-text">Select a preset or choose Custom to manually select extensions</div>
+                    </div>
+
+                    <!-- Custom Extension Selection (hidden by default) -->
+                    <div id="customExtensions" style="display: none;">
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Key Usage</h6>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="ku-digitalSignature" name="key_usage" value="digitalSignature" checked>
+                                    <label class="form-check-label" for="ku-digitalSignature">Digital Signature</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="ku-keyEncipherment" name="key_usage" value="keyEncipherment" checked>
+                                    <label class="form-check-label" for="ku-keyEncipherment">Key Encipherment</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="ku-nonRepudiation" name="key_usage" value="nonRepudiation">
+                                    <label class="form-check-label" for="ku-nonRepudiation">Non-Repudiation</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="ku-dataEncipherment" name="key_usage" value="dataEncipherment">
+                                    <label class="form-check-label" for="ku-dataEncipherment">Data Encipherment</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="ku-keyAgreement" name="key_usage" value="keyAgreement">
+                                    <label class="form-check-label" for="ku-keyAgreement">Key Agreement</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Extended Key Usage</h6>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="eku-serverAuth" name="extended_key_usage" value="serverAuth" checked>
+                                    <label class="form-check-label" for="eku-serverAuth">TLS Server Authentication</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="eku-clientAuth" name="extended_key_usage" value="clientAuth">
+                                    <label class="form-check-label" for="eku-clientAuth">TLS Client Authentication</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="eku-codeSigning" name="extended_key_usage" value="codeSigning">
+                                    <label class="form-check-label" for="eku-codeSigning">Code Signing</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="eku-emailProtection" name="extended_key_usage" value="emailProtection">
+                                    <label class="form-check-label" for="eku-emailProtection">Email Protection (S/MIME)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="eku-timeStamping" name="extended_key_usage" value="timeStamping">
+                                    <label class="form-check-label" for="eku-timeStamping">Time Stamping</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="eku-OCSPSigning" name="extended_key_usage" value="OCSPSigning">
+                                    <label class="form-check-label" for="eku-OCSPSigning">OCSP Signing</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview of selected extensions -->
+                    <div id="extensionPreview" class="mt-3">
+                        <small class="text-muted">
+                            <strong>Key Usage:</strong> <span id="kuPreview">digitalSignature, keyEncipherment</span><br>
+                            <strong>Extended Key Usage:</strong> <span id="ekuPreview">serverAuth</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
             <!-- Key Configuration -->
             <div class="card mb-3">
                 <div class="card-header">Key Configuration</div>
@@ -426,23 +512,107 @@ function buildKeyGenCommand(algorithm, keySize) {
     return '';
 }
 
-function buildSanConfig(sans) {
+// ===== Extension Presets =====
+const extensionPresets = {
+    'tls-server': {
+        keyUsage: ['digitalSignature', 'keyEncipherment'],
+        extendedKeyUsage: ['serverAuth']
+    },
+    'tls-client': {
+        keyUsage: ['digitalSignature'],
+        extendedKeyUsage: ['clientAuth']
+    },
+    'tls-both': {
+        keyUsage: ['digitalSignature', 'keyEncipherment'],
+        extendedKeyUsage: ['serverAuth', 'clientAuth']
+    },
+    'code-signing': {
+        keyUsage: ['digitalSignature'],
+        extendedKeyUsage: ['codeSigning']
+    },
+    'email': {
+        keyUsage: ['digitalSignature', 'keyEncipherment'],
+        extendedKeyUsage: ['emailProtection']
+    },
+    'timestamping': {
+        keyUsage: ['digitalSignature'],
+        extendedKeyUsage: ['timeStamping']
+    },
+    'ocsp': {
+        keyUsage: ['digitalSignature'],
+        extendedKeyUsage: ['OCSPSigning']
+    }
+};
+
+function getSelectedExtensions() {
+    const preset = document.getElementById('extensionPreset').value;
+
+    if (preset !== 'custom') {
+        return extensionPresets[preset];
+    }
+
+    // Custom: get from checkboxes
+    const keyUsage = [];
+    document.querySelectorAll('input[name="key_usage"]:checked').forEach(cb => {
+        keyUsage.push(cb.value);
+    });
+
+    const extendedKeyUsage = [];
+    document.querySelectorAll('input[name="extended_key_usage"]:checked').forEach(cb => {
+        extendedKeyUsage.push(cb.value);
+    });
+
+    return { keyUsage, extendedKeyUsage };
+}
+
+function updateExtensionPreview() {
+    const extensions = getSelectedExtensions();
+    document.getElementById('kuPreview').textContent = extensions.keyUsage.join(', ') || '-';
+    document.getElementById('ekuPreview').textContent = extensions.extendedKeyUsage.join(', ') || '-';
+}
+
+function applyPresetToCheckboxes(preset) {
+    if (!extensionPresets[preset]) return;
+
+    const presetData = extensionPresets[preset];
+
+    // Uncheck all
+    document.querySelectorAll('input[name="key_usage"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('input[name="extended_key_usage"]').forEach(cb => cb.checked = false);
+
+    // Check preset values
+    presetData.keyUsage.forEach(ku => {
+        const cb = document.getElementById('ku-' + ku);
+        if (cb) cb.checked = true;
+    });
+    presetData.extendedKeyUsage.forEach(eku => {
+        const cb = document.getElementById('eku-' + eku);
+        if (cb) cb.checked = true;
+    });
+}
+
+function buildSanConfig(sans, keyUsage, extendedKeyUsage) {
+    const kuStr = keyUsage.join(', ');
+    const ekuStr = extendedKeyUsage.join(', ');
+
     if (!sans || sans.length === 0) {
-        return '';
+        return `[ v3_req ]
+keyUsage = critical, ${kuStr}
+extendedKeyUsage = ${ekuStr}`;
     }
 
     const sanEntries = sans.map((san, i) => `DNS.${i + 1} = ${san}`).join('\n');
 
     return `[ v3_req ]
-keyUsage = digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
+keyUsage = critical, ${kuStr}
+extendedKeyUsage = ${ekuStr}
 subjectAltName = @alt_names
 
 [ alt_names ]
 ${sanEntries}`;
 }
 
-function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans) {
+function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans, extensions) {
     const keyCmd = buildKeyGenCommand(algorithm, keySize);
     const subjectStr = buildSubjectString(subject);
     const maskedPassword = '***';
@@ -462,14 +632,14 @@ function buildServerCertCommand(subject, algorithm, keySize, validityDays, sans)
     -out cert.crt \\
     -days ${validityDays} \\
     -sha256 \\
-    -extfile san.cnf \\
+    -extfile ext.cnf \\
     -extensions v3_req`;
 
-    // Build SAN config preview
-    const sanConfig = buildSanConfig(sans);
-    const sanSection = sanConfig ? `\n\n# --- san.cnf ---\n${sanConfig}` : '';
+    // Build extension config preview
+    const extConfig = buildSanConfig(sans, extensions.keyUsage, extensions.extendedKeyUsage);
+    const extSection = `\n\n# --- ext.cnf ---\n${extConfig}`;
 
-    return `${keyCmd}\n\n${csrCmd}\n\n${certCmd}${sanSection}`;
+    return `${keyCmd}\n\n${csrCmd}\n\n${certCmd}${extSection}`;
 }
 
 function updateCommandPreview() {
@@ -487,7 +657,10 @@ function updateCommandPreview() {
     const sansText = document.getElementById('sans').value;
     const sans = sansText ? sansText.split('\n').map(s => s.trim()).filter(s => s) : [];
 
-    const command = buildServerCertCommand(subject, algorithm, keySize, validityDays, sans);
+    // Get extensions
+    const extensions = getSelectedExtensions();
+
+    const command = buildServerCertCommand(subject, algorithm, keySize, validityDays, sans, extensions);
 
     const previewElement = document.getElementById('commandPreview');
     if (command && subject.common_name) {
@@ -495,6 +668,9 @@ function updateCommandPreview() {
     } else {
         previewElement.innerHTML = '<span class="text-muted">Fill out the form to see the command...</span>';
     }
+
+    // Update extension preview
+    updateExtensionPreview();
 }
 
 // ===== Prefill Subject from Issuing CA =====
@@ -531,6 +707,27 @@ document.addEventListener('DOMContentLoaded', function() {
             field.addEventListener('input', updateCommandPreview);
             field.addEventListener('change', updateCommandPreview);
         }
+    });
+
+    // Extension preset selector
+    const extensionPreset = document.getElementById('extensionPreset');
+    if (extensionPreset) {
+        extensionPreset.addEventListener('change', function() {
+            const customDiv = document.getElementById('customExtensions');
+            if (this.value === 'custom') {
+                customDiv.style.display = 'block';
+            } else {
+                customDiv.style.display = 'none';
+                // Apply preset to checkboxes (for when switching back to custom later)
+                applyPresetToCheckboxes(this.value);
+            }
+            updateCommandPreview();
+        });
+    }
+
+    // Extension checkboxes
+    document.querySelectorAll('input[name="key_usage"], input[name="extended_key_usage"]').forEach(cb => {
+        cb.addEventListener('change', updateCommandPreview);
     });
 
     // Add Common Name validation
@@ -669,6 +866,9 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
     const sansText = formData.get('sans');
     const sans = sansText ? sansText.split('\n').map(s => s.trim()).filter(s => s) : [];
 
+    // Get selected extensions
+    const extensions = getSelectedExtensions();
+
     const request = {
         issuing_ca_id: formData.get('issuing_ca_id'),
         subject: {
@@ -682,7 +882,9 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
             password: password  // Include password for key encryption
         },
         validity_days: parseInt(formData.get('validity_days')),
-        issuing_ca_password: formData.get('issuing_ca_password')  // Password for signing
+        issuing_ca_password: formData.get('issuing_ca_password'),  // Password for signing
+        key_usage: extensions.keyUsage,
+        extended_key_usage: extensions.extendedKeyUsage
     };
 
     // Add key size or curve

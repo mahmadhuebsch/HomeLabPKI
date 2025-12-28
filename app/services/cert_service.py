@@ -82,11 +82,19 @@ class CertificateService:
                 created_at=datetime.now(),
                 serial_number=serial_number,
                 issuing_ca="../..",  # Relative path to issuing CA
+                key_usage=request.key_usage,
+                extended_key_usage=request.extended_key_usage,
             )
 
-            # Generate SAN config file
+            # Generate SAN config file with extensions
             san_cnf = cert_dir / "san.cnf"
-            self.openssl_service.generate_openssl_config("server_cert", san_cnf, cert_config.sans)
+            self.openssl_service.generate_openssl_config(
+                "server_cert",
+                san_cnf,
+                cert_config.sans,
+                cert_config.key_usage,
+                cert_config.extended_key_usage,
+            )
 
             # Build OpenSSL command (pass issuing CA password for signing)
             command = self.openssl_service.build_server_cert_command(
@@ -326,6 +334,23 @@ class CertificateService:
         # Get validity status
         status_class, status_text = CertificateParser.get_validity_status(cert_config.not_before, cert_config.not_after)
 
+        # Get key_usage and extended_key_usage from config or parse from certificate
+        key_usage = getattr(cert_config, "key_usage", [])
+        extended_key_usage = getattr(cert_config, "extended_key_usage", [])
+
+        # For imported/external certificates, parse extensions from the actual certificate
+        if not key_usage or not extended_key_usage:
+            cert_path = cert_dir / "cert.crt"
+            if cert_path.exists():
+                try:
+                    cert_info = CertificateParser.parse_certificate(cert_path)
+                    if not key_usage:
+                        key_usage = cert_info.get("key_usage", [])
+                    if not extended_key_usage:
+                        extended_key_usage = cert_info.get("extended_key_usage", [])
+                except Exception:
+                    pass  # Keep empty lists if parsing fails
+
         return CertResponse(
             id=cert_id,
             path=str(cert_dir),
@@ -340,6 +365,8 @@ class CertificateService:
             validity_status=status_class,
             validity_text=status_text,
             source=cert_config.source,
+            key_usage=key_usage,
+            extended_key_usage=extended_key_usage,
         )
 
     def sign_csr(self, request: CSRSignRequest) -> CertResponse:
@@ -427,6 +454,8 @@ class CertificateService:
                 sans=sans,
                 output_cert=cert_file,
                 ca_password=request.issuing_ca_password,
+                key_usage=request.key_usage,
+                extended_key_usage=request.extended_key_usage,
             )
 
             # Parse the generated certificate for exact dates
@@ -448,6 +477,8 @@ class CertificateService:
                 openssl_command=self.openssl_service._mask_password_in_command(openssl_cmd),
                 fingerprint_sha256=cert_info.get("fingerprint_sha256"),
                 source="external",  # Mark as external (no private key)
+                key_usage=request.key_usage,
+                extended_key_usage=request.extended_key_usage,
             )
 
             # Save config
