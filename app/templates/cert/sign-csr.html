@@ -86,6 +86,7 @@
                         <textarea class="form-control" id="sans" name="sans" rows="3"
                                   placeholder="Leave empty to use SANs from CSR, or enter custom SANs:&#10;example.com&#10;*.example.com&#10;www.example.com"></textarea>
                         <div class="form-text">Leave empty to use SANs from CSR, or add custom SANs (one per line). Wildcards (*) allowed.</div>
+                        <div class="invalid-feedback" id="sansError">Invalid domain name in SANs</div>
                     </div>
                 </div>
             </div>
@@ -148,6 +149,75 @@
 {% block extra_scripts %}
 <script>
 let csrContent = '';
+
+// ===== Domain Validation =====
+function isValidDomain(value) {
+    if (!value) return false;
+    value = value.trim();
+
+    // Allow localhost
+    if (value === 'localhost') return true;
+
+    // Allow IP addresses (IPv4)
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (ipv4Regex.test(value)) {
+        const parts = value.split('.');
+        return parts.every(p => parseInt(p) >= 0 && parseInt(p) <= 255);
+    }
+
+    // Allow wildcard domains (*.example.com)
+    if (value.startsWith('*.')) {
+        value = value.substring(2);
+    }
+
+    if (value.length > 253) return false;
+
+    const labels = value.split('.');
+    if (labels.length < 2) return false;
+
+    for (const label of labels) {
+        if (label.length === 0 || label.length > 63) return false;
+        if (label.startsWith('-') || label.endsWith('-')) return false;
+        if (!/^[a-zA-Z0-9-]+$/.test(label)) return false;
+    }
+
+    const tld = labels[labels.length - 1];
+    if (tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) return false;
+
+    return true;
+}
+
+function validateSANs() {
+    const input = document.getElementById('sans');
+    const errorDiv = document.getElementById('sansError');
+    const value = input.value.trim();
+
+    // Empty is valid (will use CSR SANs)
+    if (!value) {
+        input.classList.remove('is-valid', 'is-invalid');
+        return true;
+    }
+
+    const lines = value.split('\n').map(s => s.trim()).filter(s => s);
+    const invalidDomains = [];
+
+    for (const line of lines) {
+        if (!isValidDomain(line)) {
+            invalidDomains.push(line);
+        }
+    }
+
+    if (invalidDomains.length === 0) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        return true;
+    } else {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+        errorDiv.textContent = `Invalid domain: ${invalidDomains[0]}`;
+        return false;
+    }
+}
 
 // File upload handler
 document.getElementById('csrFile').addEventListener('change', async function(e) {
@@ -264,12 +334,22 @@ function updateCommandPreview() {
 document.getElementById('validityDays').addEventListener('input', updateCommandPreview);
 document.getElementById('sans').addEventListener('input', updateCommandPreview);
 
+// Add SANs validation
+document.getElementById('sans').addEventListener('input', validateSANs);
+document.getElementById('sans').addEventListener('blur', validateSANs);
+
 // Form submission
 document.getElementById('csrForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     if (!csrContent) {
         alert('Please upload a CSR file');
+        return;
+    }
+
+    // Validate SANs
+    if (!validateSANs()) {
+        document.getElementById('sans').focus();
         return;
     }
 
