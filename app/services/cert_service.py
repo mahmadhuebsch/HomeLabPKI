@@ -73,23 +73,16 @@ class CertificateService:
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
                 serial_number=serial_number,
-                issuing_ca="../.."  # Relative path to issuing CA
+                issuing_ca="../..",  # Relative path to issuing CA
             )
 
             # Generate SAN config file
             san_cnf = cert_dir / "san.cnf"
-            self.openssl_service.generate_openssl_config(
-                "server_cert",
-                san_cnf,
-                cert_config.sans
-            )
+            self.openssl_service.generate_openssl_config("server_cert", san_cnf, cert_config.sans)
 
             # Build OpenSSL command
             command = self.openssl_service.build_server_cert_command(
-                cert_config,
-                cert_dir,
-                issuing_ca_dir,
-                serial_number
+                cert_config, cert_dir, issuing_ca_dir, serial_number
             )
             cert_config.openssl_command = command
 
@@ -306,12 +299,7 @@ class CertificateService:
         # Concatenate all PEM files
         return "\n".join(chain_pem)
 
-    def _build_cert_response(
-        self,
-        cert_id: str,
-        cert_config: ServerCertConfig,
-        cert_dir: Path
-    ) -> CertResponse:
+    def _build_cert_response(self, cert_id: str, cert_config: ServerCertConfig, cert_dir: Path) -> CertResponse:
         """
         Build certificate response from config and directory.
 
@@ -324,10 +312,7 @@ class CertificateService:
             Certificate response
         """
         # Get validity status
-        status_class, status_text = CertificateParser.get_validity_status(
-            cert_config.not_before,
-            cert_config.not_after
-        )
+        status_class, status_text = CertificateParser.get_validity_status(cert_config.not_before, cert_config.not_after)
 
         return CertResponse(
             id=cert_id,
@@ -342,7 +327,7 @@ class CertificateService:
             openssl_command=cert_config.openssl_command,
             validity_status=status_class,
             validity_text=status_text,
-            source=cert_config.source
+            source=cert_config.source,
         )
 
     def sign_csr(self, request: CSRSignRequest) -> CertResponse:
@@ -368,17 +353,18 @@ class CertificateService:
 
         # Build subject from CSR
         from app.models.ca import Subject
+
         subject = Subject(
-            common_name=csr_info['subject'].get('CN', ''),
-            organization=csr_info['subject'].get('O'),
-            organizational_unit=csr_info['subject'].get('OU'),
-            country=csr_info['subject'].get('C'),
-            state=csr_info['subject'].get('ST'),
-            locality=csr_info['subject'].get('L')
+            common_name=csr_info["subject"].get("CN", ""),
+            organization=csr_info["subject"].get("O"),
+            organizational_unit=csr_info["subject"].get("OU"),
+            country=csr_info["subject"].get("C"),
+            state=csr_info["subject"].get("ST"),
+            locality=csr_info["subject"].get("L"),
         )
 
         # Use SANs from request if provided, otherwise use CSR SANs
-        sans = request.sans if request.sans else csr_info['sans']
+        sans = request.sans if request.sans else csr_info["sans"]
         if not sans:
             # If no SANs, use CN
             sans = [subject.common_name] if subject.common_name else []
@@ -401,21 +387,15 @@ class CertificateService:
 
             # Determine key config from CSR public key info
             from app.models.ca import KeyConfig
-            pub_key = csr_info['public_key']
+
+            pub_key = csr_info["public_key"]
 
             # Map OpenSSL algorithm names to our enum values
-            algo_map = {
-                'rsaEncryption': 'RSA',
-                'id-ecPublicKey': 'ECDSA',
-                'ED25519': 'Ed25519'
-            }
-            raw_algo = pub_key.get('algorithm', 'rsaEncryption')
-            algorithm = algo_map.get(raw_algo, 'RSA')
+            algo_map = {"rsaEncryption": "RSA", "id-ecPublicKey": "ECDSA", "ED25519": "Ed25519"}
+            raw_algo = pub_key.get("algorithm", "rsaEncryption")
+            algorithm = algo_map.get(raw_algo, "RSA")
 
-            key_config = KeyConfig(
-                algorithm=algorithm,
-                key_size=pub_key.get('key_size', 2048)
-            )
+            key_config = KeyConfig(algorithm=algorithm, key_size=pub_key.get("key_size", 2048))
 
             # Sign CSR
             cert_file = cert_dir / "cert.crt"
@@ -429,7 +409,7 @@ class CertificateService:
                 serial_number=serial_number,
                 validity_days=request.validity_days,
                 sans=sans,
-                output_cert=cert_file
+                output_cert=cert_file,
             )
 
             # Parse the generated certificate for exact dates
@@ -444,13 +424,13 @@ class CertificateService:
                 key_config=key_config,
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
-                not_before=cert_info['not_before'],
-                not_after=cert_info['not_after'],
+                not_before=cert_info["not_before"],
+                not_after=cert_info["not_after"],
                 serial_number=serial_number,
                 issuing_ca="../..",
                 openssl_command=openssl_cmd,
-                fingerprint_sha256=cert_info.get('fingerprint_sha256'),
-                source="external"  # Mark as external (no private key)
+                fingerprint_sha256=cert_info.get("fingerprint_sha256"),
+                source="external",  # Mark as external (no private key)
             )
 
             # Save config
@@ -496,18 +476,19 @@ class CertificateService:
 
         # Build subject
         from app.models.ca import Subject
-        cn = cert_info['subject'].get('CN', '') or 'unknown'
+
+        cn = cert_info["subject"].get("CN", "") or "unknown"
         subject = Subject(
             common_name=cn,
-            organization=cert_info['subject'].get('O'),
-            organizational_unit=cert_info['subject'].get('OU'),
-            country=cert_info['subject'].get('C'),
-            state=cert_info['subject'].get('ST'),
-            locality=cert_info['subject'].get('L')
+            organization=cert_info["subject"].get("O"),
+            organizational_unit=cert_info["subject"].get("OU"),
+            country=cert_info["subject"].get("C"),
+            state=cert_info["subject"].get("ST"),
+            locality=cert_info["subject"].get("L"),
         )
 
         # Get SANs
-        sans = cert_info.get('sans', [])
+        sans = cert_info.get("sans", [])
         if not sans and subject.common_name:
             sans = [subject.common_name]
 
@@ -529,14 +510,14 @@ class CertificateService:
 
             # Build key config from certificate
             from app.models.ca import KeyConfig
+
             key_config = KeyConfig(
-                algorithm=cert_info.get('public_key_algorithm', 'RSA'),
-                key_size=cert_info.get('public_key_size', 2048)
+                algorithm=cert_info.get("public_key_algorithm", "RSA"), key_size=cert_info.get("public_key_size", 2048)
             )
 
             # Calculate validity days
-            not_before = cert_info['not_before']
-            not_after = cert_info['not_after']
+            not_before = cert_info["not_before"]
+            not_after = cert_info["not_after"]
             validity_days = (not_after - not_before).days
 
             # Create certificate config
@@ -549,11 +530,11 @@ class CertificateService:
                 created_at=datetime.now(),
                 not_before=not_before,
                 not_after=not_after,
-                serial_number=cert_info.get('serial_number', 'UNKNOWN'),
+                serial_number=cert_info.get("serial_number", "UNKNOWN"),
                 issuing_ca="../..",
                 openssl_command="# Imported certificate",
-                fingerprint_sha256=cert_info.get('fingerprint_sha256'),
-                source="external"  # Mark as external (imported)
+                fingerprint_sha256=cert_info.get("fingerprint_sha256"),
+                source="external",  # Mark as external (imported)
             )
 
             # Save config

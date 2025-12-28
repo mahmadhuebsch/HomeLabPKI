@@ -11,10 +11,7 @@ router = APIRouter(prefix="/api/certs", tags=["Certificates"])
 
 
 @router.post("", response_model=CertResponse, status_code=201)
-def create_certificate(
-    request: CertCreateRequest,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def create_certificate(request: CertCreateRequest, cert_service: CertificateService = Depends(get_cert_service)):
     """
     Create a new server certificate.
     """
@@ -27,10 +24,7 @@ def create_certificate(
 
 
 @router.get("/{ca_id}/list", response_model=List[CertResponse])
-def list_certificates(
-    ca_id: str,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def list_certificates(ca_id: str, cert_service: CertificateService = Depends(get_cert_service)):
     """
     List all certificates under a CA.
     """
@@ -43,10 +37,7 @@ def list_certificates(
 
 
 @router.get("/{cert_id:path}", response_model=CertResponse)
-def get_certificate(
-    cert_id: str,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def get_certificate(cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
     """
     Get certificate details by ID.
     """
@@ -59,10 +50,7 @@ def get_certificate(
 
 
 @router.delete("/{cert_id:path}", status_code=204)
-def delete_certificate(
-    cert_id: str,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def delete_certificate(cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
     """
     Delete certificate.
     """
@@ -75,10 +63,7 @@ def delete_certificate(
 
 
 @router.post("/sign-csr", response_model=CertResponse, status_code=201)
-def sign_csr(
-    request: CSRSignRequest,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def sign_csr(request: CSRSignRequest, cert_service: CertificateService = Depends(get_cert_service)):
     """
     Sign a Certificate Signing Request (CSR).
 
@@ -94,10 +79,7 @@ def sign_csr(
 
 
 @router.post("/import", response_model=CertResponse, status_code=201)
-def import_certificate(
-    request: CertImportRequest,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def import_certificate(request: CertImportRequest, cert_service: CertificateService = Depends(get_cert_service)):
     """
     Import an external certificate for tracking.
 

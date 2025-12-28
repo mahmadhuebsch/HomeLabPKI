@@ -59,7 +59,7 @@ class FileUtils:
         Returns:
             File contents as string
         """
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
     @staticmethod
@@ -73,7 +73,7 @@ class FileUtils:
         Returns:
             File contents as bytes
         """
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             return f.read()
 
     @staticmethod
@@ -86,7 +86,7 @@ class FileUtils:
             content: Content to write
         """
         FileUtils.ensure_directory(path.parent)
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(content)
         logger.debug(f"Wrote file: {path}")
 
@@ -100,7 +100,7 @@ class FileUtils:
             content: Binary content to write
         """
         FileUtils.ensure_directory(path.parent)
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             f.write(content)
         logger.debug(f"Wrote binary file: {path}")
 

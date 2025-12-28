@@ -65,7 +65,7 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 # Mount static files
@@ -91,9 +91,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        "main:app",
-        host="localhost",
-        port=8000,
-        reload=config.app.debug
-    )
+    uvicorn.run("main:app", host="localhost", port=8000, reload=config.app.debug)

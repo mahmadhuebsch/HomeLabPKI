@@ -8,6 +8,7 @@ from .ca import Subject, KeyConfig
 
 class ServerCertConfig(BaseModel):
     """Server certificate configuration."""
+
     type: Literal["server_cert"] = "server_cert"
     created_at: datetime = Field(default_factory=datetime.now)
     subject: Subject
@@ -26,30 +27,27 @@ class ServerCertConfig(BaseModel):
         """Calculate not_after if not set."""
         if self.not_after is None:
             from datetime import timedelta
+
             self.not_after = self.not_before + timedelta(days=self.validity_days)
 
     class Config:
         """Pydantic config."""
+
         json_schema_extra = {
             "example": {
-                "subject": {
-                    "common_name": "example.com",
-                    "organization": "Example Inc"
-                },
+                "subject": {"common_name": "example.com", "organization": "Example Inc"},
                 "sans": ["example.com", "*.example.com", "www.example.com"],
-                "key_config": {
-                    "algorithm": "RSA",
-                    "key_size": 2048
-                },
+                "key_config": {"algorithm": "RSA", "key_size": 2048},
                 "validity_days": 365,
                 "serial_number": "A1B2C3D4E5",
-                "issuing_ca": "../.."
+                "issuing_ca": "../..",
             }
         }
 
 
 class CertCreateRequest(BaseModel):
     """Request model for creating a certificate."""
+
     issuing_ca_id: str
     subject: Subject
     sans: list[str] = Field(default_factory=list)
@@ -59,6 +57,7 @@ class CertCreateRequest(BaseModel):
 
 class CSRSignRequest(BaseModel):
     """Request model for signing a CSR."""
+
     issuing_ca_id: str
     csr_content: str  # PEM-encoded CSR content
     sans: list[str] = Field(default_factory=list)  # Override/add SANs
@@ -67,6 +66,7 @@ class CSRSignRequest(BaseModel):
 
 class CertImportRequest(BaseModel):
     """Request model for importing an external certificate."""
+
     issuing_ca_id: str
     cert_content: str  # PEM-encoded certificate content
     cert_name: str  # Name/identifier for the certificate
@@ -74,6 +74,7 @@ class CertImportRequest(BaseModel):
 
 class CertResponse(BaseModel):
     """Response model for certificate operations."""
+
     id: str
     path: str
     subject: Subject

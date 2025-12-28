@@ -61,38 +61,28 @@ def sample_ca_subject():
         organizational_unit="Test Unit",
         country="US",
         state="California",
-        locality="San Francisco"
+        locality="San Francisco",
     )
 
 
 @pytest.fixture
 def sample_key_config():
     """Create a sample key configuration (RSA 2048)."""
-    return KeyConfig(
-        algorithm="RSA",
-        key_size=2048
-    )
+    return KeyConfig(algorithm="RSA", key_size=2048)
 
 
 @pytest.fixture
 def sample_root_ca_request(sample_ca_subject, sample_key_config):
     """Create a sample Root CA creation request."""
     return CACreateRequest(
-        type=CAType.ROOT_CA,
-        subject=sample_ca_subject,
-        key_config=sample_key_config,
-        validity_days=365
+        type=CAType.ROOT_CA, subject=sample_ca_subject, key_config=sample_key_config, validity_days=365
     )
 
 
 @pytest.fixture
 def sample_cert_subject():
     """Create a sample certificate subject."""
-    return Subject(
-        common_name="test.example.com",
-        organization="Test Organization",
-        country="US"
-    )
+    return Subject(common_name="test.example.com", organization="Test Organization", country="US")
 
 
 @pytest.fixture
@@ -103,7 +93,7 @@ def sample_cert_request(sample_cert_subject, sample_key_config):
         sans=["test.example.com", "*.test.example.com", "192.168.1.100"],
         key_config=sample_key_config,
         validity_days=365,
-        issuing_ca_id="root-ca-test-root-ca"
+        issuing_ca_id="root-ca-test-root-ca",
     )
 
 
@@ -147,12 +137,8 @@ def created_intermediate_ca(ca_service, created_root_ca):
     """Create a test Intermediate CA under the root CA."""
     request = CACreateRequest(
         type=CAType.INTERMEDIATE_CA,
-        subject=Subject(
-            common_name="Test Intermediate CA",
-            organization="Test Organization",
-            country="US"
-        ),
+        subject=Subject(common_name="Test Intermediate CA", organization="Test Organization", country="US"),
         key_config=KeyConfig(algorithm="RSA", key_size=2048),
-        validity_days=365
+        validity_days=365,
     )
     return ca_service.create_intermediate_ca(request, created_root_ca.id)

@@ -6,8 +6,12 @@ from datetime import datetime
 import logging
 
 from app.models.ca import (
-    CAConfig, CACreateRequest, CAResponse, CAType,
-    RootCAImportRequest, IntermediateCAImportRequest
+    CAConfig,
+    CACreateRequest,
+    CAResponse,
+    CAType,
+    RootCAImportRequest,
+    IntermediateCAImportRequest,
 )
 from app.services.openssl_service import OpenSSLService
 from app.services.parser_service import CertificateParser
@@ -69,10 +73,7 @@ class CAService:
 
             # Generate OpenSSL config file
             openssl_cnf = ca_dir / "openssl.cnf"
-            self.openssl_service.generate_openssl_config(
-                "root_ca",
-                openssl_cnf
-            )
+            self.openssl_service.generate_openssl_config("root_ca", openssl_cnf)
 
             # Build OpenSSL command
             command = self.openssl_service.build_root_ca_command(ca_config, ca_dir)
@@ -112,11 +113,7 @@ class CAService:
             logger.error(f"Failed to create Root CA: {e}")
             raise
 
-    def create_intermediate_ca(
-        self,
-        request: CACreateRequest,
-        parent_ca_id: str
-    ) -> CAResponse:
+    def create_intermediate_ca(self, request: CACreateRequest, parent_ca_id: str) -> CAResponse:
         """
         Create a new Intermediate CA under a parent CA.
 
@@ -154,22 +151,15 @@ class CAService:
                 key_config=request.key_config,
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
-                parent_ca=".."  # Relative path to parent
+                parent_ca="..",  # Relative path to parent
             )
 
             # Generate OpenSSL config file
             openssl_cnf = ca_dir / "openssl.cnf"
-            self.openssl_service.generate_openssl_config(
-                "intermediate_ca",
-                openssl_cnf
-            )
+            self.openssl_service.generate_openssl_config("intermediate_ca", openssl_cnf)
 
             # Build OpenSSL command
-            command = self.openssl_service.build_intermediate_ca_command(
-                ca_config,
-                ca_dir,
-                parent_ca_dir
-            )
+            command = self.openssl_service.build_intermediate_ca_command(ca_config, ca_dir, parent_ca_dir)
             ca_config.openssl_command = command
 
             # Execute OpenSSL command
@@ -249,45 +239,40 @@ class CAService:
             cert_info = CertificateParser.parse_certificate(cert_path)
 
             # Determine key algorithm from parsed info
-            algo_map = {
-                'RSA': 'RSA',
-                'ECDSA': 'ECDSA',
-                'Ed25519': 'Ed25519'
-            }
-            algorithm = algo_map.get(cert_info.get('public_key_algorithm', 'RSA'), 'RSA')
+            algo_map = {"RSA": "RSA", "ECDSA": "ECDSA", "Ed25519": "Ed25519"}
+            algorithm = algo_map.get(cert_info.get("public_key_algorithm", "RSA"), "RSA")
 
             # Build key config from parsed certificate
             from app.models.ca import KeyConfig, KeyAlgorithm
-            if algorithm == 'RSA':
-                key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.RSA,
-                    key_size=cert_info.get('public_key_size', 2048)
-                )
-            elif algorithm == 'ECDSA':
+
+            if algorithm == "RSA":
+                key_config = KeyConfig(algorithm=KeyAlgorithm.RSA, key_size=cert_info.get("public_key_size", 2048))
+            elif algorithm == "ECDSA":
                 from app.models.ca import ECDSACurve
-                curve_name = cert_info.get('curve', 'P-256')
+
+                curve_name = cert_info.get("curve", "P-256")
                 key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.ECDSA,
-                    curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256
+                    algorithm=KeyAlgorithm.ECDSA, curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256
                 )
             else:  # Ed25519
                 key_config = KeyConfig(algorithm=KeyAlgorithm.ED25519)
 
             # Build subject from parsed certificate
             from app.models.ca import Subject
-            subject_data = cert_info['subject']
+
+            subject_data = cert_info["subject"]
             subject = Subject(
-                common_name=subject_data.get('CN') or subject_data.get('common_name', 'unknown'),
-                organization=subject_data.get('O') or subject_data.get('organization'),
-                organizational_unit=subject_data.get('OU') or subject_data.get('organizational_unit'),
-                country=subject_data.get('C') or subject_data.get('country'),
-                state=subject_data.get('ST') or subject_data.get('state'),
-                locality=subject_data.get('L') or subject_data.get('locality')
+                common_name=subject_data.get("CN") or subject_data.get("common_name", "unknown"),
+                organization=subject_data.get("O") or subject_data.get("organization"),
+                organizational_unit=subject_data.get("OU") or subject_data.get("organizational_unit"),
+                country=subject_data.get("C") or subject_data.get("country"),
+                state=subject_data.get("ST") or subject_data.get("state"),
+                locality=subject_data.get("L") or subject_data.get("locality"),
             )
 
             # Calculate validity days
-            not_before = cert_info['not_before']
-            not_after = cert_info['not_after']
+            not_before = cert_info["not_before"]
+            not_after = cert_info["not_after"]
             validity_days = (not_after - not_before).days
 
             # Create CA config
@@ -299,8 +284,8 @@ class CAService:
                 created_at=datetime.now(),
                 not_before=not_before,
                 not_after=not_after,
-                fingerprint_sha256=cert_info['fingerprint_sha256'],
-                openssl_command="# Imported external Root CA"
+                fingerprint_sha256=cert_info["fingerprint_sha256"],
+                openssl_command="# Imported external Root CA",
             )
 
             # Create serial file
@@ -367,45 +352,40 @@ class CAService:
             cert_info = CertificateParser.parse_certificate(cert_path)
 
             # Determine key algorithm from parsed info
-            algo_map = {
-                'RSA': 'RSA',
-                'ECDSA': 'ECDSA',
-                'Ed25519': 'Ed25519'
-            }
-            algorithm = algo_map.get(cert_info.get('public_key_algorithm', 'RSA'), 'RSA')
+            algo_map = {"RSA": "RSA", "ECDSA": "ECDSA", "Ed25519": "Ed25519"}
+            algorithm = algo_map.get(cert_info.get("public_key_algorithm", "RSA"), "RSA")
 
             # Build key config from parsed certificate
             from app.models.ca import KeyConfig, KeyAlgorithm
-            if algorithm == 'RSA':
-                key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.RSA,
-                    key_size=cert_info.get('public_key_size', 2048)
-                )
-            elif algorithm == 'ECDSA':
+
+            if algorithm == "RSA":
+                key_config = KeyConfig(algorithm=KeyAlgorithm.RSA, key_size=cert_info.get("public_key_size", 2048))
+            elif algorithm == "ECDSA":
                 from app.models.ca import ECDSACurve
-                curve_name = cert_info.get('curve', 'P-256')
+
+                curve_name = cert_info.get("curve", "P-256")
                 key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.ECDSA,
-                    curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256
+                    algorithm=KeyAlgorithm.ECDSA, curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256
                 )
             else:  # Ed25519
                 key_config = KeyConfig(algorithm=KeyAlgorithm.ED25519)
 
             # Build subject from parsed certificate
             from app.models.ca import Subject
-            subject_data = cert_info['subject']
+
+            subject_data = cert_info["subject"]
             subject = Subject(
-                common_name=subject_data.get('CN') or subject_data.get('common_name', 'unknown'),
-                organization=subject_data.get('O') or subject_data.get('organization'),
-                organizational_unit=subject_data.get('OU') or subject_data.get('organizational_unit'),
-                country=subject_data.get('C') or subject_data.get('country'),
-                state=subject_data.get('ST') or subject_data.get('state'),
-                locality=subject_data.get('L') or subject_data.get('locality')
+                common_name=subject_data.get("CN") or subject_data.get("common_name", "unknown"),
+                organization=subject_data.get("O") or subject_data.get("organization"),
+                organizational_unit=subject_data.get("OU") or subject_data.get("organizational_unit"),
+                country=subject_data.get("C") or subject_data.get("country"),
+                state=subject_data.get("ST") or subject_data.get("state"),
+                locality=subject_data.get("L") or subject_data.get("locality"),
             )
 
             # Calculate validity days
-            not_before = cert_info['not_before']
-            not_after = cert_info['not_after']
+            not_before = cert_info["not_before"]
+            not_after = cert_info["not_after"]
             validity_days = (not_after - not_before).days
 
             # Create CA config
@@ -417,9 +397,9 @@ class CAService:
                 created_at=datetime.now(),
                 not_before=not_before,
                 not_after=not_after,
-                fingerprint_sha256=cert_info['fingerprint_sha256'],
+                fingerprint_sha256=cert_info["fingerprint_sha256"],
                 parent_ca=request.parent_ca_id,
-                openssl_command="# Imported external Intermediate CA"
+                openssl_command="# Imported external Intermediate CA",
             )
 
             # Create serial file
@@ -538,16 +518,10 @@ class CAService:
         FileUtils.delete_directory(ca_dir)
 
         logger.warning(
-            f"Deleted CA '{ca_id}' including {intermediate_count} intermediate CAs "
-            f"and {cert_count} certificates"
+            f"Deleted CA '{ca_id}' including {intermediate_count} intermediate CAs " f"and {cert_count} certificates"
         )
 
-    def _build_ca_response(
-        self,
-        ca_id: str,
-        ca_config: CAConfig,
-        ca_dir: Path
-    ) -> CAResponse:
+    def _build_ca_response(self, ca_id: str, ca_config: CAConfig, ca_dir: Path) -> CAResponse:
         """
         Build CA response from config and directory.
 
@@ -564,10 +538,7 @@ class CAService:
         cert_count = self._count_certificates(ca_dir)
 
         # Get validity status
-        status_class, status_text = CertificateParser.get_validity_status(
-            ca_config.not_before,
-            ca_config.not_after
-        )
+        status_class, status_text = CertificateParser.get_validity_status(ca_config.not_before, ca_config.not_after)
 
         return CAResponse(
             id=ca_id,
@@ -581,7 +552,7 @@ class CAService:
             intermediate_count=intermediate_count,
             cert_count=cert_count,
             validity_status=status_class,
-            validity_text=status_text
+            validity_text=status_text,
         )
 
     def _count_intermediate_cas(self, ca_dir: Path) -> List[Path]:
@@ -644,5 +615,5 @@ class CAService:
             "root_cas": len(root_cas),
             "intermediate_cas": total_intermediates,
             "certificates": total_certs,
-            "expiring_soon": expiring_soon
+            "expiring_soon": expiring_soon,
         }

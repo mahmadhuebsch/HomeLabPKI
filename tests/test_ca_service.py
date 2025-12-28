@@ -54,13 +54,9 @@ class TestCAService:
         """Test creating an intermediate CA."""
         request = CACreateRequest(
             type=CAType.INTERMEDIATE_CA,
-            subject=Subject(
-                common_name="Test Intermediate CA",
-                organization="Test Org",
-                country="US"
-            ),
+            subject=Subject(common_name="Test Intermediate CA", organization="Test Org", country="US"),
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
-            validity_days=365
+            validity_days=365,
         )
 
         int_ca = ca_service.create_intermediate_ca(request, created_root_ca.id)
@@ -76,7 +72,7 @@ class TestCAService:
             type=CAType.INTERMEDIATE_CA,
             subject=Subject(common_name="Test Int CA", country="US"),
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
-            validity_days=365
+            validity_days=365,
         )
 
         with pytest.raises(ValueError, match="Parent CA not found"):
@@ -122,7 +118,7 @@ class TestCAKeyAlgorithms:
             type=CAType.ROOT_CA,
             subject=sample_ca_subject,
             key_config=KeyConfig(algorithm="RSA", key_size=4096),
-            validity_days=365
+            validity_days=365,
         )
 
         ca = ca_service.create_root_ca(request)
@@ -132,13 +128,9 @@ class TestCAKeyAlgorithms:
         """Test creating CA with ECDSA."""
         request = CACreateRequest(
             type=CAType.ROOT_CA,
-            subject=Subject(
-                common_name="ECDSA Test CA",
-                organization="Test Org",
-                country="US"
-            ),
+            subject=Subject(common_name="ECDSA Test CA", organization="Test Org", country="US"),
             key_config=KeyConfig(algorithm="ECDSA", curve="P-256"),
-            validity_days=365
+            validity_days=365,
         )
 
         ca = ca_service.create_root_ca(request)
@@ -148,13 +140,9 @@ class TestCAKeyAlgorithms:
         """Test creating CA with Ed25519."""
         request = CACreateRequest(
             type=CAType.ROOT_CA,
-            subject=Subject(
-                common_name="Ed25519 Test CA",
-                organization="Test Org",
-                country="US"
-            ),
+            subject=Subject(common_name="Ed25519 Test CA", organization="Test Org", country="US"),
             key_config=KeyConfig(algorithm="Ed25519"),
-            validity_days=365
+            validity_days=365,
         )
 
         ca = ca_service.create_root_ca(request)

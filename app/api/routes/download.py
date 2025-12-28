@@ -19,11 +19,7 @@ def download_ca_cert(ca_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
         if not cert_path.exists():
             raise HTTPException(status_code=404, detail="Certificate not found")
 
-        return FileResponse(
-            path=cert_path,
-            media_type="application/x-pem-file",
-            filename="ca.crt"
-        )
+        return FileResponse(path=cert_path, media_type="application/x-pem-file", filename="ca.crt")
     except HTTPException:
         raise
     except Exception as e:
@@ -43,9 +39,7 @@ def download_ca_key(ca_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
             path=key_path,
             media_type="application/x-pem-file",
             filename="ca.key",
-            headers={
-                "X-Security-Warning": "This file contains a private key. Handle with care!"
-            }
+            headers={"X-Security-Warning": "This file contains a private key. Handle with care!"},
         )
     except HTTPException:
         raise
@@ -62,11 +56,7 @@ def download_cert(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
         if not cert_path.exists():
             raise HTTPException(status_code=404, detail="Certificate not found")
 
-        return FileResponse(
-            path=cert_path,
-            media_type="application/x-pem-file",
-            filename="cert.crt"
-        )
+        return FileResponse(path=cert_path, media_type="application/x-pem-file", filename="cert.crt")
     except HTTPException:
         raise
     except Exception as e:
@@ -86,9 +76,7 @@ def download_cert_key(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)
             path=key_path,
             media_type="application/x-pem-file",
             filename="cert.key",
-            headers={
-                "X-Security-Warning": "This file contains a private key. Handle with care!"
-            }
+            headers={"X-Security-Warning": "This file contains a private key. Handle with care!"},
         )
     except HTTPException:
         raise
@@ -97,10 +85,7 @@ def download_cert_key(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)
 
 
 @router.get("/cert/{cert_id:path}/fullchain")
-def download_cert_fullchain(
-    cert_id: str,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+def download_cert_fullchain(cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
     """Download full certificate chain (cert + intermediates + root)."""
     try:
         chain_pem = cert_service.build_certificate_chain(cert_id)
@@ -108,9 +93,7 @@ def download_cert_fullchain(
         return PlainTextResponse(
             content=chain_pem,
             media_type="application/x-pem-file",
-            headers={
-                "Content-Disposition": "attachment; filename=fullchain.pem"
-            }
+            headers={"Content-Disposition": "attachment; filename=fullchain.pem"},
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -14,6 +14,7 @@ class TestCertificateParser:
     def test_parse_certificate(self, created_root_ca):
         """Test parsing a certificate."""
         from pathlib import Path
+
         cert_path = Path(created_root_ca.path) / "ca.crt"
 
         cert_info = CertificateParser.parse_certificate(cert_path)
@@ -29,6 +30,7 @@ class TestCertificateParser:
     def test_parse_nonexistent_certificate_fails(self):
         """Test parsing nonexistent certificate fails."""
         from pathlib import Path
+
         nonexistent_path = Path("/nonexistent/cert.crt")
 
         with pytest.raises(FileNotFoundError):
@@ -37,6 +39,7 @@ class TestCertificateParser:
     def test_certificate_to_text(self, created_root_ca):
         """Test converting certificate to text format."""
         from pathlib import Path
+
         cert_path = Path(created_root_ca.path) / "ca.crt"
 
         text = CertificateParser.certificate_to_text(cert_path)
@@ -53,9 +56,7 @@ class TestCertificateParser:
         not_before = now - timedelta(days=1)
         not_after = now + timedelta(days=100)
 
-        status_class, status_text = CertificateParser.get_validity_status(
-            not_before, not_after
-        )
+        status_class, status_text = CertificateParser.get_validity_status(not_before, not_after)
 
         assert status_class == "success"
         assert "Valid" in status_text
@@ -66,9 +67,7 @@ class TestCertificateParser:
         not_before = now - timedelta(days=1)
         not_after = now + timedelta(days=15)  # Expires in 15 days
 
-        status_class, status_text = CertificateParser.get_validity_status(
-            not_before, not_after
-        )
+        status_class, status_text = CertificateParser.get_validity_status(not_before, not_after)
 
         assert status_class == "warning"
         assert "days" in status_text
@@ -79,9 +78,7 @@ class TestCertificateParser:
         not_before = now - timedelta(days=100)
         not_after = now - timedelta(days=1)  # Expired
 
-        status_class, status_text = CertificateParser.get_validity_status(
-            not_before, not_after
-        )
+        status_class, status_text = CertificateParser.get_validity_status(not_before, not_after)
 
         assert status_class == "danger"
         assert "Expired" in status_text
@@ -92,9 +89,7 @@ class TestCertificateParser:
         not_before = now + timedelta(days=1)  # Future
         not_after = now + timedelta(days=100)
 
-        status_class, status_text = CertificateParser.get_validity_status(
-            not_before, not_after
-        )
+        status_class, status_text = CertificateParser.get_validity_status(not_before, not_after)
 
         assert status_class == "warning"
         assert "Not yet valid" in status_text

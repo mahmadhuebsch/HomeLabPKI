@@ -14,15 +14,11 @@ class TestCertificateService:
     def test_create_server_certificate(self, cert_service, created_root_ca):
         """Test creating a server certificate."""
         request = CertCreateRequest(
-            subject=Subject(
-                common_name="test.example.com",
-                organization="Test Org",
-                country="US"
-            ),
+            subject=Subject(common_name="test.example.com", organization="Test Org", country="US"),
             sans=["test.example.com", "*.test.example.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
 
         cert = cert_service.create_server_certificate(request)
@@ -41,7 +37,7 @@ class TestCertificateService:
             sans=["test.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id="nonexistent-ca"
+            issuing_ca_id="nonexistent-ca",
         )
 
         with pytest.raises(ValueError, match="Issuing CA not found"):
@@ -55,7 +51,7 @@ class TestCertificateService:
             sans=["test1.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
         cert_service.create_server_certificate(request)
 
@@ -72,7 +68,7 @@ class TestCertificateService:
             sans=["global-test.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
         cert_service.create_server_certificate(request)
 
@@ -88,7 +84,7 @@ class TestCertificateService:
             sans=["get-test.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
         created_cert = cert_service.create_server_certificate(request)
 
@@ -104,7 +100,7 @@ class TestCertificateService:
             sans=["delete-test.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
         cert = cert_service.create_server_certificate(request)
         cert_path = Path(cert.path)
@@ -122,7 +118,7 @@ class TestCertificateService:
             sans=["chain-test.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
         cert = cert_service.create_server_certificate(request)
 
@@ -142,15 +138,10 @@ class TestCertificateSANs:
         """Test creating certificate with multiple SANs."""
         request = CertCreateRequest(
             subject=Subject(common_name="multi-san.com", country="US"),
-            sans=[
-                "multi-san.com",
-                "*.multi-san.com",
-                "www.multi-san.com",
-                "192.168.1.1"
-            ],
+            sans=["multi-san.com", "*.multi-san.com", "www.multi-san.com", "192.168.1.1"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
 
         cert = cert_service.create_server_certificate(request)
@@ -166,7 +157,7 @@ class TestCertificateSANs:
             sans=[],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
 
         cert = cert_service.create_server_certificate(request)

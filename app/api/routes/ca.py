@@ -11,10 +11,7 @@ router = APIRouter(prefix="/api/cas", tags=["CA"])
 
 
 @router.post("", response_model=CAResponse, status_code=201)
-def create_ca(
-    request: CACreateRequest,
-    ca_service: CAService = Depends(get_ca_service)
-):
+def create_ca(request: CACreateRequest, ca_service: CAService = Depends(get_ca_service)):
     """
     Create a new CA (Root or Intermediate).
 
@@ -26,10 +23,7 @@ def create_ca(
             return ca_service.create_root_ca(request)
         else:  # intermediate_ca
             if not request.parent_ca_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="parent_ca_id required for intermediate CA"
-                )
+                raise HTTPException(status_code=400, detail="parent_ca_id required for intermediate CA")
             return ca_service.create_intermediate_ca(request, request.parent_ca_id)
 
     except ValueError as e:
@@ -40,9 +34,7 @@ def create_ca(
 
 @router.post("/{parent_ca_id}/intermediates", response_model=CAResponse, status_code=201)
 def create_intermediate_ca(
-    parent_ca_id: str,
-    request: CACreateRequest,
-    ca_service: CAService = Depends(get_ca_service)
+    parent_ca_id: str, request: CACreateRequest, ca_service: CAService = Depends(get_ca_service)
 ):
     """
     Create an intermediate CA under a parent CA.
@@ -104,10 +96,7 @@ def get_statistics(ca_service: CAService = Depends(get_ca_service)):
 
 
 @router.post("/import-root", response_model=CAResponse, status_code=201)
-def import_root_ca(
-    request: RootCAImportRequest,
-    ca_service: CAService = Depends(get_ca_service)
-):
+def import_root_ca(request: RootCAImportRequest, ca_service: CAService = Depends(get_ca_service)):
     """
     Import an external Root CA for tracking.
 
@@ -123,10 +112,7 @@ def import_root_ca(
 
 
 @router.post("/import-intermediate", response_model=CAResponse, status_code=201)
-def import_intermediate_ca(
-    request: IntermediateCAImportRequest,
-    ca_service: CAService = Depends(get_ca_service)
-):
+def import_intermediate_ca(request: IntermediateCAImportRequest, ca_service: CAService = Depends(get_ca_service)):
     """
     Import an external Intermediate CA for tracking.
 

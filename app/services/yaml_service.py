@@ -31,7 +31,7 @@ class YAMLService:
         if not file_path.exists():
             raise FileNotFoundError(f"YAML file not found: {file_path}")
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             try:
                 data = yaml.safe_load(f)
                 logger.debug(f"Loaded YAML from: {file_path}")
@@ -57,12 +57,11 @@ class YAMLService:
 
         # Custom representer for datetime objects
         def datetime_representer(dumper, data):
-            return dumper.represent_scalar('tag:yaml.org,2002:timestamp',
-                                          data.isoformat())
+            return dumper.represent_scalar("tag:yaml.org,2002:timestamp", data.isoformat())
 
         # Custom representer for Enum objects
         def enum_representer(dumper, data):
-            return dumper.represent_scalar('tag:yaml.org,2002:str', data.value)
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
 
         yaml.add_representer(datetime, datetime_representer)
         yaml.add_representer(Enum, enum_representer)
@@ -70,15 +69,9 @@ class YAMLService:
         # Add representers for all Enum subclasses
         yaml.add_multi_representer(Enum, enum_representer)
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             try:
-                yaml.dump(
-                    data,
-                    f,
-                    default_flow_style=False,
-                    allow_unicode=True,
-                    sort_keys=False
-                )
+                yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
                 logger.debug(f"Saved YAML to: {file_path}")
             except yaml.YAMLError as e:
                 logger.error(f"Error saving YAML file {file_path}: {e}")
@@ -102,11 +95,11 @@ class YAMLService:
         data = YAMLService.load_yaml(file_path)
 
         # Parse datetime strings
-        datetime_fields = ['created_at', 'not_before', 'not_after']
+        datetime_fields = ["created_at", "not_before", "not_after"]
         for field in datetime_fields:
             if field in data and isinstance(data[field], str):
                 try:
-                    data[field] = datetime.fromisoformat(data[field].replace('Z', '+00:00'))
+                    data[field] = datetime.fromisoformat(data[field].replace("Z", "+00:00"))
                 except ValueError as e:
                     logger.warning(f"Error parsing datetime field {field}: {e}")
 
@@ -135,9 +128,11 @@ class YAMLService:
                 formatted_data[key] = YAMLService._format_nested_dict(value)
             elif isinstance(value, list):
                 formatted_data[key] = [
-                    YAMLService._format_nested_dict(item) if isinstance(item, dict)
-                    else item.value if isinstance(item, Enum)
-                    else item
+                    (
+                        YAMLService._format_nested_dict(item)
+                        if isinstance(item, dict)
+                        else item.value if isinstance(item, Enum) else item
+                    )
                     for item in value
                 ]
             else:
@@ -166,9 +161,11 @@ class YAMLService:
                 formatted[key] = YAMLService._format_nested_dict(value)
             elif isinstance(value, list):
                 formatted[key] = [
-                    YAMLService._format_nested_dict(item) if isinstance(item, dict)
-                    else item.value if isinstance(item, Enum)
-                    else item
+                    (
+                        YAMLService._format_nested_dict(item)
+                        if isinstance(item, dict)
+                        else item.value if isinstance(item, Enum) else item
+                    )
                     for item in value
                 ]
             else:

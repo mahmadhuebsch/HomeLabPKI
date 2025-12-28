@@ -24,13 +24,13 @@ def sanitize_name(name: str) -> str:
     # Convert to lowercase
     sanitized = name.lower()
     # Replace spaces with hyphens
-    sanitized = sanitized.replace(' ', '-')
+    sanitized = sanitized.replace(" ", "-")
     # Remove non-alphanumeric characters (except hyphens)
-    sanitized = re.sub(r'[^a-z0-9-]', '', sanitized)
+    sanitized = re.sub(r"[^a-z0-9-]", "", sanitized)
     # Remove multiple consecutive hyphens
-    sanitized = re.sub(r'-+', '-', sanitized)
+    sanitized = re.sub(r"-+", "-", sanitized)
     # Remove leading/trailing hyphens
-    sanitized = sanitized.strip('-')
+    sanitized = sanitized.strip("-")
 
     return sanitized
 
@@ -52,7 +52,7 @@ def validate_ca_path(ca_data_dir: Path, ca_id: str) -> Path:
     ca_path = ca_data_dir / ca_id
 
     # Check for directory traversal attempts
-    if '..' in ca_id or ca_id.startswith('/'):
+    if ".." in ca_id or ca_id.startswith("/"):
         raise ValueError(f"Invalid CA ID: {ca_id}")
 
     # Verify path exists
@@ -95,10 +95,8 @@ def validate_country_code(country: str) -> None:
     Raises:
         ValueError: If country code is invalid
     """
-    if not re.match(r'^[A-Z]{2}$', country):
-        raise ValueError(
-            "Country code must be 2 uppercase letters (ISO 3166-1 alpha-2)"
-        )
+    if not re.match(r"^[A-Z]{2}$", country):
+        raise ValueError("Country code must be 2 uppercase letters (ISO 3166-1 alpha-2)")
 
 
 def validate_domain(domain: str) -> None:
@@ -112,7 +110,7 @@ def validate_domain(domain: str) -> None:
         ValueError: If domain is invalid
     """
     # Allow wildcards
-    domain_pattern = r'^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$'
+    domain_pattern = r"^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$"
 
     if not re.match(domain_pattern, domain):
         raise ValueError(f"Invalid domain format: {domain}")

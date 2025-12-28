@@ -19,21 +19,16 @@ def sample_csr():
         csr_file = tmpdir / "test.csr"
 
         # Generate RSA key
-        subprocess.run(
-            f"openssl genrsa -out {key_file} 2048",
-            shell=True,
-            capture_output=True,
-            check=True
-        )
+        subprocess.run(f"openssl genrsa -out {key_file} 2048", shell=True, capture_output=True, check=True)
 
         # Generate CSR
         subprocess.run(
-            f'openssl req -new -key {key_file} -out {csr_file} '
+            f"openssl req -new -key {key_file} -out {csr_file} "
             f'-subj "/C=US/O=Test Org/CN=csr-test.example.com" '
             f'-addext "subjectAltName=DNS:csr-test.example.com,DNS:*.csr-test.example.com"',
             shell=True,
             capture_output=True,
-            check=True
+            check=True,
         )
 
         csr_content = csr_file.read_text()
@@ -50,18 +45,18 @@ class TestCSRParsing:
         csr_info = openssl_service.parse_csr(sample_csr)
 
         assert csr_info is not None
-        assert 'subject' in csr_info
-        assert 'sans' in csr_info
-        assert 'public_key' in csr_info
+        assert "subject" in csr_info
+        assert "sans" in csr_info
+        assert "public_key" in csr_info
 
         # Check subject
-        assert csr_info['subject']['CN'] == 'csr-test.example.com'
-        assert csr_info['subject']['O'] == 'Test Org'
-        assert csr_info['subject']['C'] == 'US'
+        assert csr_info["subject"]["CN"] == "csr-test.example.com"
+        assert csr_info["subject"]["O"] == "Test Org"
+        assert csr_info["subject"]["C"] == "US"
 
         # Check SANs
-        assert 'csr-test.example.com' in csr_info['sans']
-        assert '*.csr-test.example.com' in csr_info['sans']
+        assert "csr-test.example.com" in csr_info["sans"]
+        assert "*.csr-test.example.com" in csr_info["sans"]
 
     def test_parse_invalid_csr_fails(self, openssl_service):
         """Test that parsing invalid CSR fails."""
@@ -78,10 +73,7 @@ class TestCSRSigning:
     def test_sign_csr(self, cert_service, created_root_ca, sample_csr):
         """Test signing a CSR."""
         request = CSRSignRequest(
-            issuing_ca_id=created_root_ca.id,
-            csr_content=sample_csr,
-            sans=[],  # Use SANs from CSR
-            validity_days=365
+            issuing_ca_id=created_root_ca.id, csr_content=sample_csr, sans=[], validity_days=365  # Use SANs from CSR
         )
 
         cert = cert_service.sign_csr(request)
@@ -102,7 +94,7 @@ class TestCSRSigning:
             issuing_ca_id=created_root_ca.id,
             csr_content=sample_csr,
             sans=["override.example.com", "*.override.example.com"],
-            validity_days=365
+            validity_days=365,
         )
 
         cert = cert_service.sign_csr(request)
@@ -113,12 +105,7 @@ class TestCSRSigning:
 
     def test_sign_csr_with_invalid_ca_fails(self, cert_service, sample_csr):
         """Test that signing CSR with invalid CA fails."""
-        request = CSRSignRequest(
-            issuing_ca_id="nonexistent-ca",
-            csr_content=sample_csr,
-            sans=[],
-            validity_days=365
-        )
+        request = CSRSignRequest(issuing_ca_id="nonexistent-ca", csr_content=sample_csr, sans=[], validity_days=365)
 
         with pytest.raises(ValueError, match="Issuing CA not found"):
             cert_service.sign_csr(request)
@@ -127,12 +114,7 @@ class TestCSRSigning:
         """Test that signing invalid CSR fails."""
         invalid_csr = "-----BEGIN CERTIFICATE REQUEST-----\nINVALID\n-----END CERTIFICATE REQUEST-----"
 
-        request = CSRSignRequest(
-            issuing_ca_id=created_root_ca.id,
-            csr_content=invalid_csr,
-            sans=[],
-            validity_days=365
-        )
+        request = CSRSignRequest(issuing_ca_id=created_root_ca.id, csr_content=invalid_csr, sans=[], validity_days=365)
 
         with pytest.raises(ValueError):
             cert_service.sign_csr(request)
@@ -153,7 +135,7 @@ class TestCertificateImport:
             sans=["import-source.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
 
         created_cert = cert_service.create_server_certificate(create_request)
@@ -162,9 +144,7 @@ class TestCertificateImport:
 
         # Now import it as external certificate
         import_request = CertImportRequest(
-            issuing_ca_id=created_root_ca.id,
-            cert_content=cert_content,
-            cert_name="imported-certificate"
+            issuing_ca_id=created_root_ca.id, cert_content=cert_content, cert_name="imported-certificate"
         )
 
         imported_cert = cert_service.import_certificate(import_request)
@@ -182,7 +162,7 @@ class TestCertificateImport:
         request = CertImportRequest(
             issuing_ca_id="nonexistent-ca",
             cert_content="-----BEGIN CERTIFICATE-----\nVALID CERT\n-----END CERTIFICATE-----",
-            cert_name="test-import"
+            cert_name="test-import",
         )
 
         with pytest.raises(ValueError, match="Issuing CA not found"):
@@ -198,7 +178,7 @@ class TestCertificateImport:
             sans=["duplicate.com"],
             key_config=KeyConfig(algorithm="RSA", key_size=2048),
             validity_days=365,
-            issuing_ca_id=created_root_ca.id
+            issuing_ca_id=created_root_ca.id,
         )
 
         created_cert = cert_service.create_server_certificate(create_request)
@@ -207,9 +187,7 @@ class TestCertificateImport:
 
         # Import once
         import_request = CertImportRequest(
-            issuing_ca_id=created_root_ca.id,
-            cert_content=cert_content,
-            cert_name="import-dup"
+            issuing_ca_id=created_root_ca.id, cert_content=cert_content, cert_name="import-dup"
         )
         cert_service.import_certificate(import_request)
 
@@ -224,12 +202,7 @@ class TestCSRSigningAPI:
 
     def test_sign_csr_endpoint(self, client, created_root_ca, sample_csr):
         """Test CSR signing API endpoint."""
-        payload = {
-            "issuing_ca_id": created_root_ca.id,
-            "csr_content": sample_csr,
-            "sans": [],
-            "validity_days": 365
-        }
+        payload = {"issuing_ca_id": created_root_ca.id, "csr_content": sample_csr, "sans": [], "validity_days": 365}
 
         response = client.post("/api/certs/sign-csr", json=payload)
 
@@ -240,12 +213,7 @@ class TestCSRSigningAPI:
 
     def test_sign_csr_endpoint_with_invalid_ca(self, client, sample_csr):
         """Test CSR signing with invalid CA."""
-        payload = {
-            "issuing_ca_id": "invalid-ca",
-            "csr_content": sample_csr,
-            "sans": [],
-            "validity_days": 365
-        }
+        payload = {"issuing_ca_id": "invalid-ca", "csr_content": sample_csr, "sans": [], "validity_days": 365}
 
         response = client.post("/api/certs/sign-csr", json=payload)
 
@@ -264,7 +232,7 @@ class TestCertificateImportAPI:
             "sans": ["api-import.com"],
             "key_config": {"algorithm": "RSA", "key_size": 2048},
             "validity_days": 365,
-            "issuing_ca_id": created_root_ca.id
+            "issuing_ca_id": created_root_ca.id,
         }
 
         cert_response = client.post("/api/certs", json=cert_payload)
@@ -278,7 +246,7 @@ class TestCertificateImportAPI:
         import_payload = {
             "issuing_ca_id": created_root_ca.id,
             "cert_content": cert_content,
-            "cert_name": "imported-via-api"
+            "cert_name": "imported-via-api",
         }
 
         response = client.post("/api/certs/import", json=import_payload)
@@ -293,7 +261,7 @@ class TestCertificateImportAPI:
         payload = {
             "issuing_ca_id": "invalid-ca",
             "cert_content": "-----BEGIN CERTIFICATE-----\nVALID\n-----END CERTIFICATE-----",
-            "cert_name": "test"
+            "cert_name": "test",
         }
 
         response = client.post("/api/certs/import", json=payload)

@@ -29,7 +29,7 @@ class OpenSSLService:
         """
         # Resolve to absolute path first, then convert to POSIX
         absolute_path = path.resolve()
-        return str(absolute_path).replace('\\', '/')
+        return str(absolute_path).replace("\\", "/")
 
     def __init__(self, openssl_path: Optional[str] = None):
         """
@@ -71,10 +71,7 @@ class OpenSSLService:
         config_file = "openssl.cnf"
 
         # 1. Private Key Generation
-        key_cmd = self._build_key_gen_cmd(
-            config.key_config,
-            key_file
-        )
+        key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
 
         # 2. Self-Signed Certificate
         subject = self._build_subject_string(config.subject)
@@ -90,12 +87,7 @@ class OpenSSLService:
 
         return f"{key_cmd}\n{cert_cmd}"
 
-    def build_intermediate_ca_command(
-        self,
-        config: CAConfig,
-        output_dir: Path,
-        parent_ca_dir: Path
-    ) -> str:
+    def build_intermediate_ca_command(self, config: CAConfig, output_dir: Path, parent_ca_dir: Path) -> str:
         """
         Generate OpenSSL command for Intermediate CA.
 
@@ -118,10 +110,7 @@ class OpenSSLService:
         parent_key = self._path_to_posix(parent_ca_dir / "ca.key")
 
         # 1. Private Key
-        key_cmd = self._build_key_gen_cmd(
-            config.key_config,
-            key_file
-        )
+        key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
 
         # 2. CSR
         subject = self._build_subject_string(config.subject)
@@ -150,11 +139,7 @@ class OpenSSLService:
         return f"{key_cmd}\n{csr_cmd}\n{cert_cmd}"
 
     def build_server_cert_command(
-        self,
-        config: ServerCertConfig,
-        output_dir: Path,
-        issuing_ca_dir: Path,
-        serial_number: str
+        self, config: ServerCertConfig, output_dir: Path, issuing_ca_dir: Path, serial_number: str
     ) -> str:
         """
         Generate OpenSSL command for Server Certificate.
@@ -179,19 +164,11 @@ class OpenSSLService:
         ca_key = self._path_to_posix(issuing_ca_dir / "ca.key")
 
         # 1. Private Key
-        key_cmd = self._build_key_gen_cmd(
-            config.key_config,
-            key_file
-        )
+        key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
 
         # 2. CSR
         subject = self._build_subject_string(config.subject)
-        csr_cmd = (
-            f"{self.openssl_path} req -new "
-            f"-key {key_file} "
-            f"-out {csr_file} "
-            f'-subj "{subject}"'
-        )
+        csr_cmd = f"{self.openssl_path} req -new " f"-key {key_file} " f"-out {csr_file} " f'-subj "{subject}"'
 
         # 3. Certificate with SANs
         cert_cmd = (
@@ -209,11 +186,7 @@ class OpenSSLService:
 
         return f"{key_cmd}\n{csr_cmd}\n{cert_cmd}"
 
-    def _build_key_gen_cmd(
-        self,
-        key_config: KeyConfig,
-        output_file: str
-    ) -> str:
+    def _build_key_gen_cmd(self, key_config: KeyConfig, output_file: str) -> str:
         """
         Generate key generation command based on algorithm.
 
@@ -225,31 +198,16 @@ class OpenSSLService:
             Key generation command
         """
         if key_config.algorithm == KeyAlgorithm.RSA:
-            return (
-                f"{self.openssl_path} genrsa "
-                f"-out {output_file} {key_config.key_size}"
-            )
+            return f"{self.openssl_path} genrsa " f"-out {output_file} {key_config.key_size}"
 
         elif key_config.algorithm == KeyAlgorithm.ECDSA:
             # Map curve names to OpenSSL names
-            curve_map = {
-                "P-256": "prime256v1",
-                "P-384": "secp384r1",
-                "P-521": "secp521r1"
-            }
+            curve_map = {"P-256": "prime256v1", "P-384": "secp384r1", "P-521": "secp521r1"}
             curve = curve_map.get(key_config.curve, "prime256v1")
-            return (
-                f"{self.openssl_path} ecparam "
-                f"-name {curve} "
-                f"-genkey -out {output_file}"
-            )
+            return f"{self.openssl_path} ecparam " f"-name {curve} " f"-genkey -out {output_file}"
 
         elif key_config.algorithm == KeyAlgorithm.ED25519:
-            return (
-                f"{self.openssl_path} genpkey "
-                f"-algorithm Ed25519 "
-                f"-out {output_file}"
-            )
+            return f"{self.openssl_path} genpkey " f"-algorithm Ed25519 " f"-out {output_file}"
 
     def _build_subject_string(self, subject: Subject) -> str:
         """
@@ -292,40 +250,33 @@ class OpenSSLService:
         try:
             import shlex
             import os
+
             # Split multi-line commands
-            commands = [cmd.strip() for cmd in command.split('\n') if cmd.strip()]
+            commands = [cmd.strip() for cmd in command.split("\n") if cmd.strip()]
 
             all_stdout = []
             all_stderr = []
 
             # Create environment without OPENSSL_CONF to avoid default config path issues
             env = os.environ.copy()
-            env.pop('OPENSSL_CONF', None)  # Remove OPENSSL_CONF if it exists
+            env.pop("OPENSSL_CONF", None)  # Remove OPENSSL_CONF if it exists
 
             for cmd in commands:
                 logger.info(f"Executing: {cmd}")
 
                 # Use shell=True for now to avoid complex quoting issues
                 # TODO: Refactor to build commands as argument lists
-                result = subprocess.run(
-                    cmd,
-                    shell=True,
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    env=env
-                )
+                result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True, timeout=30, env=env)
 
                 all_stdout.append(result.stdout)
                 all_stderr.append(result.stderr)
 
                 if result.returncode != 0:
                     logger.error(f"Command failed: {result.stderr}")
-                    return False, '\n'.join(all_stdout), '\n'.join(all_stderr)
+                    return False, "\n".join(all_stdout), "\n".join(all_stderr)
 
             logger.info("Commands executed successfully")
-            return True, '\n'.join(all_stdout), '\n'.join(all_stderr)
+            return True, "\n".join(all_stdout), "\n".join(all_stderr)
 
         except subprocess.TimeoutExpired:
             logger.error("Command timeout after 30 seconds")
@@ -334,12 +285,7 @@ class OpenSSLService:
             logger.error(f"Command execution error: {e}")
             return False, "", str(e)
 
-    def generate_openssl_config(
-        self,
-        config_type: str,
-        output_file: Path,
-        sans: Optional[list[str]] = None
-    ) -> None:
+    def generate_openssl_config(self, config_type: str, output_file: Path, sans: Optional[list[str]] = None) -> None:
         """
         Generate openssl.cnf file.
 
@@ -358,7 +304,7 @@ class OpenSSLService:
             raise ValueError(f"Unknown config type: {config_type}")
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(content)
 
         logger.debug(f"Generated OpenSSL config: {output_file}")
@@ -443,20 +389,14 @@ subjectAltName = @alt_names
 
         try:
             # Write CSR to temp file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csr', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".csr", delete=False) as f:
                 f.write(csr_content)
                 csr_file = Path(f.name)
 
             try:
                 # Parse CSR text
                 cmd = f"{self.openssl_path} req -text -noout -in {csr_file}"
-                result = subprocess.run(
-                    cmd,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
 
                 if result.returncode != 0:
                     raise ValueError(f"Invalid CSR: {result.stderr}")
@@ -464,48 +404,44 @@ subjectAltName = @alt_names
                 csr_text = result.stdout
 
                 # Extract subject
-                subject_line = [line for line in csr_text.split('\n') if 'Subject:' in line]
-                subject_str = subject_line[0].split('Subject: ')[1] if subject_line else ""
+                subject_line = [line for line in csr_text.split("\n") if "Subject:" in line]
+                subject_str = subject_line[0].split("Subject: ")[1] if subject_line else ""
 
                 # Parse subject components
                 subject_parts = {}
-                for part in subject_str.split(', '):
-                    if '=' in part:
-                        key, value = part.split('=', 1)
+                for part in subject_str.split(", "):
+                    if "=" in part:
+                        key, value = part.split("=", 1)
                         subject_parts[key.strip()] = value.strip()
 
                 # Extract SANs
                 sans = []
                 in_san_section = False
-                for line in csr_text.split('\n'):
-                    if 'X509v3 Subject Alternative Name' in line:
+                for line in csr_text.split("\n"):
+                    if "X509v3 Subject Alternative Name" in line:
                         in_san_section = True
                         continue
-                    if in_san_section and 'DNS:' in line:
+                    if in_san_section and "DNS:" in line:
                         # Extract all DNS entries
-                        san_entries = line.strip().split(', ')
+                        san_entries = line.strip().split(", ")
                         for entry in san_entries:
-                            if entry.startswith('DNS:'):
-                                sans.append(entry.replace('DNS:', ''))
+                            if entry.startswith("DNS:"):
+                                sans.append(entry.replace("DNS:", ""))
                         break
 
                 # Extract public key algorithm and size
                 pub_key_info = {}
-                for line in csr_text.split('\n'):
-                    if 'Public Key Algorithm:' in line:
-                        algo = line.split(':')[1].strip()
-                        pub_key_info['algorithm'] = algo
-                    elif 'Public-Key:' in line:
+                for line in csr_text.split("\n"):
+                    if "Public Key Algorithm:" in line:
+                        algo = line.split(":")[1].strip()
+                        pub_key_info["algorithm"] = algo
+                    elif "Public-Key:" in line:
                         # Extract key size (e.g., "(2048 bit)")
-                        size_match = line.split('(')[1].split(' bit')[0] if '(' in line else None
+                        size_match = line.split("(")[1].split(" bit")[0] if "(" in line else None
                         if size_match:
-                            pub_key_info['key_size'] = int(size_match)
+                            pub_key_info["key_size"] = int(size_match)
 
-                return {
-                    'subject': subject_parts,
-                    'sans': sans,
-                    'public_key': pub_key_info
-                }
+                return {"subject": subject_parts, "sans": sans, "public_key": pub_key_info}
 
             finally:
                 # Clean up temp file
@@ -524,7 +460,7 @@ subjectAltName = @alt_names
         serial_number: str,
         validity_days: int,
         sans: list[str],
-        output_cert: Path
+        output_cert: Path,
     ) -> str:
         """
         Sign a CSR to generate a certificate.
@@ -548,7 +484,7 @@ subjectAltName = @alt_names
 
         try:
             # Write CSR to temp file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csr', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".csr", delete=False) as f:
                 f.write(csr_content)
                 csr_file = Path(f.name)
 

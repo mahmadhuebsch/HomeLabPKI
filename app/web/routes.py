@@ -13,101 +13,49 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(
-    request: Request,
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def dashboard(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Dashboard page."""
     try:
         root_cas = ca_service.list_root_cas()
         stats = ca_service.get_statistics()
 
-        return templates.TemplateResponse(
-            "dashboard.html",
-            {
-                "request": request,
-                "root_cas": root_cas,
-                "stats": stats
-            }
-        )
+        return templates.TemplateResponse("dashboard.html", {"request": request, "root_cas": root_cas, "stats": stats})
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/rootcas", response_class=HTMLResponse)
-async def rootca_list(
-    request: Request,
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def rootca_list(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Root CA list page."""
     try:
         root_cas = ca_service.list_root_cas()
 
-        return templates.TemplateResponse(
-            "ca/list.html",
-            {
-                "request": request,
-                "root_cas": root_cas
-            }
-        )
+        return templates.TemplateResponse("ca/list.html", {"request": request, "root_cas": root_cas})
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/rootcas/create", response_class=HTMLResponse)
-async def rootca_create_form(
-    request: Request,
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def rootca_create_form(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Root CA creation form."""
     try:
         config = get_config()
         defaults = config.defaults.get("root_ca", {})
 
         return templates.TemplateResponse(
-            "ca/create.html",
-            {
-                "request": request,
-                "ca_type": "root",
-                "available_cas": [],
-                "defaults": defaults
-            }
+            "ca/create.html", {"request": request, "ca_type": "root", "available_cas": [], "defaults": defaults}
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/rootcas/import", response_class=HTMLResponse)
-async def rootca_import_form(
-    request: Request,
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def rootca_import_form(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Root CA import form."""
     try:
-        return templates.TemplateResponse(
-            "ca/import-root.html",
-            {
-                "request": request
-            }
-        )
+        return templates.TemplateResponse("ca/import-root.html", {"request": request})
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/rootcas/{ca_id:path}", response_class=HTMLResponse)
@@ -115,7 +63,7 @@ async def rootca_detail(
     request: Request,
     ca_id: str,
     ca_service: CAService = Depends(get_ca_service),
-    cert_service: CertificateService = Depends(get_cert_service)
+    cert_service: CertificateService = Depends(get_cert_service),
 ):
     """Root CA detail page."""
     try:
@@ -157,52 +105,30 @@ async def rootca_detail(
                 "certificates": certificates,
                 "intermediate_cas": intermediate_cas,
                 "ca_cert_content": ca_cert_content,
-                "ca_cert_text": ca_cert_text
-            }
+                "ca_cert_text": ca_cert_text,
+            },
         )
     except ValueError as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=404
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/intermediates", response_class=HTMLResponse)
-async def intermediate_list(
-    request: Request,
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def intermediate_list(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Intermediate CA list page."""
     try:
         intermediate_cas = ca_service.list_all_intermediate_cas()
 
         return templates.TemplateResponse(
-            "intermediate/list.html",
-            {
-                "request": request,
-                "intermediate_cas": intermediate_cas
-            }
+            "intermediate/list.html", {"request": request, "intermediate_cas": intermediate_cas}
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/intermediates/create", response_class=HTMLResponse)
-async def intermediate_create_form(
-    request: Request,
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def intermediate_create_form(request: Request, ca_service: CAService = Depends(get_ca_service)):
     """Intermediate CA creation form."""
     try:
         # Get all root CAs and intermediate CAs for parent selection
@@ -213,26 +139,15 @@ async def intermediate_create_form(
 
         return templates.TemplateResponse(
             "ca/create.html",
-            {
-                "request": request,
-                "ca_type": "intermediate",
-                "available_cas": available_cas,
-                "defaults": defaults
-            }
+            {"request": request, "ca_type": "intermediate", "available_cas": available_cas, "defaults": defaults},
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/intermediates/import", response_class=HTMLResponse)
 async def intermediate_import_form(
-    request: Request,
-    parent_ca_id: str = "",
-    ca_service: CAService = Depends(get_ca_service)
+    request: Request, parent_ca_id: str = "", ca_service: CAService = Depends(get_ca_service)
 ):
     """Intermediate CA import form."""
     try:
@@ -241,18 +156,10 @@ async def intermediate_import_form(
 
         return templates.TemplateResponse(
             "ca/import-intermediate.html",
-            {
-                "request": request,
-                "root_cas": root_cas,
-                "selected_parent_id": parent_ca_id
-            }
+            {"request": request, "root_cas": root_cas, "selected_parent_id": parent_ca_id},
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/intermediates/{ca_id:path}", response_class=HTMLResponse)
@@ -260,7 +167,7 @@ async def intermediate_detail(
     request: Request,
     ca_id: str,
     ca_service: CAService = Depends(get_ca_service),
-    cert_service: CertificateService = Depends(get_cert_service)
+    cert_service: CertificateService = Depends(get_cert_service),
 ):
     """Intermediate CA detail page."""
     try:
@@ -289,53 +196,28 @@ async def intermediate_detail(
                 "ca": ca,
                 "certificates": certificates,
                 "ca_cert_content": ca_cert_content,
-                "ca_cert_text": ca_cert_text
-            }
+                "ca_cert_text": ca_cert_text,
+            },
         )
     except ValueError as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=404
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/certs", response_class=HTMLResponse)
-async def cert_list(
-    request: Request,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+async def cert_list(request: Request, cert_service: CertificateService = Depends(get_cert_service)):
     """Certificates list page."""
     try:
         certificates = cert_service.list_all_certificates()
 
-        return templates.TemplateResponse(
-            "cert/list.html",
-            {
-                "request": request,
-                "certificates": certificates
-            }
-        )
+        return templates.TemplateResponse("cert/list.html", {"request": request, "certificates": certificates})
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/certs/create", response_class=HTMLResponse)
-async def cert_create_form(
-    request: Request,
-    ca_id: str = "",
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def cert_create_form(request: Request, ca_id: str = "", ca_service: CAService = Depends(get_ca_service)):
     """Certificate creation form."""
     try:
         # Get all CAs for selection (both root and intermediate)
@@ -350,27 +232,14 @@ async def cert_create_form(
 
         return templates.TemplateResponse(
             "cert/create.html",
-            {
-                "request": request,
-                "selected_ca_id": ca_id,
-                "available_cas": all_cas,
-                "defaults": defaults
-            }
+            {"request": request, "selected_ca_id": ca_id, "available_cas": all_cas, "defaults": defaults},
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/certs/sign-csr", response_class=HTMLResponse)
-async def cert_sign_csr_form(
-    request: Request,
-    ca_id: str = "",
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def cert_sign_csr_form(request: Request, ca_id: str = "", ca_service: CAService = Depends(get_ca_service)):
     """CSR signing form."""
     try:
         # Get all CAs for selection (both root and intermediate)
@@ -385,27 +254,14 @@ async def cert_sign_csr_form(
 
         return templates.TemplateResponse(
             "cert/sign-csr.html",
-            {
-                "request": request,
-                "selected_ca_id": ca_id,
-                "available_cas": all_cas,
-                "defaults": defaults
-            }
+            {"request": request, "selected_ca_id": ca_id, "available_cas": all_cas, "defaults": defaults},
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/certs/import", response_class=HTMLResponse)
-async def cert_import_form(
-    request: Request,
-    ca_id: str = "",
-    ca_service: CAService = Depends(get_ca_service)
-):
+async def cert_import_form(request: Request, ca_id: str = "", ca_service: CAService = Depends(get_ca_service)):
     """Certificate import form."""
     try:
         # Get all CAs for selection (both root and intermediate)
@@ -416,27 +272,14 @@ async def cert_import_form(
         all_cas = root_cas + intermediate_cas
 
         return templates.TemplateResponse(
-            "cert/import.html",
-            {
-                "request": request,
-                "selected_ca_id": ca_id,
-                "available_cas": all_cas
-            }
+            "cert/import.html", {"request": request, "selected_ca_id": ca_id, "available_cas": all_cas}
         )
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
 @router.get("/certs/{cert_id:path}", response_class=HTMLResponse)
-async def cert_detail(
-    request: Request,
-    cert_id: str,
-    cert_service: CertificateService = Depends(get_cert_service)
-):
+async def cert_detail(request: Request, cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
     """Certificate detail page."""
     try:
         from app.utils.file_utils import FileUtils
@@ -457,23 +300,9 @@ async def cert_detail(
                 cert_text = f"Error converting to text format: {str(e)}"
 
         return templates.TemplateResponse(
-            "cert/detail.html",
-            {
-                "request": request,
-                "cert": cert,
-                "cert_content": cert_content,
-                "cert_text": cert_text
-            }
+            "cert/detail.html", {"request": request, "cert": cert, "cert_content": cert_content, "cert_text": cert_text}
         )
     except ValueError as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=404
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
     except Exception as e:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "error": str(e)},
-            status_code=500
-        )
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)

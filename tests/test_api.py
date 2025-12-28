@@ -29,16 +29,9 @@ class TestCAAPI:
         """Test creating a root CA via API."""
         payload = {
             "type": "root_ca",
-            "subject": {
-                "common_name": "API Test Root CA",
-                "organization": "Test Org",
-                "country": "US"
-            },
-            "key_config": {
-                "algorithm": "RSA",
-                "key_size": 2048
-            },
-            "validity_days": 365
+            "subject": {"common_name": "API Test Root CA", "organization": "Test Org", "country": "US"},
+            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "validity_days": 365,
         }
 
         response = client.post("/api/cas", json=payload)
@@ -53,15 +46,9 @@ class TestCAAPI:
         # First create a CA
         payload = {
             "type": "root_ca",
-            "subject": {
-                "common_name": "Get Test CA",
-                "country": "US"
-            },
-            "key_config": {
-                "algorithm": "RSA",
-                "key_size": 2048
-            },
-            "validity_days": 365
+            "subject": {"common_name": "Get Test CA", "country": "US"},
+            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "validity_days": 365,
         }
         create_response = client.post("/api/cas", json=payload)
         assert create_response.status_code == 201
@@ -85,15 +72,9 @@ class TestCAAPI:
         # First create a CA
         payload = {
             "type": "root_ca",
-            "subject": {
-                "common_name": "Delete Test CA",
-                "country": "US"
-            },
-            "key_config": {
-                "algorithm": "RSA",
-                "key_size": 2048
-            },
-            "validity_days": 365
+            "subject": {"common_name": "Delete Test CA", "country": "US"},
+            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "validity_days": 365,
         }
         create_response = client.post("/api/cas", json=payload)
         assert create_response.status_code == 201
@@ -118,15 +99,9 @@ class TestCertificateAPI:
         # First create a CA
         ca_payload = {
             "type": "root_ca",
-            "subject": {
-                "common_name": "Cert Test CA",
-                "country": "US"
-            },
-            "key_config": {
-                "algorithm": "RSA",
-                "key_size": 2048
-            },
-            "validity_days": 365
+            "subject": {"common_name": "Cert Test CA", "country": "US"},
+            "key_config": {"algorithm": "RSA", "key_size": 2048},
+            "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
         assert ca_response.status_code == 201
@@ -134,17 +109,11 @@ class TestCertificateAPI:
 
         # Now create a certificate
         cert_payload = {
-            "subject": {
-                "common_name": "api-test.com",
-                "country": "US"
-            },
+            "subject": {"common_name": "api-test.com", "country": "US"},
             "sans": ["api-test.com", "*.api-test.com"],
-            "key_config": {
-                "algorithm": "RSA",
-                "key_size": 2048
-            },
+            "key_config": {"algorithm": "RSA", "key_size": 2048},
             "validity_days": 365,
-            "issuing_ca_id": ca_id
+            "issuing_ca_id": ca_id,
         }
 
         response = client.post("/api/certs", json=cert_payload)
@@ -160,7 +129,7 @@ class TestCertificateAPI:
             "type": "root_ca",
             "subject": {"common_name": "List Cert CA", "country": "US"},
             "key_config": {"algorithm": "RSA", "key_size": 2048},
-            "validity_days": 365
+            "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
         assert ca_response.status_code == 201
@@ -171,7 +140,7 @@ class TestCertificateAPI:
             "sans": ["list-test.com"],
             "key_config": {"algorithm": "RSA", "key_size": 2048},
             "validity_days": 365,
-            "issuing_ca_id": ca_id
+            "issuing_ca_id": ca_id,
         }
         client.post("/api/certs", json=cert_payload)
 
@@ -195,7 +164,7 @@ class TestDownloadAPI:
             "type": "root_ca",
             "subject": {"common_name": "Download Test CA", "country": "US"},
             "key_config": {"algorithm": "RSA", "key_size": 2048},
-            "validity_days": 365
+            "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
         assert ca_response.status_code == 201
@@ -215,7 +184,7 @@ class TestDownloadAPI:
             "type": "root_ca",
             "subject": {"common_name": "DL Cert CA", "country": "US"},
             "key_config": {"algorithm": "RSA", "key_size": 2048},
-            "validity_days": 365
+            "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
         assert ca_response.status_code == 201
@@ -226,7 +195,7 @@ class TestDownloadAPI:
             "sans": ["download-test.com"],
             "key_config": {"algorithm": "RSA", "key_size": 2048},
             "validity_days": 365,
-            "issuing_ca_id": ca_id
+            "issuing_ca_id": ca_id,
         }
         cert_response = client.post("/api/certs", json=cert_payload)
         cert_id = cert_response.json()["id"]
@@ -244,7 +213,7 @@ class TestDownloadAPI:
             "type": "root_ca",
             "subject": {"common_name": "Chain CA", "country": "US"},
             "key_config": {"algorithm": "RSA", "key_size": 2048},
-            "validity_days": 365
+            "validity_days": 365,
         }
         ca_response = client.post("/api/cas", json=ca_payload)
         assert ca_response.status_code == 201
@@ -255,7 +224,7 @@ class TestDownloadAPI:
             "sans": ["chain-test.com"],
             "key_config": {"algorithm": "RSA", "key_size": 2048},
             "validity_days": 365,
-            "issuing_ca_id": ca_id
+            "issuing_ca_id": ca_id,
         }
         cert_response = client.post("/api/certs", json=cert_payload)
         cert_id = cert_response.json()["id"]

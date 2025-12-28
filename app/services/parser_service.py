@@ -39,7 +39,7 @@ class CertificateParser:
             with open(cert_path, "rb") as f:
                 cert_pem = f.read()
 
-            return CertificateParser.parse_certificate_pem(cert_pem.decode('utf-8'))
+            return CertificateParser.parse_certificate_pem(cert_pem.decode("utf-8"))
 
         except Exception as e:
             logger.error(f"Error parsing certificate {cert_path}: {e}")
@@ -60,7 +60,7 @@ class CertificateParser:
             ValueError: If certificate cannot be parsed
         """
         try:
-            cert = x509.load_pem_x509_certificate(cert_pem.encode('utf-8'), default_backend())
+            cert = x509.load_pem_x509_certificate(cert_pem.encode("utf-8"), default_backend())
 
             # Extract key info
             key_info = CertificateParser._extract_key_info(cert.public_key())
@@ -68,12 +68,12 @@ class CertificateParser:
             # Extract subject and map to OpenSSL-style keys
             subject_dict = CertificateParser._extract_subject(cert.subject)
             subject_mapped = {
-                'CN': subject_dict.get('common_name'),
-                'O': subject_dict.get('organization'),
-                'OU': subject_dict.get('organizational_unit'),
-                'C': subject_dict.get('country'),
-                'ST': subject_dict.get('state'),
-                'L': subject_dict.get('locality')
+                "CN": subject_dict.get("common_name"),
+                "O": subject_dict.get("organization"),
+                "OU": subject_dict.get("organizational_unit"),
+                "C": subject_dict.get("country"),
+                "ST": subject_dict.get("state"),
+                "L": subject_dict.get("locality"),
             }
 
             return {
@@ -81,12 +81,12 @@ class CertificateParser:
                 "issuer": CertificateParser._extract_subject(cert.issuer),
                 "not_before": cert.not_valid_before_utc,
                 "not_after": cert.not_valid_after_utc,
-                "serial_number": format(cert.serial_number, 'X'),
-                "public_key_algorithm": key_info.get('algorithm'),
-                "public_key_size": key_info.get('size'),
-                "fingerprint_sha256": cert.fingerprint(hashes.SHA256()).hex(':').upper(),
+                "serial_number": format(cert.serial_number, "X"),
+                "public_key_algorithm": key_info.get("algorithm"),
+                "public_key_size": key_info.get("size"),
+                "fingerprint_sha256": cert.fingerprint(hashes.SHA256()).hex(":").upper(),
                 "sans": CertificateParser._extract_sans(cert),
-                "is_ca": CertificateParser._is_ca(cert)
+                "is_ca": CertificateParser._is_ca(cert),
             }
 
         except Exception as e:
@@ -104,6 +104,7 @@ class CertificateParser:
         Returns:
             Dictionary with subject fields
         """
+
         def get_attribute(oid):
             try:
                 attrs = name.get_attributes_for_oid(oid)
@@ -132,11 +133,7 @@ class CertificateParser:
             Dictionary with key information
         """
         if isinstance(public_key, rsa.RSAPublicKey):
-            return {
-                "algorithm": "RSA",
-                "key_size": public_key.key_size,
-                "curve": None
-            }
+            return {"algorithm": "RSA", "key_size": public_key.key_size, "curve": None}
         elif isinstance(public_key, ec.EllipticCurvePublicKey):
             curve_name = public_key.curve.name
             # Map OpenSSL names to our standard names
@@ -145,23 +142,11 @@ class CertificateParser:
                 "secp384r1": "P-384",
                 "secp521r1": "P-521",
             }
-            return {
-                "algorithm": "ECDSA",
-                "key_size": None,
-                "curve": curve_map.get(curve_name, curve_name)
-            }
+            return {"algorithm": "ECDSA", "key_size": None, "curve": curve_map.get(curve_name, curve_name)}
         elif isinstance(public_key, ed25519.Ed25519PublicKey):
-            return {
-                "algorithm": "Ed25519",
-                "key_size": None,
-                "curve": None
-            }
+            return {"algorithm": "Ed25519", "key_size": None, "curve": None}
         else:
-            return {
-                "algorithm": "Unknown",
-                "key_size": None,
-                "curve": None
-            }
+            return {"algorithm": "Unknown", "key_size": None, "curve": None}
 
     @staticmethod
     def _extract_sans(cert: x509.Certificate) -> list[str]:
@@ -175,9 +160,7 @@ class CertificateParser:
             List of SANs
         """
         try:
-            san_ext = cert.extensions.get_extension_for_oid(
-                x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME
-            )
+            san_ext = cert.extensions.get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
             return [dns.value for dns in san_ext.value]
         except x509.ExtensionNotFound:
             return []
@@ -194,9 +177,7 @@ class CertificateParser:
             True if CA, False otherwise
         """
         try:
-            bc = cert.extensions.get_extension_for_oid(
-                x509.ExtensionOID.BASIC_CONSTRAINTS
-            )
+            bc = cert.extensions.get_extension_for_oid(x509.ExtensionOID.BASIC_CONSTRAINTS)
             return bc.value.ca
         except x509.ExtensionNotFound:
             return False
@@ -252,7 +233,7 @@ class CertificateParser:
                 ["openssl", "x509", "-in", str(cert_path), "-text", "-noout"],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             return result.stdout
 
@@ -281,12 +262,9 @@ class CertificateParser:
 
             # Load private key
             from cryptography.hazmat.primitives import serialization
+
             with open(key_path, "rb") as f:
-                private_key = serialization.load_pem_private_key(
-                    f.read(),
-                    password=None,
-                    backend=default_backend()
-                )
+                private_key = serialization.load_pem_private_key(f.read(), password=None, backend=default_backend())
 
             # Get public key from private key
             public_key_from_private = private_key.public_key()
@@ -294,13 +272,12 @@ class CertificateParser:
 
             # Compare public key bytes
             from cryptography.hazmat.primitives import serialization as ser
+
             pub_from_private_bytes = public_key_from_private.public_bytes(
-                encoding=ser.Encoding.PEM,
-                format=ser.PublicFormat.SubjectPublicKeyInfo
+                encoding=ser.Encoding.PEM, format=ser.PublicFormat.SubjectPublicKeyInfo
             )
             pub_from_cert_bytes = public_key_from_cert.public_bytes(
-                encoding=ser.Encoding.PEM,
-                format=ser.PublicFormat.SubjectPublicKeyInfo
+                encoding=ser.Encoding.PEM, format=ser.PublicFormat.SubjectPublicKeyInfo
             )
 
             return pub_from_private_bytes == pub_from_cert_bytes

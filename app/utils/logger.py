@@ -24,7 +24,7 @@ def setup_logger(config: Optional[AppConfig] = None) -> logging.Logger:
 
     # Set level
     level = logging.INFO
-    if config and hasattr(config, 'logging'):
+    if config and hasattr(config, "logging"):
         level = getattr(logging, config.logging.level, logging.INFO)
 
     logger.setLevel(level)
@@ -32,14 +32,12 @@ def setup_logger(config: Optional[AppConfig] = None) -> logging.Logger:
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
-        '%(levelname)s: %(message)s'
-    )
+    console_formatter = logging.Formatter("%(levelname)s: %(message)s")
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
     # File handler (if config provided)
-    if config and hasattr(config, 'logging'):
+    if config and hasattr(config, "logging"):
         log_file = Path(config.logging.file)
         log_file.parent.mkdir(parents=True, exist_ok=True)
 

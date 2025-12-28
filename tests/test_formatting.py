@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 import pytest
 
+
 @pytest.mark.unit
 @pytest.mark.integration
 def test_black_formatting():
@@ -17,12 +18,7 @@ def test_black_formatting():
     cmd = [sys.executable, "-m", "black", "--check", str(project_root)]
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
         if result.returncode != 0:
             # If black finds files to format, it returns 1
