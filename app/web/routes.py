@@ -306,3 +306,13 @@ async def cert_detail(request: Request, cert_id: str, cert_service: CertificateS
         return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
     except Exception as e:
         return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
+
+
+@router.get("/about", response_class=HTMLResponse)
+async def about_page(request: Request):
+    """About page."""
+    try:
+        config = get_config()
+        return templates.TemplateResponse("about.html", {"request": request, "version": config.app.version})
+    except Exception as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
