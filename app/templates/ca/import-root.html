@@ -12,6 +12,13 @@
     font-size: 0.85rem;
     max-height: 300px;
     overflow-y: auto;
+    color: #212529;
+}
+
+[data-bs-theme="dark"] .cert-preview {
+    background-color: #2b3035;
+    border-color: #495057;
+    color: #dee2e6;
 }
 </style>
 {% endblock %}
@@ -22,7 +29,7 @@
         <h1><i class="bi bi-upload"></i> Import Root CA</h1>
         <p class="text-muted">Import an external Root CA certificate for tracking and management</p>
 
-        <form id="importForm">
+        <form id="importForm" class="needs-validation" novalidate>
             <!-- CA Certificate Upload -->
             <div class="card mb-3">
                 <div class="card-header">CA Certificate *</div>
@@ -31,6 +38,7 @@
                         <label for="certFile" class="form-label">Upload CA Certificate File *</label>
                         <input type="file" class="form-control" id="certFile" accept=".crt,.pem,.cer" required>
                         <div class="form-text">Upload the Root CA certificate (.crt, .pem, or .cer file)</div>
+                        <div class="invalid-feedback">Please upload a valid certificate file.</div>
                     </div>
 
                     <div class="mb-3" id="certPreviewContainer" style="display: none;">
@@ -79,8 +87,9 @@
                     <div class="mb-3">
                         <label for="caName" class="form-label">CA Name *</label>
                         <input type="text" class="form-control" id="caName" name="ca_name" required
-                               placeholder="e.g. imported-company-root-ca">
-                        <div class="form-text">Unique identifier for this CA (used for storage, will be sanitized)</div>
+                               placeholder="e.g. imported-company-root-ca" pattern="^[a-zA-Z0-9-_]+$">
+                        <div class="form-text">Unique identifier for this CA (alphanumeric, hyphens, underscores)</div>
+                        <div class="invalid-feedback">Please enter a valid CA name (alphanumeric, hyphens, underscores only).</div>
                     </div>
                 </div>
             </div>
@@ -252,6 +261,12 @@ function escapeHtml(text) {
 // Form submission
 document.getElementById('importForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+    e.stopPropagation();
+
+    if (!this.checkValidity()) {
+        this.classList.add('was-validated');
+        return;
+    }
 
     if (!certContent) {
         alert('Please upload a CA certificate file');
