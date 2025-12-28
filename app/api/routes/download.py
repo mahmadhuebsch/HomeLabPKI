@@ -1,11 +1,12 @@
 """Download API endpoints."""
 
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import FileResponse, PlainTextResponse
 from pathlib import Path
 
-from app.services.cert_service import CertificateService
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, PlainTextResponse
+
 from app.api.dependencies import get_ca_data_dir, get_cert_service
+from app.services.cert_service import CertificateService
 
 router = APIRouter(prefix="/download", tags=["Downloads"])
 

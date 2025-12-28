@@ -1,23 +1,23 @@
 """CA management service."""
 
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from app.models.ca import (
     CAConfig,
     CACreateRequest,
     CAResponse,
     CAType,
-    RootCAImportRequest,
     IntermediateCAImportRequest,
+    RootCAImportRequest,
 )
 from app.services.openssl_service import OpenSSLService
 from app.services.parser_service import CertificateParser
 from app.services.yaml_service import YAMLService
-from app.utils.validators import sanitize_name
 from app.utils.file_utils import FileUtils
+from app.utils.validators import sanitize_name
 
 logger = logging.getLogger("yacertmanager")
 
@@ -243,7 +243,7 @@ class CAService:
             algorithm = algo_map.get(cert_info.get("public_key_algorithm", "RSA"), "RSA")
 
             # Build key config from parsed certificate
-            from app.models.ca import KeyConfig, KeyAlgorithm
+            from app.models.ca import KeyAlgorithm, KeyConfig
 
             if algorithm == "RSA":
                 key_config = KeyConfig(algorithm=KeyAlgorithm.RSA, key_size=cert_info.get("public_key_size", 2048))
@@ -356,7 +356,7 @@ class CAService:
             algorithm = algo_map.get(cert_info.get("public_key_algorithm", "RSA"), "RSA")
 
             # Build key config from parsed certificate
-            from app.models.ca import KeyConfig, KeyAlgorithm
+            from app.models.ca import KeyAlgorithm, KeyConfig
 
             if algorithm == "RSA":
                 key_config = KeyConfig(algorithm=KeyAlgorithm.RSA, key_size=cert_info.get("public_key_size", 2048))

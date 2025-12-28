@@ -1,10 +1,11 @@
 """Tests for Certificate service."""
 
-import pytest
 from pathlib import Path
 
+import pytest
+
+from app.models.ca import KeyConfig, Subject
 from app.models.certificate import CertCreateRequest
-from app.models.ca import Subject, KeyConfig
 
 
 @pytest.mark.unit

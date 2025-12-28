@@ -1,9 +1,11 @@
 """Certificate data models."""
 
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, Literal
-from .ca import Subject, KeyConfig
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field
+
+from .ca import KeyConfig, Subject
 
 
 class ServerCertConfig(BaseModel):

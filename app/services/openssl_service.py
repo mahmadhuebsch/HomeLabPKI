@@ -1,13 +1,13 @@
 """OpenSSL command generation and execution service."""
 
-from pathlib import Path
-from typing import Optional, Tuple
-import subprocess
 import logging
 import shutil
+import subprocess
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional, Tuple
 
-from app.models.ca import CAConfig, KeyAlgorithm, Subject, KeyConfig
+from app.models.ca import CAConfig, KeyAlgorithm, KeyConfig, Subject
 from app.models.certificate import ServerCertConfig
 
 logger = logging.getLogger("yacertmanager")
@@ -248,8 +248,8 @@ class OpenSSLService:
             Tuple of (success, stdout, stderr)
         """
         try:
-            import shlex
             import os
+            import shlex
 
             # Split multi-line commands
             commands = [cmd.strip() for cmd in command.split("\n") if cmd.strip()]

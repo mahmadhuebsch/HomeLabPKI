@@ -1,12 +1,13 @@
 """Tests for CSR signing and external certificate import functionality."""
 
-import pytest
-from pathlib import Path
-import tempfile
 import subprocess
+import tempfile
+from pathlib import Path
 
-from app.models.certificate import CSRSignRequest, CertImportRequest
-from app.models.ca import Subject, KeyConfig
+import pytest
+
+from app.models.ca import KeyConfig, Subject
+from app.models.certificate import CertImportRequest, CSRSignRequest
 
 
 @pytest.fixture

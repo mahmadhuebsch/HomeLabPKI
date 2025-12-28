@@ -1,15 +1,15 @@
 """Certificate parsing service."""
 
-from pathlib import Path
-from typing import Dict, Any, Optional
 import logging
-from datetime import datetime
 import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 logger = logging.getLogger("yacertmanager")
 

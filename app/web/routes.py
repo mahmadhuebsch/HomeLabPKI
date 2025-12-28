@@ -1,12 +1,12 @@
 """Web UI routes."""
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.api.dependencies import get_ca_service, get_cert_service, get_config
 from app.services.ca_service import CAService
 from app.services.cert_service import CertificateService
-from app.api.dependencies import get_ca_service, get_cert_service, get_config
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -67,8 +67,8 @@ async def rootca_detail(
 ):
     """Root CA detail page."""
     try:
-        from app.utils.file_utils import FileUtils
         from app.services.parser_service import CertificateParser
+        from app.utils.file_utils import FileUtils
 
         ca = ca_service.get_ca(ca_id)
         certificates = cert_service.list_certificates(ca_id)
@@ -171,8 +171,8 @@ async def intermediate_detail(
 ):
     """Intermediate CA detail page."""
     try:
-        from app.utils.file_utils import FileUtils
         from app.services.parser_service import CertificateParser
+        from app.utils.file_utils import FileUtils
 
         ca = ca_service.get_ca(ca_id)
         certificates = cert_service.list_certificates(ca_id)
@@ -282,8 +282,8 @@ async def cert_import_form(request: Request, ca_id: str = "", ca_service: CAServ
 async def cert_detail(request: Request, cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
     """Certificate detail page."""
     try:
-        from app.utils.file_utils import FileUtils
         from app.services.parser_service import CertificateParser
+        from app.utils.file_utils import FileUtils
 
         cert = cert_service.get_certificate(cert_id)
 

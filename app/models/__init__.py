@@ -1,6 +1,6 @@
 """Data models for YACertManager."""
 
-from .ca import KeyAlgorithm, ECDSACurve, Subject, KeyConfig, CAConfig, CAType
+from .ca import CAConfig, CAType, ECDSACurve, KeyAlgorithm, KeyConfig, Subject
 from .certificate import ServerCertConfig
 from .config import AppConfig
 

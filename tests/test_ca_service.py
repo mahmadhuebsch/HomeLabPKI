@@ -1,9 +1,10 @@
 """Tests for CA service."""
 
-import pytest
 from pathlib import Path
 
-from app.models.ca import CACreateRequest, CAType, Subject, KeyConfig
+import pytest
+
+from app.models.ca import CACreateRequest, CAType, KeyConfig, Subject
 from app.services.ca_service import CAService
 
 

@@ -1,7 +1,8 @@
 """Tests for Parser service."""
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from app.services.parser_service import CertificateParser
 

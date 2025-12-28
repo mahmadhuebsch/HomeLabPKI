@@ -1,10 +1,11 @@
 """Tests for CA import functionality."""
 
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-from app.models.ca import RootCAImportRequest, IntermediateCAImportRequest
+import pytest
+
+from app.models.ca import IntermediateCAImportRequest, RootCAImportRequest
 
 
 @pytest.mark.unit

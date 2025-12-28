@@ -1,17 +1,18 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
-import tempfile
 import shutil
-from pathlib import Path
+import tempfile
 from datetime import datetime, timedelta
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
-from app.models.ca import CAConfig, CACreateRequest, CAType, Subject, KeyConfig
+
+from app.models.ca import CAConfig, CACreateRequest, CAType, KeyConfig, Subject
 from app.models.certificate import CertCreateRequest
-from app.services.openssl_service import OpenSSLService
 from app.services.ca_service import CAService
 from app.services.cert_service import CertificateService
+from app.services.openssl_service import OpenSSLService
 
 
 @pytest.fixture(scope="session")
@@ -100,10 +101,10 @@ def sample_cert_request(sample_cert_subject, sample_key_config):
 @pytest.fixture
 def client(ca_data_dir, openssl_service):
     """Create FastAPI test client with isolated test directory."""
-    from main import app
-    from app.api.dependencies import get_ca_service, get_cert_service, get_ca_data_dir
+    from app.api.dependencies import get_ca_data_dir, get_ca_service, get_cert_service
     from app.services.ca_service import CAService
     from app.services.cert_service import CertificateService
+    from main import app
 
     # Override dependencies to use test directory
     def override_ca_data_dir():

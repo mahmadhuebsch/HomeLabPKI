@@ -1,9 +1,10 @@
 """CA data models."""
 
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, Literal
 from enum import Enum
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field
 
 
 class KeyAlgorithm(str, Enum):

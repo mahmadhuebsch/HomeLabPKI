@@ -1,11 +1,12 @@
 """CA API endpoints."""
 
-from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 
-from app.models.ca import CACreateRequest, CAResponse, RootCAImportRequest, IntermediateCAImportRequest
-from app.services.ca_service import CAService
+from fastapi import APIRouter, Depends, HTTPException
+
 from app.api.dependencies import get_ca_service
+from app.models.ca import CACreateRequest, CAResponse, IntermediateCAImportRequest, RootCAImportRequest
+from app.services.ca_service import CAService
 
 router = APIRouter(prefix="/api/cas", tags=["CA"])
 
