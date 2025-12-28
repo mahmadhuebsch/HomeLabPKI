@@ -9,6 +9,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
 [![OpenSSL](https://img.shields.io/badge/OpenSSL-1.1.1+-red.svg)](https://www.openssl.org/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)](https://www.docker.com/)
 
 [Features](#features) • [Installation](#installation) • [Configuration](#configuration) • [API](#api-documentation) • [Contributing](#contributing)
 
@@ -36,14 +37,15 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Multiple Certificate Formats** - View certificates in both Text (human-readable) and PEM formats
 - **Modern Web Interface** - Responsive Bootstrap 5 UI with organized navigation
 - **RESTful API** - Complete API with OpenAPI documentation
+- **Docker Support** - Easy deployment with Docker
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
 - [Requirements](#requirements)
-- [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Docker Deployment](#docker-deployment)
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
 - [API Documentation](#api-documentation)
@@ -58,7 +60,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - Python 3.10 or higher
 - OpenSSL 1.1.1 or higher (must be available in system PATH)
 
-## Installation
+## Quick Start
 
 ```bash
 # Clone the repository
@@ -78,23 +80,34 @@ pip install -r requirements.txt
 
 # Verify OpenSSL is available
 openssl version
-```
 
-## Quick Start
-
-```bash
 # Start the application
 python main.py
 ```
-
-The application will be accessible at `http://localhost:8000`.
-
-### First Steps
 
 1. Navigate to `http://localhost:8000`
 2. Create a Root CA from the dashboard
 3. Optionally create an Intermediate CA under the Root CA
 4. Issue server certificates as needed
+
+## Docker Deployment
+
+You can easily run YACertManager using Docker.
+
+```bash
+# Build the image
+docker build -t yacertmanager .
+
+# Run the container
+# Maps port 8000 and creates a volume for persistent data
+docker run -d \
+  -p 8000:8000 \
+  -v yacertmanager_data:/app/ca-data \
+  --name yacertmanager \
+  yacertmanager
+```
+
+The application will be available at `http://localhost:8000`.
 
 ## Project Structure
 
@@ -113,7 +126,8 @@ YACertManager/
 ├── main.py                   # Application entry point
 ├── config.yaml               # Application configuration
 ├── requirements.txt          # Production dependencies
-└── requirements-dev.txt      # Development dependencies
+├── requirements-dev.txt      # Development dependencies
+└── Dockerfile                # Docker build instructions
 ```
 
 ## Configuration
@@ -207,10 +221,10 @@ isort app/ tests/
 
 ## Planned Features
 
-- [ ] Password Support
+- [x] Password Support
 - [ ] Email notifications for expiring certificates
 - [ ] ACME Protocol support
-- [ ] Docker containerization
+- [x] Docker containerization
 
 ## License
 
