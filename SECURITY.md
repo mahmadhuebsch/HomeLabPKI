@@ -14,8 +14,8 @@ HomeLab PKI is designed for **development, testing, and internal infrastructure*
 
 ### Access Control
 
-- This application has **no built-in authentication or authorization**
-- For any network-accessible deployment, place behind a reverse proxy with authentication
+- This application has built-in authentication. Passwords are stored encrypted
+- For any network-accessible deployment, place behind a reverse proxy
 - Limit network access to trusted users only
 
 ### HTTPS
