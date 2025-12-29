@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 from app.models.ca import CAConfig, KeyAlgorithm, KeyConfig, Subject
 from app.models.certificate import ServerCertConfig
 
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 
 class OpenSSLService:

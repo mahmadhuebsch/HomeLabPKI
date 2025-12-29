@@ -19,7 +19,7 @@ from app.services.yaml_service import YAMLService
 from app.utils.file_utils import FileUtils
 from app.utils.validators import sanitize_name
 
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 
 class CAService:

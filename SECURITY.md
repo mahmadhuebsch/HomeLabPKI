@@ -2,7 +2,7 @@
 
 ## Important Security Notice
 
-YACertManager is designed for **development, testing, and internal infrastructure** purposes. It is **not recommended** for production PKI infrastructure without additional security hardening.
+HomeLab PKI is designed for **development, testing, and internal infrastructure** purposes. It is **not recommended** for production PKI infrastructure without additional security hardening.
 
 ## Security Considerations
 
@@ -52,7 +52,7 @@ I will acknowledge receipt within 48 hours and provide an estimated timeline for
 
 ## Security Best Practices
 
-When using YACertManager:
+When using HomeLab PKI:
 
 1. **Network Security**
    - Run on localhost only, or behind a firewall

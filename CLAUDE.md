@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**YACertManager** (Yet Another Certificate Manager) is a web-based Certificate Authority (CA) management system built with FastAPI and Bootstrap 5. It provides a user-friendly interface for creating and managing Root CAs, Intermediate CAs, and server certificates using OpenSSL.
+**HomeLab PKI** is a web-based Certificate Authority (CA) management system built with FastAPI and Bootstrap 5. It provides a user-friendly interface for creating and managing Root CAs, Intermediate CAs, and server certificates using OpenSSL.
 
 **Purpose**: Simplify PKI management for development, testing, internal infrastructure, and learning purposes.
 
@@ -28,7 +28,7 @@
 
 ### Directory Structure
 ```
-YACertManager/
+HomeLabPKI/
 ├── main.py                      # FastAPI entry point
 ├── config.yaml                  # App configuration
 ├── requirements.txt             # Python dependencies
@@ -282,7 +282,7 @@ Web routes in `app/web/routes.py`:
 ## Authentication
 
 ### Overview
-YACertManager includes password-based authentication to protect access to the application.
+HomeLab PKI includes password-based authentication to protect access to the application.
 
 ### Key Features
 - **Password-only authentication** (no username required)
@@ -426,7 +426,7 @@ pytest -m requires_openssl  # Tests requiring OpenSSL
 
 ## API Documentation
 
-YACertManager uses FastAPI's automatic OpenAPI documentation:
+HomeLab PKI uses FastAPI's automatic OpenAPI documentation:
 
 **Available Endpoints:**
 - `/docs` - Swagger UI (interactive API documentation)
@@ -449,7 +449,7 @@ The API documentation is automatically generated from:
 `config.yaml` structure:
 ```yaml
 app:
-  title: "YACertManager"
+  title: "HomeLab PKI"
   debug: false
 
 paths:

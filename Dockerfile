@@ -37,8 +37,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user and group for security
-RUN addgroup --system --gid 1000 yacertmanager \
-    && adduser --system --uid 1000 --ingroup yacertmanager yacertmanager
+RUN addgroup --system --gid 1000 homelabpki \
+    && adduser --system --uid 1000 --ingroup homelabpki homelabpki
 
 # Set working directory
 WORKDIR $APP_HOME
@@ -51,10 +51,10 @@ COPY . .
 
 # Create and set permissions for data and log directories
 RUN mkdir -p ca-data logs \
-    && chown -R yacertmanager:yacertmanager $APP_HOME
+    && chown -R homelabpki:homelabpki $APP_HOME
 
 # Switch to the non-root user
-USER yacertmanager
+USER homelabpki
 
 # Expose the port the app runs on
 EXPOSE 8000

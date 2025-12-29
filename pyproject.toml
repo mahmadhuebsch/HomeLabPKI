@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "yacertmanager"
+name = "homelabpki"
 version = "1.0.0"
-description = "Yet Another Certificate Manager - A web-based Certificate Authority Management System"
+description = "HomeLab PKI - A web-based Certificate Authority Management System"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "YACertManager Contributors"}
+    {name = "HomeLab PKI Contributors"}
 ]
 keywords = ["certificate", "ca", "pki", "openssl", "x509", "tls", "ssl"]
 classifiers = [
@@ -55,10 +55,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mahmadhuebsch/YACertManager"
-Documentation = "https://github.com/mahmadhuebsch/YACertManager#readme"
-Repository = "https://github.com/mahmadhuebsch/YACertManager.git"
-Issues = "https://github.com/mahmadhuebsch/YACertManager/issues"
+Homepage = "https://github.com/mahmadhuebsch/HomeLabPKI"
+Documentation = "https://github.com/mahmadhuebsch/HomeLabPKI#readme"
+Repository = "https://github.com/mahmadhuebsch/HomeLabPKI.git"
+Issues = "https://github.com/mahmadhuebsch/HomeLabPKI/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

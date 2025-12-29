@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class AppSettings(BaseModel):
     """Application settings."""
 
-    title: str = "CA Manager"
+    title: str = "HomeLab PKI"
     version: str = "1.0.0"
     debug: bool = False
 
@@ -41,7 +41,7 @@ class LoggingSettings(BaseModel):
 
     level: str = "INFO"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    file: str = "./logs/ca-manager.log"
+    file: str = "./logs/homelabpki.log"
 
 
 class AuthSettings(BaseModel):

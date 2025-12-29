@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 import yaml
 
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 
 class YAMLService:

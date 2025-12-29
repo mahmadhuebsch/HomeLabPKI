@@ -1,6 +1,6 @@
-# Contributing to YACertManager
+# Contributing to HomeLab PKI
 
-Thank you for your interest in contributing to YACertManager! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to HomeLab PKI! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -55,8 +55,8 @@ Feature requests are welcome! Please include:
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/YACertManager.git
-cd YACertManager
+git clone https://github.com/YOUR_USERNAME/HomeLabPKI.git
+cd HomeLabPKI
 
 # Create virtual environment
 python -m venv .venv
@@ -128,7 +128,7 @@ pytest tests/test_api.py -v
 ## Project Structure
 
 ```
-YACertManager/
+HomeLabPKI/
 ├── app/
 │   ├── api/          # REST API endpoints
 │   ├── models/       # Pydantic models

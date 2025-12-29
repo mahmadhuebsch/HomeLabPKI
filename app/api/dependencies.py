@@ -18,7 +18,7 @@ from app.services.openssl_service import OpenSSLService
 from app.services.yaml_service import YAMLService
 from app.utils.logger import setup_logger
 
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 # Global auth service instance (singleton)
 _auth_service: Optional[AuthService] = None

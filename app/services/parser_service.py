@@ -11,7 +11,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 
 class CertificateParser:

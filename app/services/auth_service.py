@@ -13,7 +13,7 @@ from app.models.auth import Session
 from app.models.config import AuthSettings
 from app.services.yaml_service import YAMLService
 
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 # Default password
 DEFAULT_PASSWORD = "admin"

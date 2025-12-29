@@ -21,7 +21,7 @@ from app.services.openssl_service import OpenSSLService
 @pytest.fixture(scope="session")
 def test_data_dir():
     """Create a temporary directory for test data."""
-    temp_dir = tempfile.mkdtemp(prefix="yacertmanager_test_")
+    temp_dir = tempfile.mkdtemp(prefix="homelabpki_test_")
     yield Path(temp_dir)
     # Cleanup
     shutil.rmtree(temp_dir, ignore_errors=True)

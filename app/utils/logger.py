@@ -17,7 +17,7 @@ def setup_logger(config: Optional[AppConfig] = None) -> logging.Logger:
     Returns:
         Configured logger instance
     """
-    logger = logging.getLogger("yacertmanager")
+    logger = logging.getLogger("homelabpki")
 
     # Prevent duplicate handlers
     if logger.handlers:

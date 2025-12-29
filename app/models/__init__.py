@@ -1,4 +1,4 @@
-"""Data models for YACertManager."""
+"""Data models for HomeLab PKI."""
 
 from .ca import CAConfig, CAType, ECDSACurve, KeyAlgorithm, KeyConfig, Subject
 from .certificate import ServerCertConfig

@@ -1,10 +1,10 @@
-# YACertManager
+# HomeLab PKI
 
 <div align="center">
 
-**Yet Another Certificate Manager** - A web-based Certificate Authority (CA) management system
+**HomeLab PKI** - A web-based Certificate Authority (CA) management system
 
-[![CI](https://github.com/mahmadhuebsch/YACertManager/actions/workflows/ci.yml/badge.svg)](https://github.com/mahmadhuebsch/YACertManager/actions/workflows/ci.yml)
+[![CI](https://github.com/mahmadhuebsch/HomeLabPKI/actions/workflows/ci.yml/badge.svg)](https://github.com/mahmadhuebsch/HomeLabPKI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
@@ -19,7 +19,7 @@
 
 ## Overview
 
-YACertManager is a web-based Certificate Authority management system built with FastAPI and Bootstrap 5.
+HomeLab PKI is a web-based Certificate Authority management system built with FastAPI and Bootstrap 5.
 It provides comprehensive tools for creating and managing Root CAs, Intermediate CAs, and server certificates through a
 streamlined web interface.
 
@@ -67,8 +67,8 @@ Designed for development environments, testing infrastructure, internal PKI depl
 
 ```bash
 # Clone the repository
-git clone https://github.com/mahmadhuebsch/YACertManager.git
-cd YACertManager
+git clone https://github.com/mahmadhuebsch/HomeLabPKI.git
+cd HomeLabPKI
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -95,19 +95,19 @@ python main.py
 
 ## Docker Deployment
 
-You can easily run YACertManager using Docker.
+You can easily run HomeLab PKI using Docker.
 
 ```bash
 # Build the image
-docker build -t yacertmanager .
+docker build -t homelabpki .
 
 # Run the container
 # Maps port 8000 and creates a volume for persistent data
 docker run -d \
   -p 8000:8000 \
-  -v yacertmanager_data:/app/ca-data \
-  --name yacertmanager \
-  yacertmanager
+  -v homelabpki_data:/app/ca-data \
+  --name homelabpki \
+  homelabpki
 ```
 
 The application will be available at `http://localhost:8000`.
@@ -115,7 +115,7 @@ The application will be available at `http://localhost:8000`.
 ## Project Structure
 
 ```
-YACertManager/
+HomeLabPKI/
 ├── app/
 │   ├── api/                  # REST API endpoints
 │   │   └── routes/           # API route handlers
@@ -140,7 +140,7 @@ Edit `config.yaml` to customize application behavior:
 ```yaml
 # Example configuration
 app:
-  title: "YACertManager"
+  title: "HomeLab PKI"
   debug: false
 
 paths:
@@ -177,7 +177,7 @@ logging:
 
 ## Authentication
 
-YACertManager includes built-in password protection with session-based authentication.
+HomeLab PKI includes built-in password protection with session-based authentication.
 
 ### Default Credentials
 
@@ -227,7 +227,7 @@ auth:
 
 ## API Documentation
 
-YACertManager provides a complete RESTful API with automatic interactive documentation powered by FastAPI.
+HomeLab PKI provides a complete RESTful API with automatic interactive documentation powered by FastAPI.
 
 ### Access the API Documentation
 
@@ -237,7 +237,7 @@ YACertManager provides a complete RESTful API with automatic interactive documen
 
 ## Security Considerations
 
-> **Important**: YACertManager is designed for development, testing, and internal infrastructure. For production PKI, consider enterprise-grade solutions.
+> **Important**: HomeLab PKI is designed for development, testing, and internal infrastructure. For production PKI, consider enterprise-grade solutions.
 
 ### Key Security Notes
 
@@ -264,8 +264,8 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ```bash
 # Clone and setup
-git clone https://github.com/mahmadhuebsch/YACertManager.git
-cd YACertManager
+git clone https://github.com/mahmadhuebsch/HomeLabPKI.git
+cd HomeLabPKI
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -r requirements-dev.txt
@@ -293,6 +293,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 <div align="center">
 
-Made with :heart: by the YACertManager Contributors
+Made with :heart: by the HomeLab PKI Contributors
 
 </div>

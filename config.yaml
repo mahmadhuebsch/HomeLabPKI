@@ -1,5 +1,5 @@
 app:
-  title: YACertManager
+  title: HomeLab PKI
   version: 1.0.0
   debug: true
 paths:
@@ -25,7 +25,7 @@ security:
 logging:
   level: DEBUG
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-  file: ./logs/yacertmanager.log
+  file: ./logs/homelabpki.log
 auth:
   enabled: true
   password_hash: # default: "admin"

@@ -1,4 +1,4 @@
-// Custom JavaScript for YACertManager
+// Custom JavaScript for HomeLab PKI
 
 // Bootstrap form validation
 (function () {

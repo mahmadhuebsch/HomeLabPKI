@@ -19,7 +19,7 @@ config = get_config()
 
 # Setup logging
 setup_logger(config)
-logger = logging.getLogger("yacertmanager")
+logger = logging.getLogger("homelabpki")
 
 
 @asynccontextmanager
@@ -49,7 +49,7 @@ app = FastAPI(
     version=config.app.version,
     debug=config.app.debug,
     description="""
-    **YACertManager** - A modern web-based Certificate Authority management system.
+    **HomeLab PKI** - A modern web-based Certificate Authority management system.
 
     Manage Root CAs, Intermediate CAs, and server certificates with ease.
 
