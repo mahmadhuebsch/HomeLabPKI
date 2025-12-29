@@ -98,12 +98,34 @@ python main.py
 
 You can easily run HomeLab PKI using Docker.
 
+### Pull from GitHub Container Registry (Recommended)
+
 ```bash
-# Build the image
+# Pull the latest image
+docker pull ghcr.io/mahmadhuebsch/homelabpki:latest
+
+# Run the container
+docker run -d \
+  -p 8000:8000 \
+  -v homelabpki_data:/app/ca-data \
+  --name homelabpki \
+  ghcr.io/mahmadhuebsch/homelabpki:latest
+```
+
+Available tags:
+- `latest` - Latest stable release
+- `v1.0.0` - Specific version
+- `main` - Latest from main branch
+
+### Build from Source
+
+```bash
+# Clone and build
+git clone https://github.com/mahmadhuebsch/HomeLabPKI.git
+cd HomeLabPKI
 docker build -t homelabpki .
 
 # Run the container
-# Maps port 8000 and creates a volume for persistent data
 docker run -d \
   -p 8000:8000 \
   -v homelabpki_data:/app/ca-data \
