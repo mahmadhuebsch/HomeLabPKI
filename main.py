@@ -1,17 +1,18 @@
 """Main FastAPI application entry point."""
 
+import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
+from urllib.parse import quote
+
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from urllib.parse import quote
-from pathlib import Path
-import logging
 
+from app.api.dependencies import AuthRedirect, get_config
 from app.api.routes import auth, ca, cert, download
-from app.web import routes as web_routes
-from app.api.dependencies import get_config, AuthRedirect
 from app.utils.logger import setup_logger
+from app.web import routes as web_routes
 
 # Load configuration
 config = get_config()
