@@ -448,6 +448,7 @@ async def intermediate_list(
 @router.get("/intermediates/create", response_class=HTMLResponse)
 async def intermediate_create_form(
     request: Request,
+    parent_ca_id: str = "",
     session: Session = Depends(require_auth_web),
     ca_service: CAService = Depends(get_ca_service),
     auth_service: AuthService = Depends(get_auth_service),
@@ -468,6 +469,7 @@ async def intermediate_create_form(
                 "request": request,
                 "ca_type": "intermediate",
                 "available_cas": available_cas,
+                "selected_parent_ca_id": parent_ca_id,
                 "defaults": defaults,
                 "auth_enabled": auth_service.is_enabled,
             },

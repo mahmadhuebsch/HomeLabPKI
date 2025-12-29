@@ -46,7 +46,7 @@
                         <select class="form-select" id="parentCa" name="parent_ca_id" required>
                             <option value="">-- Select a CA --</option>
                             {% for ca in available_cas %}
-                            <option value="{{ ca.id }}">{{ ca.subject.common_name }}</option>
+                            <option value="{{ ca.id }}" {% if ca.id == selected_parent_ca_id %}selected{% endif %}>{{ ca.subject.common_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -539,6 +539,10 @@ document.addEventListener('DOMContentLoaded', function() {
         parentCaSelect.addEventListener('change', function() {
             prefillFromParentCA(this.value);
         });
+        // Trigger prefill if parent CA is preselected on page load
+        if (parentCaSelect.value) {
+            prefillFromParentCA(parentCaSelect.value);
+        }
     }
 
     // Add password validation
