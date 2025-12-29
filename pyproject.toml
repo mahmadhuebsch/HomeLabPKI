@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["certificate", "ca", "pki", "openssl", "x509", "tls", "ssl"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
     "Framework :: FastAPI",
     "Intended Audience :: Developers",

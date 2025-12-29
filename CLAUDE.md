@@ -546,30 +546,24 @@ defaults:
 
 ### Current Version: 1.0.0
 
-**Recent Changes:**
-- Added comprehensive test suite with pytest
-  - Unit tests for CA and Certificate services
-  - Integration tests for API endpoints
-  - Test fixtures and shared configuration
-  - Coverage reporting (>80% target)
-- Added text format display for certificates (alongside PEM)
-- Separated navigation: Root CAs, Intermediate CAs, Certificates
-- Created centralized certificate list page
-- Removed OpenSSL command display from detail pages (was shown during creation only)
-- Added tabbed interface for certificate formats
-- Fixed import errors in routes
-- Added Intermediate CAs section to Root CA detail page
-- Removed USAGE_GUIDE.md and QUICKSTART.md (target audience is DevOps engineers)
-- Replaced static API.md with FastAPI Swagger UI documentation
-- Enhanced FastAPI app description for better auto-generated docs
-- Updated README.md and CLAUDE.md
+**v1.0.0 Release (December 2025):**
+- First stable release
+- Air-gapped operation: All frontend assets bundled locally (Bootstrap 5.3, Bootstrap Icons 1.11)
+- Parent CA preselection when creating certificates/intermediate CAs from detail pages
+- Comprehensive test suite with pytest (88 tests, >80% coverage)
+- Full documentation (README, CLAUDE.md, THIRD_PARTY_LICENSES.md)
 
-**Historical Changes:**
-- Implemented live OpenSSL command preview
-- Translated all German text to English
-- Made OpenSSL PATH-based (no hardcoded paths)
-- Fixed YAML Enum serialization
-- Fixed path resolution for nested directories
+**Previous Changes:**
+- Root CA, Intermediate CA, and Server Certificate management
+- Certificate extensions (Key Usage, Extended Key Usage) with presets
+- CSR signing and certificate import functionality
+- Multiple key algorithms (RSA, ECDSA, Ed25519)
+- RESTful API with OpenAPI documentation
+- Web interface with Bootstrap 5 and dark mode
+- Password-based authentication with session management
+- Soft delete (trash) for CAs and certificates
+- Live OpenSSL command preview during creation
+- Dashboard with certificate expiration overview
 
 ## Future Considerations
 
@@ -587,5 +581,5 @@ defaults:
 
 ---
 
-**Last Updated**: December 2024
+**Last Updated**: December 2025
 **Maintained for**: Claude AI Assistant context
