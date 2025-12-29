@@ -3,51 +3,51 @@
 {% block title %}Dashboard - YACertManager{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1>Dashboard</h1>
-    </div>
-</div>
-
-<!-- Statistik Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">{{ stats.root_cas }}</h5>
-                <p class="card-text text-muted">Root CAs</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">{{ stats.intermediate_cas }}</h5>
-                <p class="card-text text-muted">Intermediate CAs</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5 class="card-title">{{ stats.certificates }}</h5>
-                <p class="card-text text-muted">Certificates</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center border-warning">
-            <div class="card-body">
-                <h5 class="card-title text-warning">{{ stats.expiring_soon }}</h5>
-                <p class="card-text text-muted">Expiring (&lt;30 days)</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Root CAs Liste -->
 <div class="row">
-    <div class="col">
+    <div class="col-lg-8">
+        <div class="row mb-4">
+            <div class="col">
+                <h1>Dashboard</h1>
+            </div>
+        </div>
+
+        <!-- Statistik Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ stats.root_cas }}</h5>
+                        <p class="card-text text-muted">Root CAs</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ stats.intermediate_cas }}</h5>
+                        <p class="card-text text-muted">Intermediate CAs</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ stats.certificates }}</h5>
+                        <p class="card-text text-muted">Certificates</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning">{{ stats.expiring_soon }}</h5>
+                        <p class="card-text text-muted">Expiring (&lt;30 days)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Root CAs Liste -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2>Root CAs</h2>
         </div>
@@ -82,6 +82,56 @@
                 No Root CAs available. Create a new Root CA to get started.
             </div>
         {% endif %}
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Getting Started
+            </div>
+            <div class="card-body">
+                <p><strong>Welcome to YACertManager!</strong></p>
+                <p class="text-muted small">
+                    A web-based Certificate Authority management system for creating and managing
+                    Root CAs, Intermediate CAs, and server certificates.
+                </p>
+
+                <hr>
+
+                <p><strong>Quick Start Guide:</strong></p>
+                <ol class="text-muted small">
+                    <li><strong>Create a Root CA</strong> - The trust anchor for your PKI</li>
+                    <li><strong>Create Intermediate CA</strong> - For day-to-day signing (recommended)</li>
+                    <li><strong>Issue Certificates</strong> - Create server/client certificates</li>
+                </ol>
+
+                <hr>
+
+                <p><strong>PKI Hierarchy:</strong></p>
+                <div class="text-muted small">
+                    <div class="ms-2">
+                        <i class="bi bi-shield-lock text-primary"></i> Root CA<br>
+                        <div class="ms-3">
+                            <i class="bi bi-diagram-3 text-info"></i> Intermediate CA<br>
+                            <div class="ms-3">
+                                <i class="bi bi-file-earmark-lock text-success"></i> Certificates
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <p><strong>Best Practices:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li>Keep Root CA private key secure</li>
+                    <li>Use Intermediate CAs for signing</li>
+                    <li>Monitor expiring certificates</li>
+                    <li>Use strong key algorithms</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

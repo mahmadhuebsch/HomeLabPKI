@@ -3,53 +3,94 @@
 {% block title %}Intermediate CAs - YACertManager{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h1><i class="bi bi-diagram-3"></i> Intermediate CAs</h1>
-    </div>
-</div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-3">
+            <div class="col">
+                <h1><i class="bi bi-diagram-3"></i> Intermediate CAs</h1>
+            </div>
+        </div>
 
-<div class="row mb-3">
-    <div class="col">
-        <div class="btn-group" role="group">
-            <a href="/intermediates/create" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> New Intermediate CA
+        <div class="row mb-3">
+            <div class="col">
+                <div class="btn-group" role="group">
+                    <a href="/intermediates/create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> New Intermediate CA
+                    </a>
+                    <a href="/intermediates/import" class="btn btn-outline-primary">
+                        <i class="bi bi-upload"></i> Import Intermediate CA
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if intermediate_cas %}
+            <div class="list-group">
+            {% for ca in intermediate_cas %}
+            <a href="/intermediates/{{ ca.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">
+                        <i class="bi bi-diagram-3 text-{{ ca.validity_status }}"></i>
+                        {{ ca.subject.common_name }}
+                    </h5>
+                    <small>
+                        <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
+                    </small>
+                </div>
+                <p class="mb-1 text-muted">
+                    Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
+                </p>
+                <small class="text-muted">
+                    Organization: {{ ca.subject.organization or 'N/A' }} |
+                    {{ ca.intermediate_count }} Intermediate CA(s) |
+                    {{ ca.cert_count }} Certificate(s)
+                </small>
             </a>
-            <a href="/intermediates/import" class="btn btn-outline-primary">
-                <i class="bi bi-upload"></i> Import Intermediate CA
-            </a>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                No Intermediate CAs available. Create a new Intermediate CA.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> About Intermediate CAs
+            </div>
+            <div class="card-body">
+                <p><strong>What is an Intermediate CA?</strong></p>
+                <p class="text-muted small">
+                    An Intermediate CA sits between the Root CA and end-entity certificates.
+                    It is signed by a Root CA (or another Intermediate) and is used to sign
+                    server certificates and other Intermediate CAs.
+                </p>
+
+                <hr>
+
+                <p><strong>Why use Intermediate CAs?</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>Security</strong> - Keeps Root CA offline and protected</li>
+                    <li><strong>Flexibility</strong> - Different departments can have their own CAs</li>
+                    <li><strong>Revocation</strong> - Easier to revoke without affecting Root</li>
+                    <li><strong>Compliance</strong> - Industry best practice for PKI</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Best Practices:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li>Use Intermediate CAs for day-to-day signing</li>
+                    <li>Limit validity to 3-5 years</li>
+                    <li>Use strong key algorithms (RSA 4096 or ECDSA P-384)</li>
+                    <li>Consider separate Intermediates for different purposes</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
-
-{% if intermediate_cas %}
-    <div class="list-group">
-    {% for ca in intermediate_cas %}
-    <a href="/intermediates/{{ ca.id }}" class="list-group-item list-group-item-action">
-        <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">
-                <i class="bi bi-diagram-3 text-{{ ca.validity_status }}"></i>
-                {{ ca.subject.common_name }}
-            </h5>
-            <small>
-                <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
-            </small>
-        </div>
-        <p class="mb-1 text-muted">
-            Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
-        </p>
-        <small class="text-muted">
-            Organization: {{ ca.subject.organization or 'N/A' }} |
-            {{ ca.intermediate_count }} Intermediate CA(s) |
-            {{ ca.cert_count }} Certificate(s)
-        </small>
-    </a>
-    {% endfor %}
-    </div>
-{% else %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        No Intermediate CAs available. Create a new Intermediate CA.
-    </div>
-{% endif %}
 {% endblock %}

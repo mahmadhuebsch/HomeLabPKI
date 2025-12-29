@@ -3,62 +3,112 @@
 {% block title %}Certificates - YACertManager{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h1><i class="bi bi-file-earmark-lock"></i> Certificates</h1>
-    </div>
-</div>
-
-<div class="row mb-3">
-    <div class="col">
-        <div class="btn-group" role="group">
-            <a href="/certs/create" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> New Certificate
-            </a>
-            <a href="/certs/sign-csr" class="btn btn-outline-primary">
-                <i class="bi bi-file-earmark-text"></i> Sign CSR
-            </a>
-            <a href="/certs/import" class="btn btn-outline-primary">
-                <i class="bi bi-upload"></i> Import Certificate
-            </a>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-3">
+            <div class="col">
+                <h1><i class="bi bi-file-earmark-lock"></i> Certificates</h1>
+            </div>
         </div>
-    </div>
-</div>
 
-{% if certificates %}
-    <div class="list-group">
-    {% for cert in certificates %}
-    <a href="/certs/{{ cert.id }}" class="list-group-item list-group-item-action">
-        <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">
-                <i class="bi bi-file-earmark-lock text-{{ cert.validity_status }}"></i>
-                {{ cert.subject.common_name }}
-                {% if cert.source == 'external' %}
-                <span class="badge bg-warning text-dark ms-2">External</span>
+        <div class="row mb-3">
+            <div class="col">
+                <div class="btn-group" role="group">
+                    <a href="/certs/create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> New Certificate
+                    </a>
+                    <a href="/certs/sign-csr" class="btn btn-outline-primary">
+                        <i class="bi bi-file-earmark-text"></i> Sign CSR
+                    </a>
+                    <a href="/certs/import" class="btn btn-outline-primary">
+                        <i class="bi bi-upload"></i> Import Certificate
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if certificates %}
+            <div class="list-group">
+            {% for cert in certificates %}
+            <a href="/certs/{{ cert.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">
+                        <i class="bi bi-file-earmark-lock text-{{ cert.validity_status }}"></i>
+                        {{ cert.subject.common_name }}
+                        {% if cert.source == 'external' %}
+                        <span class="badge bg-warning text-dark ms-2">External</span>
+                        {% endif %}
+                    </h5>
+                    <small>
+                        <span class="badge bg-{{ cert.validity_status }}">{{ cert.validity_text }}</span>
+                    </small>
+                </div>
+                <p class="mb-1 text-muted">
+                    Valid until: {{ cert.not_after.strftime('%d.%m.%Y %H:%M') }}
+                </p>
+                {% if cert.sans and cert.sans|length > 1 %}
+                <small class="text-muted d-block">
+                    SANs: {{ cert.sans|join(', ') }}
+                </small>
                 {% endif %}
-            </h5>
-            <small>
-                <span class="badge bg-{{ cert.validity_status }}">{{ cert.validity_text }}</span>
-            </small>
-        </div>
-        <p class="mb-1 text-muted">
-            Valid until: {{ cert.not_after.strftime('%d.%m.%Y %H:%M') }}
-        </p>
-        {% if cert.sans and cert.sans|length > 1 %}
-        <small class="text-muted d-block">
-            SANs: {{ cert.sans|join(', ') }}
-        </small>
+                <small class="text-muted">
+                    Serial: {{ cert.serial_number }}
+                </small>
+            </a>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                No certificates available. Create a new certificate to get started.
+            </div>
         {% endif %}
-        <small class="text-muted">
-            Serial: {{ cert.serial_number }}
-        </small>
-    </a>
-    {% endfor %}
     </div>
-{% else %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        No certificates available. Create a new certificate to get started.
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> About Certificates
+            </div>
+            <div class="card-body">
+                <p><strong>What are End-Entity Certificates?</strong></p>
+                <p class="text-muted small">
+                    End-entity certificates (also called leaf certificates) are issued to servers,
+                    clients, or users. They cannot sign other certificates and are used for
+                    authentication, encryption, and digital signatures.
+                </p>
+
+                <hr>
+
+                <p><strong>Actions:</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>New Certificate</strong> - Generate a new key pair and certificate</li>
+                    <li><strong>Sign CSR</strong> - Sign an external Certificate Signing Request</li>
+                    <li><strong>Import</strong> - Import an existing certificate for tracking</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Certificate Types:</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>TLS Server</strong> - For HTTPS web servers</li>
+                    <li><strong>TLS Client</strong> - For client authentication</li>
+                    <li><strong>Code Signing</strong> - For signing software</li>
+                    <li><strong>Email (S/MIME)</strong> - For email encryption</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Best Practices:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li>Use short validity periods (1 year max)</li>
+                    <li>Include all necessary SANs</li>
+                    <li>Use appropriate key usage extensions</li>
+                    <li>Monitor expiration dates</li>
+                </ul>
+            </div>
+        </div>
     </div>
-{% endif %}
+</div>
 {% endblock %}

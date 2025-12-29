@@ -230,16 +230,59 @@
         </form>
     </div>
 
-    <!-- Command Preview -->
+    <!-- Command Preview and Help -->
     <div class="col-lg-4">
-        <div class="card sticky-top" style="top: 20px;">
+        <div class="sticky-top" style="top: 20px;">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                </div>
+                <div class="card-body">
+                    <div class="command-preview" id="commandPreview">
+                        <span class="text-muted">Upload a CSR to see the command...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Panel -->
+            <div class="card mt-3">
             <div class="card-header">
-                <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                <i class="bi bi-info-circle"></i> Signing a CSR
             </div>
             <div class="card-body">
-                <div class="command-preview" id="commandPreview">
-                    <span class="text-muted">Upload a CSR to see the command...</span>
+                <p><strong>What is a CSR?</strong></p>
+                <p class="text-muted small">
+                    A Certificate Signing Request (CSR) contains the public key and subject
+                    information. The private key remains with the requester, providing security
+                    as it never leaves their system.
+                </p>
+
+                <hr>
+
+                <p><strong>When to use CSR signing:</strong></p>
+                <ul class="text-muted small">
+                    <li>Key pair generated on target server</li>
+                    <li>Private key managed by another team</li>
+                    <li>Compliance requires key separation</li>
+                    <li>HSM-protected private keys</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Subject Alternative Names</strong></p>
+                <p class="text-muted small">
+                    Leave empty to use SANs from the CSR, or override by entering custom SANs.
+                    All hostnames the certificate should cover must be listed.
+                </p>
+
+                <hr>
+
+                <div class="alert alert-info small mb-0">
+                    <i class="bi bi-shield-lock"></i>
+                    The signed certificate will be marked as "External" since the private
+                    key is not managed by this system.
                 </div>
+            </div>
             </div>
         </div>
     </div>

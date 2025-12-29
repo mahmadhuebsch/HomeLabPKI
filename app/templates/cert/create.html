@@ -258,16 +258,60 @@
         </form>
     </div>
 
-    <!-- Command Preview -->
+    <!-- Command Preview and Help -->
     <div class="col-lg-4">
-        <div class="card sticky-top" style="top: 20px;">
+        <div class="sticky-top" style="top: 20px;">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                </div>
+                <div class="card-body">
+                    <div class="command-preview" id="commandPreview">
+                        <span class="text-muted">Fill out the form to see the command...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Panel -->
+            <div class="card mt-3">
             <div class="card-header">
-                <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                <i class="bi bi-info-circle"></i> Creating a Certificate
             </div>
             <div class="card-body">
-                <div class="command-preview" id="commandPreview">
-                    <span class="text-muted">Fill out the form to see the command...</span>
-                </div>
+                <p><strong>Common Name (CN)</strong></p>
+                <p class="text-muted small">
+                    The primary domain name for the certificate. This should match
+                    the hostname users will access (e.g., www.example.com).
+                </p>
+
+                <hr>
+
+                <p><strong>Subject Alternative Names</strong></p>
+                <p class="text-muted small">
+                    Add all hostnames and IP addresses this certificate should be valid for.
+                    Modern browsers require SANs for proper validation. Wildcards (*.example.com)
+                    cover all subdomains.
+                </p>
+
+                <hr>
+
+                <p><strong>Extension Presets:</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>TLS Server</strong> - Web servers (HTTPS)</li>
+                    <li><strong>TLS Client</strong> - Client authentication</li>
+                    <li><strong>Code Signing</strong> - Sign executables</li>
+                    <li><strong>Email</strong> - S/MIME email encryption</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Validity Period:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li>365 days (1 year) is standard</li>
+                    <li>Public CAs limit to 398 days max</li>
+                    <li>Shorter periods improve security</li>
+                </ul>
+            </div>
             </div>
         </div>
     </div>

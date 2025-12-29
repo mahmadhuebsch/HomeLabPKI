@@ -3,34 +3,36 @@
 {% block title %}{{ cert.subject.common_name }} - YACertManager{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <a href="/certs" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back
-        </a>
-    </div>
-</div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-3">
+            <div class="col">
+                <a href="/certs" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
 
-<div class="row mb-4">
-    <div class="col-md-8">
-        <h1>
-            {{ cert.subject.common_name }}
-            {% if cert.source == 'external' %}
-            <span class="badge bg-warning text-dark">External</span>
-            {% endif %}
-        </h1>
-        {% if cert.source == 'external' %}
-        <p class="text-muted">
-            <i class="bi bi-info-circle"></i> This certificate was signed externally or imported. Private key is not managed by this system.
-        </p>
-        {% endif %}
-    </div>
-    <div class="col-md-4 text-end">
-        <button class="btn btn-danger" onclick="confirmDelete()">
-            <i class="bi bi-trash"></i> Delete
-        </button>
-    </div>
-</div>
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1>
+                    {{ cert.subject.common_name }}
+                    {% if cert.source == 'external' %}
+                    <span class="badge bg-warning text-dark">External</span>
+                    {% endif %}
+                </h1>
+                {% if cert.source == 'external' %}
+                <p class="text-muted">
+                    <i class="bi bi-info-circle"></i> This certificate was signed externally or imported. Private key is not managed by this system.
+                </p>
+                {% endif %}
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
 
 <!-- Certificate Information -->
 <div class="card mb-4">
@@ -179,6 +181,58 @@
                         <pre id="certPemContent" class="code-block">{{ cert_content }}</pre>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Certificate Details
+            </div>
+            <div class="card-body">
+                <p><strong>Certificate Chain</strong></p>
+                <p class="text-muted small">
+                    The breadcrumb at the top shows the trust chain from Root CA through any
+                    Intermediate CAs to this certificate. Click on any CA to view its details.
+                </p>
+
+                <hr>
+
+                <p><strong>Subject Alternative Names (SANs)</strong></p>
+                <p class="text-muted small">
+                    SANs list all hostnames and IP addresses this certificate is valid for.
+                    Modern browsers require SANs for proper certificate validation.
+                </p>
+
+                <hr>
+
+                <p><strong>Key Usage Extensions</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>Key Usage</strong> - Basic operations (signing, encryption)</li>
+                    <li><strong>Extended Key Usage</strong> - Specific purposes (TLS, code signing)</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Downloads</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>Certificate</strong> - Public certificate file</li>
+                    {% if cert.source != 'external' %}
+                    <li><strong>Private Key</strong> - Keep secure and confidential</li>
+                    {% endif %}
+                    <li><strong>Full Chain</strong> - Certificate + all CA certs in chain</li>
+                </ul>
+
+                {% if cert.source == 'external' %}
+                <div class="alert alert-info small mt-3 mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    External certificates have their private keys managed outside this system.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -190,16 +190,64 @@
         </form>
     </div>
 
-    <!-- Command Preview -->
+    <!-- Command Preview and Help -->
     <div class="col-lg-4">
-        <div class="card sticky-top" style="top: 20px;">
+        <div class="sticky-top" style="top: 20px;">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                </div>
+                <div class="card-body">
+                    <div class="command-preview" id="commandPreview">
+                        <span class="text-muted">Fill out the form to see the command...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Panel -->
+            <div class="card mt-3">
             <div class="card-header">
-                <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                <i class="bi bi-info-circle"></i> {% if ca_type == 'root' %}Creating a Root CA{% else %}Creating an Intermediate CA{% endif %}
             </div>
             <div class="card-body">
-                <div class="command-preview" id="commandPreview">
-                    <span class="text-muted">Fill out the form to see the command...</span>
-                </div>
+                {% if ca_type == 'root' %}
+                <p><strong>Root CA Purpose</strong></p>
+                <p class="text-muted small">
+                    A Root CA is the trust anchor of your PKI. It is self-signed and should
+                    be kept highly secure. Its certificate needs to be distributed to all
+                    systems that should trust certificates in your hierarchy.
+                </p>
+                {% else %}
+                <p><strong>Intermediate CA Purpose</strong></p>
+                <p class="text-muted small">
+                    An Intermediate CA is signed by a Root CA or another Intermediate.
+                    It provides a security layer by allowing you to keep the Root CA offline
+                    while still being able to sign certificates.
+                </p>
+                {% endif %}
+
+                <hr>
+
+                <p><strong>Key Algorithms:</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>RSA 4096</strong> - Widely compatible, good security</li>
+                    <li><strong>ECDSA P-384</strong> - Modern, smaller keys, faster</li>
+                    <li><strong>Ed25519</strong> - Newest, very secure, limited support</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Validity Period:</strong></p>
+                <ul class="text-muted small mb-0">
+                    {% if ca_type == 'root' %}
+                    <li>Root CAs: 10-20 years recommended</li>
+                    <li>Longer validity reduces rotation frequency</li>
+                    {% else %}
+                    <li>Intermediate CAs: 3-5 years recommended</li>
+                    <li>Must not exceed parent CA validity</li>
+                    {% endif %}
+                </ul>
+            </div>
             </div>
         </div>
     </div>

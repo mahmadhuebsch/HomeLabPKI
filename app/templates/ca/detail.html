@@ -3,24 +3,26 @@
 {% block title %}{{ ca.subject.common_name }} - YACertManager{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <a href="/rootcas" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back
-        </a>
-    </div>
-</div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-3">
+            <div class="col">
+                <a href="/rootcas" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
 
-<div class="row mb-4">
-    <div class="col-md-8">
-        <h1>{{ ca.subject.common_name }}</h1>
-    </div>
-    <div class="col-md-4 text-end">
-        <button class="btn btn-danger" onclick="confirmDelete()">
-            <i class="bi bi-trash"></i> Delete
-        </button>
-    </div>
-</div>
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1>{{ ca.subject.common_name }}</h1>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
 
 <!-- Certificate Information -->
 <div class="card mb-4">
@@ -254,6 +256,55 @@
         {% else %}
             <p class="text-muted">No certificates available.</p>
         {% endif %}
+    </div>
+</div>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> CA Details
+            </div>
+            <div class="card-body">
+                <p><strong>Certificate Information</strong></p>
+                <p class="text-muted small">
+                    This section displays the CA's subject, validity period, fingerprint,
+                    and X.509 extensions. Key Usage shows what operations this CA can perform.
+                </p>
+
+                <hr>
+
+                <p><strong>Downloads</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>Certificate (.crt)</strong> - Public certificate for distribution</li>
+                    <li><strong>Private Key (.key)</strong> - Keep secure, needed for signing</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Hierarchy</strong></p>
+                <p class="text-muted small">
+                    {% if ca.type.value == 'root_ca' %}
+                    This is a Root CA. It can sign Intermediate CAs and end-entity certificates directly.
+                    Best practice is to use Intermediate CAs for day-to-day signing.
+                    {% else %}
+                    This is an Intermediate CA. It was signed by a parent CA and can sign
+                    end-entity certificates or additional Intermediate CAs.
+                    {% endif %}
+                </p>
+
+                <hr>
+
+                <p><strong>Security Notes:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li>Keep private keys secure and encrypted</li>
+                    <li>Use strong passwords for key protection</li>
+                    <li>Monitor certificate expiration dates</li>
+                    <li>Limit who has access to signing capabilities</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

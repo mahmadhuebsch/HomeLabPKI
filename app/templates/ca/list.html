@@ -1,55 +1,94 @@
 {% extends "base.html" %}
 
-{% block title %}CAs - YACertManager{% endblock %}
+{% block title %}Root CAs - YACertManager{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1>Certificate Authorities</h1>
-    </div>
-</div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-4">
+            <div class="col">
+                <h1>Certificate Authorities</h1>
+            </div>
+        </div>
 
-<div class="row mb-3">
-    <div class="col">
-        <div class="btn-group" role="group">
-            <a href="/rootcas/create" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> New Root CA
+        <div class="row mb-3">
+            <div class="col">
+                <div class="btn-group" role="group">
+                    <a href="/rootcas/create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> New Root CA
+                    </a>
+                    <a href="/rootcas/import" class="btn btn-outline-primary">
+                        <i class="bi bi-upload"></i> Import Root CA
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if root_cas %}
+            <div class="list-group">
+            {% for ca in root_cas %}
+            <a href="/rootcas/{{ ca.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">
+                        <i class="bi bi-shield-fill-check text-{{ ca.validity_status }}"></i>
+                        {{ ca.subject.common_name }}
+                    </h5>
+                    <small>
+                        <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
+                    </small>
+                </div>
+                <p class="mb-1 text-muted">
+                    Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
+                </p>
+                <small class="text-muted">
+                    Organization: {{ ca.subject.organization or 'N/A' }} |
+                    {{ ca.intermediate_count }} Intermediate CA(s) |
+                    {{ ca.cert_count }} Certificate(s)
+                </small>
             </a>
-            <a href="/rootcas/import" class="btn btn-outline-primary">
-                <i class="bi bi-upload"></i> Import Root CA
-            </a>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                No Root CAs available. Create a new Root CA.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> About Root CAs
+            </div>
+            <div class="card-body">
+                <p><strong>What is a Root CA?</strong></p>
+                <p class="text-muted small">
+                    A Root Certificate Authority is the trust anchor of a PKI hierarchy.
+                    It is self-signed and used to sign Intermediate CAs or directly issue certificates.
+                </p>
+
+                <hr>
+
+                <p><strong>Actions:</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>New Root CA</strong> - Create a new self-signed Root CA</li>
+                    <li><strong>Import</strong> - Import an existing Root CA for tracking</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Best Practices:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li>Keep Root CA keys offline and secure</li>
+                    <li>Use long validity periods (10+ years)</li>
+                    <li>Use strong key algorithms (RSA 4096 or ECDSA P-384)</li>
+                    <li>Create Intermediate CAs for day-to-day operations</li>
+                    <li>Limit direct certificate signing from Root CA</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
-
-{% if root_cas %}
-    <div class="list-group">
-    {% for ca in root_cas %}
-    <a href="/rootcas/{{ ca.id }}" class="list-group-item list-group-item-action">
-        <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">
-                <i class="bi bi-shield-fill-check text-{{ ca.validity_status }}"></i>
-                {{ ca.subject.common_name }}
-            </h5>
-            <small>
-                <span class="badge bg-{{ ca.validity_status }}">{{ ca.validity_text }}</span>
-            </small>
-        </div>
-        <p class="mb-1 text-muted">
-            Valid until: {{ ca.not_after.strftime('%d.%m.%Y %H:%M') }}
-        </p>
-        <small class="text-muted">
-            Organization: {{ ca.subject.organization or 'N/A' }} |
-            {{ ca.intermediate_count }} Intermediate CA(s) |
-            {{ ca.cert_count }} Certificate(s)
-        </small>
-    </a>
-    {% endfor %}
-    </div>
-{% else %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        No Root CAs available. Create a new Root CA.
-    </div>
-{% endif %}
 {% endblock %}
