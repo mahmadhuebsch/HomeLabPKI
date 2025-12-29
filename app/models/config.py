@@ -9,7 +9,7 @@ class AppSettings(BaseModel):
     """Application settings."""
 
     title: str = "HomeLab PKI"
-    version: str = "1.0.0"
+    version: str = "1.1.0-dev"
     debug: bool = False
 
 
