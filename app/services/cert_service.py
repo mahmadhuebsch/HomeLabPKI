@@ -5,7 +5,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from app.models.certificate import CertCreateRequest, CertImportRequest, CertResponse, CSRSignRequest, ServerCertConfig
+from app.models.certificate import (
+    CertCreateRequest,
+    CertImportRequest,
+    CertResponse,
+    CSRSignRequest,
+    ServerCertConfig,
+)
 from app.services.openssl_service import OpenSSLService
 from app.services.parser_service import CertificateParser
 from app.services.yaml_service import YAMLService
@@ -560,7 +566,8 @@ class CertificateService:
             from app.models.ca import KeyConfig
 
             key_config = KeyConfig(
-                algorithm=cert_info.get("public_key_algorithm", "RSA"), key_size=cert_info.get("public_key_size", 2048)
+                algorithm=cert_info.get("public_key_algorithm", "RSA"),
+                key_size=cert_info.get("public_key_size", 2048),
             )
 
             # Calculate validity days

@@ -8,8 +8,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.models.auth import Session
 from app.models.ca import CAConfig, CACreateRequest, CAType, KeyConfig, Subject
 from app.models.certificate import CertCreateRequest
+from app.models.config import AuthSettings
+from app.services.auth_service import AuthService
 from app.services.ca_service import CAService
 from app.services.cert_service import CertificateService
 from app.services.openssl_service import OpenSSLService
@@ -76,7 +79,10 @@ def sample_key_config():
 def sample_root_ca_request(sample_ca_subject, sample_key_config):
     """Create a sample Root CA creation request."""
     return CACreateRequest(
-        type=CAType.ROOT_CA, subject=sample_ca_subject, key_config=sample_key_config, validity_days=365
+        type=CAType.ROOT_CA,
+        subject=sample_ca_subject,
+        key_config=sample_key_config,
+        validity_days=365,
     )
 
 
@@ -100,12 +106,46 @@ def sample_cert_request(sample_cert_subject, sample_key_config):
 
 
 @pytest.fixture
+def auth_service(ca_data_dir):
+    """Create auth service instance with auth enabled for testing."""
+    auth_settings = AuthSettings(enabled=True, session_expiry_hours=24)
+    service = AuthService(auth_settings, config_path=ca_data_dir / "test_config.yaml")
+    return service
+
+
+@pytest.fixture
+def auth_token(auth_service):
+    """Get a valid auth token for testing."""
+    session = auth_service.create_session()
+    return session.token
+
+
+@pytest.fixture
+def auth_headers(auth_token):
+    """Get auth headers for API requests."""
+    return {"Authorization": f"Bearer {auth_token}"}
+
+
+@pytest.fixture
 def client(ca_data_dir, openssl_service):
-    """Create FastAPI test client with isolated test directory."""
-    from app.api.dependencies import get_ca_data_dir, get_ca_service, get_cert_service
+    """Create FastAPI test client with isolated test directory and auth disabled."""
+    from app.api.dependencies import (
+        get_auth_service,
+        get_ca_data_dir,
+        get_ca_service,
+        get_cert_service,
+        reset_auth_service,
+    )
     from app.services.ca_service import CAService
     from app.services.cert_service import CertificateService
     from main import app
+
+    # Reset auth service singleton before tests
+    reset_auth_service()
+
+    # Create auth service with auth DISABLED for regular tests
+    disabled_auth_settings = AuthSettings(enabled=False)
+    disabled_auth_service = AuthService(disabled_auth_settings, config_path=ca_data_dir / "test_config.yaml")
 
     # Override dependencies to use test directory
     def override_ca_data_dir():
@@ -117,15 +157,63 @@ def client(ca_data_dir, openssl_service):
     def override_cert_service():
         return CertificateService(ca_data_dir, openssl_service)
 
+    def override_auth_service():
+        return disabled_auth_service
+
     app.dependency_overrides[get_ca_data_dir] = override_ca_data_dir
     app.dependency_overrides[get_ca_service] = override_ca_service
     app.dependency_overrides[get_cert_service] = override_cert_service
+    app.dependency_overrides[get_auth_service] = override_auth_service
 
     client = TestClient(app)
     yield client
 
     # Clean up
     app.dependency_overrides.clear()
+    reset_auth_service()
+
+
+@pytest.fixture
+def client_with_auth(ca_data_dir, openssl_service, auth_service, auth_token):
+    """Create FastAPI test client with authentication enabled."""
+    from app.api.dependencies import (
+        get_auth_service,
+        get_ca_data_dir,
+        get_ca_service,
+        get_cert_service,
+        reset_auth_service,
+    )
+    from app.services.ca_service import CAService
+    from app.services.cert_service import CertificateService
+    from main import app
+
+    # Reset auth service singleton before tests
+    reset_auth_service()
+
+    # Override dependencies to use test directory
+    def override_ca_data_dir():
+        return ca_data_dir
+
+    def override_ca_service():
+        return CAService(ca_data_dir, openssl_service)
+
+    def override_cert_service():
+        return CertificateService(ca_data_dir, openssl_service)
+
+    def override_auth_service():
+        return auth_service
+
+    app.dependency_overrides[get_ca_data_dir] = override_ca_data_dir
+    app.dependency_overrides[get_ca_service] = override_ca_service
+    app.dependency_overrides[get_cert_service] = override_cert_service
+    app.dependency_overrides[get_auth_service] = override_auth_service
+
+    client = TestClient(app)
+    yield client
+
+    # Clean up
+    app.dependency_overrides.clear()
+    reset_auth_service()
 
 
 @pytest.fixture

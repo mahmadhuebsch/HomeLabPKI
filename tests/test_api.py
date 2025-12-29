@@ -29,7 +29,11 @@ class TestCAAPI:
         """Test creating a root CA via API."""
         payload = {
             "type": "root_ca",
-            "subject": {"common_name": "API Test Root CA", "organization": "Test Org", "country": "US"},
+            "subject": {
+                "common_name": "API Test Root CA",
+                "organization": "Test Org",
+                "country": "US",
+            },
             "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "test_password_123"},
             "validity_days": 365,
         }

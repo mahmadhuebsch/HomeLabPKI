@@ -62,7 +62,9 @@ class KeyConfig(BaseModel):
     key_size: Optional[int] = Field(None, ge=2048)  # for RSA
     curve: Optional[ECDSACurve] = None  # for ECDSA
     password: Optional[str] = Field(
-        None, min_length=8, description="Password for key encryption (AES-256). Required for key generation."
+        None,
+        min_length=8,
+        description="Password for key encryption (AES-256). Required for key generation.",
     )
 
     class Config:

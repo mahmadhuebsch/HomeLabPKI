@@ -37,6 +37,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Importing** - Import and track externally-signed CAs and certificates
 - **Multiple Certificate Formats** - View certificates in both Text (human-readable) and PEM formats
 - **Modern Web Interface** - Responsive Bootstrap 5 UI with organized navigation
+- **Password Protection** - Built-in authentication with configurable session expiration
 - **RESTful API** - Complete API with OpenAPI documentation
 - **Docker Support** - Easy deployment with Docker
 
@@ -49,6 +50,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - [Docker Deployment](#docker-deployment)
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
+- [Authentication](#authentication)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Security Considerations](#security-considerations)
@@ -86,7 +88,7 @@ openssl version
 python main.py
 ```
 
-1. Navigate to `http://localhost:8000`
+1. Navigate to `http://localhost:8000`  (Default Password: "admin")
 2. Create a Root CA from the dashboard
 3. Optionally create an Intermediate CA under the Root CA
 4. Issue server certificates as needed
@@ -145,6 +147,11 @@ paths:
   ca_data: "./ca-data"      # Certificate storage location
   logs: "./logs"            # Log file location
 
+auth:
+  enabled: true             # Enable/disable authentication
+  password_hash: null       # Auto-generated on first run (default: "admin")
+  session_expiry_hours: 24  # Session timeout
+
 defaults:
   root_ca:
     validity_days: 3650     # 10 years
@@ -168,6 +175,56 @@ logging:
   level: "INFO"
 ```
 
+## Authentication
+
+YACertManager includes built-in password protection with session-based authentication.
+
+### Default Credentials
+
+- **Password**: `admin` (no username required)
+
+### Features
+
+- **Web UI**: Cookie-based sessions with automatic redirect to login page
+- **API**: Bearer token authentication for programmatic access
+- **Session Management**: Configurable session expiration (default: 24 hours)
+- **Password Change**: Available via Settings page or API
+
+### API Authentication
+
+```bash
+# Get a session token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"password": "admin"}'
+
+# Response: {"token": "uuid-token", "expires_at": "..."}
+
+# Use the token for API requests
+curl http://localhost:8000/api/cas \
+  -H "Authorization: Bearer <token>"
+```
+
+### Password Recovery
+
+If you forget your password, delete the `password_hash` line from `config.yaml` and restart the application. The password will reset to `admin`.
+
+```yaml
+auth:
+  enabled: true
+  password_hash: null  # Delete this line or set to null to reset
+  session_expiry_hours: 24
+```
+
+### Disabling Authentication
+
+To disable authentication entirely (not recommended for networked deployments):
+
+```yaml
+auth:
+  enabled: false
+```
+
 ## API Documentation
 
 YACertManager provides a complete RESTful API with automatic interactive documentation powered by FastAPI.
@@ -185,16 +242,17 @@ YACertManager provides a complete RESTful API with automatic interactive documen
 ### Key Security Notes
 
 - **Private Key Storage**: Private keys are stored unencrypted on disk. It is highly recommended to choose a strong password and/or encrypt the `ca-data` directory at the file system level (e.g. [Cryptomator](https://github.com/cryptomator/cryptomator)).
-- **Access Control**: No built-in authentication. Deploy behind a reverse proxy with authentication for network access.
-- **HTTPS**: Always use HTTPS when deploying in any networked environment.
+- **Authentication**: Built-in password protection is enabled by default. Change the default password immediately after installation.
+- **HTTPS**: Always use HTTPS when deploying in any networked environment. Consider a reverse proxy (nginx, Caddy) for TLS termination.
 - **Backup**: Regularly backup the `ca-data` directory.
 
 ### Best Practices
 
-1. **Offline Root CA**: Keep Root CA keys offline, use Intermediate CAs for day-to-day operations
-2. **Short-Lived Certificates**: Use shorter validity periods (90-365 days) for server certificates
-3. **Regular Rotation**: Rotate certificates before expiration
-4. **Monitoring**: Monitor certificate expiration dates from the dashboard
+1. **Change Default Password**: Immediately change the default password via Settings after first login
+2. **Offline Root CA**: Keep Root CA keys offline, use Intermediate CAs for day-to-day operations
+3. **Short-Lived Certificates**: Use shorter validity periods (90-365 days) for server certificates
+4. **Regular Rotation**: Rotate certificates before expiration
+5. **Monitoring**: Monitor certificate expiration dates from the dashboard
 
 For detailed security information, see [SECURITY.md](SECURITY.md).
 

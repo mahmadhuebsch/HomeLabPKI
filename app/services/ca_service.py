@@ -267,7 +267,8 @@ class CAService:
 
                 curve_name = cert_info.get("curve", "P-256")
                 key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.ECDSA, curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256
+                    algorithm=KeyAlgorithm.ECDSA,
+                    curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256,
                 )
             else:  # Ed25519
                 key_config = KeyConfig(algorithm=KeyAlgorithm.ED25519)
@@ -380,7 +381,8 @@ class CAService:
 
                 curve_name = cert_info.get("curve", "P-256")
                 key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.ECDSA, curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256
+                    algorithm=KeyAlgorithm.ECDSA,
+                    curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256,
                 )
             else:  # Ed25519
                 key_config = KeyConfig(algorithm=KeyAlgorithm.ED25519)

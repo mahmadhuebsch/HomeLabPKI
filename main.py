@@ -1,14 +1,16 @@
 """Main FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from urllib.parse import quote
 from pathlib import Path
 import logging
 
-from app.api.routes import ca, cert, download
+from app.api.routes import auth, ca, cert, download
 from app.web import routes as web_routes
-from app.api.dependencies import get_config
+from app.api.dependencies import get_config, AuthRedirect
 from app.utils.logger import setup_logger
 
 # Load configuration
@@ -73,7 +75,16 @@ static_dir = Path("app/static")
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+
+@app.exception_handler(AuthRedirect)
+async def auth_redirect_handler(request: Request, exc: AuthRedirect):
+    """Redirect unauthenticated web users to login page."""
+    next_url = quote(str(exc), safe="")
+    return RedirectResponse(url=f"/login?next={next_url}", status_code=303)
+
+
 # Include API routers
+app.include_router(auth.router)
 app.include_router(ca.router)
 app.include_router(cert.router)
 app.include_router(download.router)

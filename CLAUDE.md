@@ -36,9 +36,12 @@ YACertManager/
 ├── CLAUDE.md                   # This file - AI assistant context
 ├── app/
 │   ├── models/                 # Pydantic models
+│   │   ├── auth.py            # Auth models (Session, LoginRequest)
 │   │   ├── ca.py              # CA models (CAConfig, CAResponse)
-│   │   └── certificate.py     # Certificate models
+│   │   ├── certificate.py     # Certificate models
+│   │   └── config.py          # Config models (AppConfig, AuthSettings)
 │   ├── services/              # Business logic
+│   │   ├── auth_service.py    # Authentication & session management
 │   │   ├── openssl_service.py # OpenSSL command generation
 │   │   ├── ca_service.py      # CA management
 │   │   ├── cert_service.py    # Certificate management
@@ -53,6 +56,9 @@ YACertManager/
 │   ├── templates/             # Jinja2 templates
 │   │   ├── base.html         # Base template with navigation
 │   │   ├── dashboard.html    # Dashboard page
+│   │   ├── settings.html     # Settings page (password change)
+│   │   ├── auth/             # Authentication templates
+│   │   │   └── login.html    # Login page
 │   │   ├── ca/               # CA templates
 │   │   │   ├── list.html     # Root CA list
 │   │   │   ├── detail.html   # CA detail (used by both root & intermediate)
@@ -273,12 +279,72 @@ Web routes in `app/web/routes.py`:
 - Jinja2 syntax for variables: `{{ variable }}`
 - Example of format tabs (see `ca/detail.html` or `cert/detail.html`)
 
+## Authentication
+
+### Overview
+YACertManager includes password-based authentication to protect access to the application.
+
+### Key Features
+- **Password-only authentication** (no username required)
+- **Session-based**: In-memory session storage (sessions lost on restart)
+- **Dual authentication methods**:
+  - API: Bearer token in `Authorization` header
+  - Web UI: HTTP-only session cookies
+- **CSRF protection**: Double-submit cookie pattern for web forms
+- **Configurable session expiry**: Default 24 hours
+
+### Configuration (`config.yaml`)
+```yaml
+auth:
+  enabled: true
+  password_hash: null  # Auto-set on first run (default: "admin")
+  session_expiry_hours: 24
+```
+
+### API Endpoints
+- `POST /api/auth/login` - Authenticate and get session token
+- `POST /api/auth/logout` - Invalidate session
+- `POST /api/auth/change-password` - Change password
+- `GET /api/auth/session` - Check session status
+
+### Web Routes
+- `GET /login` - Login page
+- `POST /login` - Login form submission
+- `GET /logout` - Logout and redirect
+- `GET /settings` - Settings page with password change
+
+### Password Recovery
+If you forget your password:
+1. Stop the application
+2. Edit `config.yaml`
+3. Set `password_hash: null`
+4. Restart the application
+5. Login with default password: `admin`
+6. Immediately change your password
+
+### Auth Service (`app/services/auth_service.py`)
+- Password hashing using bcrypt (12 rounds)
+- Session creation/validation/invalidation
+- CSRF token generation and validation
+- Key methods:
+  - `hash_password()` - Hash password with bcrypt
+  - `verify_password()` - Verify password against hash
+  - `create_session()` - Create new session
+  - `validate_session()` - Validate session token
+  - `change_password()` - Change password and invalidate sessions
+
+### Dependencies (`app/api/dependencies.py`)
+- `get_auth_service()` - Singleton auth service
+- `get_optional_session()` - Get session from Bearer token or cookie
+- `require_auth()` - Require valid session (returns 401 if not authenticated)
+
 ## Known Issues & Technical Debt
 
 ### Security Considerations
-- **No Authentication**: Application has no built-in auth
+- **Single Password**: Application uses single password (no multi-user)
 - **Unencrypted Keys**: Private keys stored in plaintext
 - **For Development**: Not recommended for production PKI
+- **In-memory Sessions**: Sessions lost on application restart
 
 ### Limitations
 - No certificate revocation lists (CRL)
@@ -308,6 +374,7 @@ Web routes in `app/web/routes.py`:
 ```
 tests/
 ├── conftest.py              # Shared fixtures and configuration
+├── test_auth.py             # Authentication tests
 ├── test_ca_service.py       # CA service unit tests
 ├── test_cert_service.py     # Certificate service unit tests
 ├── test_api.py             # API integration tests

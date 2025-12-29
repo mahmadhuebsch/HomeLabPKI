@@ -163,7 +163,9 @@ class TestCertificateImport:
 
         # Now import it as external certificate
         import_request = CertImportRequest(
-            issuing_ca_id=created_root_ca.id, cert_content=cert_content, cert_name="imported-certificate"
+            issuing_ca_id=created_root_ca.id,
+            cert_content=cert_content,
+            cert_name="imported-certificate",
         )
 
         imported_cert = cert_service.import_certificate(import_request)

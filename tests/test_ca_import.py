@@ -24,7 +24,9 @@ class TestRootCAImport:
 
         # Import the CA
         import_request = RootCAImportRequest(
-            ca_cert_content=ca_cert_content, ca_name="imported-root-ca", ca_key_content=ca_key_content
+            ca_cert_content=ca_cert_content,
+            ca_name="imported-root-ca",
+            ca_key_content=ca_key_content,
         )
 
         imported_ca = ca_service.import_root_ca(import_request)
@@ -130,7 +132,9 @@ class TestIntermediateCAImport:
         int_ca_cert_content = int_ca_cert_path.read_text()
 
         import_request = IntermediateCAImportRequest(
-            parent_ca_id="nonexistent-ca", ca_cert_content=int_ca_cert_content, ca_name="test-intermediate"
+            parent_ca_id="nonexistent-ca",
+            ca_cert_content=int_ca_cert_content,
+            ca_name="test-intermediate",
         )
 
         with pytest.raises(ValueError, match="Parent CA not found"):
@@ -143,7 +147,9 @@ class TestIntermediateCAImport:
 
         # Import once
         import_request = IntermediateCAImportRequest(
-            parent_ca_id=created_root_ca.id, ca_cert_content=int_ca_cert_content, ca_name="dup-intermediate-ca"
+            parent_ca_id=created_root_ca.id,
+            ca_cert_content=int_ca_cert_content,
+            ca_name="dup-intermediate-ca",
         )
         ca_service.import_intermediate_ca(import_request)
 

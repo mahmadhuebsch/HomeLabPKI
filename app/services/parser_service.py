@@ -144,7 +144,11 @@ class CertificateParser:
                 "secp384r1": "P-384",
                 "secp521r1": "P-521",
             }
-            return {"algorithm": "ECDSA", "key_size": None, "curve": curve_map.get(curve_name, curve_name)}
+            return {
+                "algorithm": "ECDSA",
+                "key_size": None,
+                "curve": curve_map.get(curve_name, curve_name),
+            }
         elif isinstance(public_key, ed25519.Ed25519PublicKey):
             return {"algorithm": "Ed25519", "key_size": None, "curve": None}
         else:

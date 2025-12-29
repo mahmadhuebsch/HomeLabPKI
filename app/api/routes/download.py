@@ -5,14 +5,19 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 
-from app.api.dependencies import get_ca_data_dir, get_cert_service
+from app.api.dependencies import get_ca_data_dir, get_cert_service, require_auth
+from app.models.auth import Session
 from app.services.cert_service import CertificateService
 
 router = APIRouter(prefix="/download", tags=["Downloads"])
 
 
 @router.get("/ca/{ca_id:path}/cert")
-def download_ca_cert(ca_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
+def download_ca_cert(
+    ca_id: str,
+    session: Session = Depends(require_auth),
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
     """Download CA certificate (.crt)."""
     try:
         cert_path = ca_data_dir / ca_id / "ca.crt"
@@ -28,7 +33,11 @@ def download_ca_cert(ca_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
 
 
 @router.get("/ca/{ca_id:path}/key")
-def download_ca_key(ca_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
+def download_ca_key(
+    ca_id: str,
+    session: Session = Depends(require_auth),
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
     """Download CA private key (.key) - Handle with care!"""
     try:
         key_path = ca_data_dir / ca_id / "ca.key"
@@ -49,7 +58,11 @@ def download_ca_key(ca_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
 
 
 @router.get("/cert/{cert_id:path}/cert")
-def download_cert(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
+def download_cert(
+    cert_id: str,
+    session: Session = Depends(require_auth),
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
     """Download server certificate (.crt)."""
     try:
         cert_path = ca_data_dir / cert_id / "cert.crt"
@@ -65,7 +78,11 @@ def download_cert(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
 
 
 @router.get("/cert/{cert_id:path}/key")
-def download_cert_key(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)):
+def download_cert_key(
+    cert_id: str,
+    session: Session = Depends(require_auth),
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
     """Download certificate private key (.key) - Handle with care!"""
     try:
         key_path = ca_data_dir / cert_id / "cert.key"
@@ -86,7 +103,11 @@ def download_cert_key(cert_id: str, ca_data_dir: Path = Depends(get_ca_data_dir)
 
 
 @router.get("/cert/{cert_id:path}/fullchain")
-def download_cert_fullchain(cert_id: str, cert_service: CertificateService = Depends(get_cert_service)):
+def download_cert_fullchain(
+    cert_id: str,
+    session: Session = Depends(require_auth),
+    cert_service: CertificateService = Depends(get_cert_service),
+):
     """Download full certificate chain (cert + intermediates + root)."""
     try:
         chain_pem = cert_service.build_certificate_chain(cert_id)

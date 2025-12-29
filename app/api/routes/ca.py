@@ -4,15 +4,25 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.dependencies import get_ca_service
-from app.models.ca import CACreateRequest, CAResponse, IntermediateCAImportRequest, RootCAImportRequest
+from app.api.dependencies import get_ca_service, require_auth
+from app.models.auth import Session
+from app.models.ca import (
+    CACreateRequest,
+    CAResponse,
+    IntermediateCAImportRequest,
+    RootCAImportRequest,
+)
 from app.services.ca_service import CAService
 
 router = APIRouter(prefix="/api/cas", tags=["CA"])
 
 
 @router.post("", response_model=CAResponse, status_code=201)
-def create_ca(request: CACreateRequest, ca_service: CAService = Depends(get_ca_service)):
+def create_ca(
+    request: CACreateRequest,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     Create a new CA (Root or Intermediate).
 
@@ -35,7 +45,10 @@ def create_ca(request: CACreateRequest, ca_service: CAService = Depends(get_ca_s
 
 @router.post("/{parent_ca_id}/intermediates", response_model=CAResponse, status_code=201)
 def create_intermediate_ca(
-    parent_ca_id: str, request: CACreateRequest, ca_service: CAService = Depends(get_ca_service)
+    parent_ca_id: str,
+    request: CACreateRequest,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
 ):
     """
     Create an intermediate CA under a parent CA.
@@ -49,7 +62,10 @@ def create_intermediate_ca(
 
 
 @router.get("", response_model=List[CAResponse])
-def list_root_cas(ca_service: CAService = Depends(get_ca_service)):
+def list_root_cas(
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     List all root CAs.
     """
@@ -60,7 +76,11 @@ def list_root_cas(ca_service: CAService = Depends(get_ca_service)):
 
 
 @router.get("/{ca_id}", response_model=CAResponse)
-def get_ca(ca_id: str, ca_service: CAService = Depends(get_ca_service)):
+def get_ca(
+    ca_id: str,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     Get CA details by ID.
     """
@@ -73,7 +93,11 @@ def get_ca(ca_id: str, ca_service: CAService = Depends(get_ca_service)):
 
 
 @router.delete("/{ca_id}", status_code=204)
-def delete_ca(ca_id: str, ca_service: CAService = Depends(get_ca_service)):
+def delete_ca(
+    ca_id: str,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     Delete CA and all its contents.
     """
@@ -86,7 +110,10 @@ def delete_ca(ca_id: str, ca_service: CAService = Depends(get_ca_service)):
 
 
 @router.get("/stats/overview")
-def get_statistics(ca_service: CAService = Depends(get_ca_service)):
+def get_statistics(
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     Get CA statistics overview.
     """
@@ -97,7 +124,11 @@ def get_statistics(ca_service: CAService = Depends(get_ca_service)):
 
 
 @router.post("/import-root", response_model=CAResponse, status_code=201)
-def import_root_ca(request: RootCAImportRequest, ca_service: CAService = Depends(get_ca_service)):
+def import_root_ca(
+    request: RootCAImportRequest,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     Import an external Root CA for tracking.
 
@@ -113,7 +144,11 @@ def import_root_ca(request: RootCAImportRequest, ca_service: CAService = Depends
 
 
 @router.post("/import-intermediate", response_model=CAResponse, status_code=201)
-def import_intermediate_ca(request: IntermediateCAImportRequest, ca_service: CAService = Depends(get_ca_service)):
+def import_intermediate_ca(
+    request: IntermediateCAImportRequest,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+):
     """
     Import an external Intermediate CA for tracking.
 

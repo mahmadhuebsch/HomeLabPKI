@@ -44,6 +44,14 @@ class LoggingSettings(BaseModel):
     file: str = "./logs/ca-manager.log"
 
 
+class AuthSettings(BaseModel):
+    """Authentication settings."""
+
+    enabled: bool = True
+    password_hash: Optional[str] = None  # bcrypt hash, auto-set on first run
+    session_expiry_hours: int = 24
+
+
 class AppConfig(BaseModel):
     """Main application configuration."""
 
@@ -52,3 +60,4 @@ class AppConfig(BaseModel):
     defaults: dict[str, CADefaults]
     security: SecuritySettings
     logging: LoggingSettings
+    auth: AuthSettings = AuthSettings()
