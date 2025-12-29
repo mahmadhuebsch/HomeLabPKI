@@ -1,57 +1,70 @@
-# Use Python 3.12 slim image for a smaller footprint
-FROM python:3.12-slim
+# ---- Builder Stage ----
+# This stage builds the Python environment with all dependencies.
+FROM python:3.12-slim as builder
 
 # Set environment variables
-# PYTHONDONTWRITEBYTECODE: Prevents Python from writing pyc files to disc
-# PYTHONUNBUFFERED: Prevents Python from buffering stdout and stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    APP_HOME=/app \
-    USER_NAME=yacertmanager \
-    USER_ID=1000
-
-# Install system dependencies
-# openssl: Required for certificate operations
-# curl: Useful for healthchecks (optional but recommended)
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    openssl \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user
-RUN groupadd -g $USER_ID $USER_NAME \
-    && useradd -m -u $USER_ID -g $USER_NAME -s /bin/bash $USER_NAME
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100
 
 # Set working directory
-WORKDIR $APP_HOME
+WORKDIR /app
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies into a virtual environment
+RUN python -m venv .venv \
+    && . .venv/bin/activate \
+    && pip install -r requirements.txt
 
-# Copy application code
+# ---- Final Stage ----
+# This stage creates the final, lean production image.
+FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    APP_HOME=/app \
+    PATH="/app/.venv/bin:$PATH"
+
+# Install only necessary runtime system dependencies
+# openssl: Required for certificate operations
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user and group for security
+RUN addgroup --system --gid 1000 yacertmanager \
+    && adduser --system --uid 1000 --ingroup yacertmanager yacertmanager
+
+# Set working directory
+WORKDIR $APP_HOME
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /app/.venv .venv
+
+# Copy the application code
 COPY . .
 
-# Create directories for data and logs with correct permissions
+# Create and set permissions for data and log directories
 RUN mkdir -p ca-data logs \
-    && chown -R $USER_NAME:$USER_NAME $APP_HOME
+    && chown -R yacertmanager:yacertmanager $APP_HOME
 
-# Switch to non-root user
-USER $USER_NAME
+# Switch to the non-root user
+USER yacertmanager
 
 # Expose the port the app runs on
 EXPOSE 8000
 
 # Define volumes for persistent data
-VOLUME ["$APP_HOME/ca-data", "$APP_HOME/logs"]
+VOLUME ["/app/ca-data", "/app/logs"]
 
 # Healthcheck to ensure the application is running
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD [ "python", "-c", "import http.client; conn = http.client.HTTPConnection('localhost', 8000); conn.request('GET', '/health'); exit(0) if conn.getresponse().status == 200 else exit(1)" ]
 
-# Command to run the application
-# Using uvicorn directly
+# Command to run the application using the virtual environment's uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
