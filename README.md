@@ -25,7 +25,7 @@ streamlined web interface.
 
 Designed for development environments, testing infrastructure, internal PKI deployments, and certificate management operations.
 
-![screenshot-cert-detail.png](.github/images/screenshot-cert-detail.png)
+![screenshots.gif](.github/images/screenshots.gif)
 
 ## Features
 
@@ -40,6 +40,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Password Protection** - Built-in authentication with configurable session expiration
 - **RESTful API** - Complete API with OpenAPI documentation
 - **Docker Support** - Easy deployment with Docker
+- **Air-Gapped Operation** - Works without internet access (all assets bundled locally)
 
 ## Table of Contents
 
@@ -121,6 +122,10 @@ HomeLabPKI/
 │   │   └── routes/           # API route handlers
 │   ├── models/               # Pydantic models
 │   ├── services/             # Business logic
+│   ├── static/               # Static assets
+│   │   ├── css/              # Custom CSS
+│   │   ├── js/               # Custom JavaScript
+│   │   └── vendor/           # Third-party libraries (Bootstrap, etc.)
 │   ├── templates/            # Jinja2 HTML templates
 │   ├── utils/                # Utility functions
 │   └── web/                  # Web routes
@@ -130,6 +135,7 @@ HomeLabPKI/
 ├── config.yaml               # Application configuration
 ├── requirements.txt          # Production dependencies
 ├── requirements-dev.txt      # Development dependencies
+├── THIRD_PARTY_LICENSES.md   # Third-party library licenses
 └── Dockerfile                # Docker build instructions
 ```
 
@@ -280,9 +286,11 @@ isort app/ tests/
 
 ## Planned Features
 
-- [x] Password Support
+- [x] Password support
 - [ ] Email notifications for expiring certificates
 - [ ] ACME Protocol support
+- [ ] CRL support
+- [ ] Certificate chain import
 - [x] Docker containerization
 
 ## License

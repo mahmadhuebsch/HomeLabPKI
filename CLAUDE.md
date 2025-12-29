@@ -19,10 +19,11 @@
 - **Data Storage**: YAML files (PyYAML)
 
 ### Frontend
-- **UI Framework**: Bootstrap 5.3
-- **Icons**: Bootstrap Icons 1.11
+- **UI Framework**: Bootstrap 5.3 (bundled locally)
+- **Icons**: Bootstrap Icons 1.11 (bundled locally)
 - **Templating**: Jinja2
 - **JavaScript**: Vanilla JS (no frameworks)
+- **Air-Gapped**: All assets bundled in `app/static/vendor/` - no CDN dependencies
 
 ## Architecture
 
@@ -70,8 +71,20 @@ HomeLabPKI/
 │   │       ├── detail.html   # Certificate detail
 │   │       └── create.html   # Certificate creation form
 │   ├── static/               # Static assets
-│   │   └── css/
-│   │       └── custom.css
+│   │   ├── css/
+│   │   │   └── custom.css
+│   │   ├── js/
+│   │   │   └── app.js
+│   │   └── vendor/           # Third-party libraries (bundled for air-gapped operation)
+│   │       ├── bootstrap-5.3.0/
+│   │       │   ├── css/bootstrap.min.css
+│   │       │   └── js/bootstrap.bundle.min.js
+│   │       └── bootstrap-icons-1.11.0/
+│   │           └── font/
+│   │               ├── bootstrap-icons.min.css
+│   │               └── fonts/
+│   │                   ├── bootstrap-icons.woff
+│   │                   └── bootstrap-icons.woff2
 │   └── utils/                # Utility functions
 │       ├── validators.py     # Input validation
 │       └── file_utils.py     # File operations
