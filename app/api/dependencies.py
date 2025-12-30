@@ -26,6 +26,46 @@ _auth_service: Optional[AuthService] = None
 # Bearer token security scheme
 security = HTTPBearer(auto_error=False)
 
+DEFAULT_CONFIG = """
+app:
+  title: "HomeLab PKI"
+  version: "1.1.0-dev"
+  debug: false
+
+paths:
+  ca_data: "./ca-data"
+  logs: "./logs"
+  openssl: "openssl"
+
+auth:
+  enabled: true
+  password_hash: null
+  session_expiry_hours: 24
+
+defaults:
+  root_ca:
+    validity_days: 3650
+    key_algorithm: "RSA"
+    key_size: 4096
+    common_name: "HomeLab Root CA"
+
+  intermediate_ca:
+    validity_days: 1825
+    key_algorithm: "RSA"
+    key_size: 4096
+
+  server_cert:
+    validity_days: 365
+    key_algorithm: "RSA"
+    key_size: 2048
+
+security:
+  warn_on_key_download: true
+
+logging:
+  level: "INFO"
+"""
+
 
 def get_config() -> AppConfig:
     """
@@ -36,7 +76,9 @@ def get_config() -> AppConfig:
     """
     config_path = Path("config.yaml")
     if not config_path.exists():
-        raise RuntimeError("config.yaml not found")
+        logger.warning("config.yaml not found, creating a default one.")
+        with open(config_path, "w") as f:
+            f.write(DEFAULT_CONFIG)
 
     config_data = YAMLService.load_yaml(config_path)
     return AppConfig(**config_data)

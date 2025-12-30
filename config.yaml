@@ -1,16 +1,21 @@
 app:
   title: HomeLab PKI
   version: 1.1.0-dev
-  debug: true
+  debug: false
 paths:
   ca_data: ./ca-data
   logs: ./logs
-  openssl: null
+  openssl: openssl
+auth:
+  enabled: true
+  password_hash: $2b$12$7yyuhlIpO/ADhyImA3tf6uVJ.le5vpU0XAdw2AmljnVcj4DbAPc.W
+  session_expiry_hours: 24
 defaults:
   root_ca:
     validity_days: 3650
     key_algorithm: RSA
     key_size: 4096
+    common_name: HomeLab Root CA
   intermediate_ca:
     validity_days: 1825
     key_algorithm: RSA
@@ -21,12 +26,5 @@ defaults:
     key_size: 2048
 security:
   warn_on_key_download: true
-  key_download_confirmation: true
 logging:
-  level: DEBUG
-  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-  file: ./logs/homelabpki.log
-auth:
-  enabled: true
-  password_hash: # default: "admin"
-  session_expiry_hours: 24
+  level: INFO
