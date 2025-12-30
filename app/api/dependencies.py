@@ -87,7 +87,8 @@ def get_cert_service() -> CertificateService:
     config = get_config()
     ca_data_dir = Path(config.paths.ca_data)
     openssl_service = get_openssl_service()
-    return CertificateService(ca_data_dir, openssl_service)
+    ca_service = get_ca_service()
+    return CertificateService(ca_data_dir, openssl_service, ca_service)
 
 
 def get_auth_service() -> AuthService:

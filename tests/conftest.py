@@ -51,9 +51,9 @@ def ca_service(ca_data_dir, openssl_service):
 
 
 @pytest.fixture
-def cert_service(ca_data_dir, openssl_service):
+def cert_service(ca_data_dir, openssl_service, ca_service):
     """Create Certificate service instance with test directory."""
-    return CertificateService(ca_data_dir, openssl_service)
+    return CertificateService(ca_data_dir, openssl_service, ca_service)
 
 
 @pytest.fixture
@@ -155,7 +155,7 @@ def client(ca_data_dir, openssl_service):
         return CAService(ca_data_dir, openssl_service)
 
     def override_cert_service():
-        return CertificateService(ca_data_dir, openssl_service)
+        return CertificateService(ca_data_dir, openssl_service, override_ca_service())
 
     def override_auth_service():
         return disabled_auth_service
@@ -198,7 +198,7 @@ def client_with_auth(ca_data_dir, openssl_service, auth_service, auth_token):
         return CAService(ca_data_dir, openssl_service)
 
     def override_cert_service():
-        return CertificateService(ca_data_dir, openssl_service)
+        return CertificateService(ca_data_dir, openssl_service, override_ca_service())
 
     def override_auth_service():
         return auth_service

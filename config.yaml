@@ -28,5 +28,5 @@ logging:
   file: ./logs/homelabpki.log
 auth:
   enabled: true
-  password_hash: # default: "admin"
+  password_hash: $2b$12$jOj7dSS76y.VPRox7wUcwu9CETdY6urGxm1kXf9DHnX6is70uUgMK
   session_expiry_hours: 24

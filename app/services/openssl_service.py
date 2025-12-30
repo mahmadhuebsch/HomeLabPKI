@@ -111,9 +111,9 @@ class OpenSSLService:
         config_file = "openssl.cnf"
         new_key_password = config.key_config.password
 
-        # Use absolute paths for parent CA files
-        parent_cert = self._path_to_posix(parent_ca_dir / "ca.crt")
-        parent_key = self._path_to_posix(parent_ca_dir / "ca.key")
+        # Use relative paths for parent CA files (parent is always one level up)
+        parent_cert = "../ca.crt"
+        parent_key = "../ca.key"
 
         # 1. Private Key (encrypted with AES-256)
         key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
@@ -174,9 +174,9 @@ class OpenSSLService:
         san_config = "san.cnf"
         new_key_password = config.key_config.password
 
-        # Use absolute paths for CA files
-        ca_cert = self._path_to_posix(issuing_ca_dir / "ca.crt")
-        ca_key = self._path_to_posix(issuing_ca_dir / "ca.key")
+        # Use relative paths for CA files (certs are in certs/{name}/, so CA is two levels up)
+        ca_cert = "../../ca.crt"
+        ca_key = "../../ca.key"
 
         # 1. Private Key (encrypted with AES-256)
         key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
@@ -188,7 +188,8 @@ class OpenSSLService:
             f"-key {key_file} "
             f"-passin pass:{new_key_password} "
             f"-out {csr_file} "
-            f'-subj "{subject}"'
+            f'-subj "{subject}" '
+            f"-config {san_config}"
         )
 
         # 3. Certificate with SANs (requires CA password)
@@ -441,7 +442,14 @@ keyUsage = critical, digitalSignature, cRLSign, keyCertSign
         eku_str = ", ".join(extended_key_usage)
         san_entries = "\n".join([f"DNS.{i+1} = {san}" for i, san in enumerate(sans)])
 
-        return f"""[ v3_req ]
+        return f"""[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+
+[ v3_req ]
 keyUsage = critical, {ku_str}
 extendedKeyUsage = {eku_str}
 subjectAltName = @alt_names
@@ -483,11 +491,17 @@ subjectAltName = @alt_names
                 f.write(csr_content)
                 csr_file = Path(f.name)
 
+            # Create minimal config to avoid "no config found" errors
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".cnf", delete=False) as cf:
+                cf.write("[req]\ndistinguished_name = req_distinguished_name\n[req_distinguished_name]\n")
+                config_file = Path(cf.name)
+
             try:
                 # Parse CSR text
                 # Use POSIX path for the file to avoid backslash issues in shlex
                 csr_file_posix = self._path_to_posix(csr_file)
-                cmd = f"{self.openssl_path} req -text -noout -in {csr_file_posix}"
+                config_file_posix = self._path_to_posix(config_file)
+                cmd = f"{self.openssl_path} req -text -noout -in {csr_file_posix} -config {config_file_posix}"
                 args = shlex.split(cmd)
                 result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=10)
 
@@ -540,6 +554,8 @@ subjectAltName = @alt_names
                 # Clean up temp file
                 if csr_file.exists():
                     csr_file.unlink()
+                if config_file.exists():
+                    config_file.unlink()
 
         except Exception as e:
             logger.error(f"CSR parsing failed: {e}")

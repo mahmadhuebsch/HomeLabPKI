@@ -26,25 +26,30 @@
 {% block content %}
 <div class="row">
     <div class="col-lg-8">
-        <h1><i class="bi bi-upload"></i> Import External Certificate</h1>
-        <p class="text-muted">Import an already-signed certificate for tracking purposes</p>
+        <h1><i class="bi bi-upload"></i> Import Certificate</h1>
+        <p class="text-muted">Import an external certificate for tracking</p>
 
         <form id="importForm" class="needs-validation" novalidate>
-            <!-- Issuing CA -->
+            <!-- Issuing CA Selection -->
             <div class="card mb-3">
-                <div class="card-header">Issuing CA</div>
+                <div class="card-header">Issuing CA *</div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="issuingCa" class="form-label">Issuing CA *</label>
+                        <label for="issuingCa" class="form-label">Select Issuing CA</label>
                         <select class="form-select" id="issuingCa" name="issuing_ca_id" required>
-                            <option value="">-- Select a CA --</option>
-                            {% for ca in available_cas %}
-                            <option value="{{ ca.id }}" {% if ca.id == selected_ca_id %}selected{% endif %}>
-                                {{ ca.subject.common_name }}
+                            <option value="">-- Select the CA that issued this certificate --</option>
+                            {% for ca in root_cas %}
+                            <option value="{{ ca.id }}" {% if preselected_ca == ca.id %}selected{% endif %}>
+                                {{ ca.subject.common_name }} (Root)
+                            </option>
+                            {% endfor %}
+                            {% for ca in intermediate_cas %}
+                            <option value="{{ ca.id }}" {% if preselected_ca == ca.id %}selected{% endif %}>
+                                {{ ca.subject.common_name }} (Intermediate)
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">Choose the CA that signed this certificate (for organization purposes)</div>
+                        <div class="form-text">Select the CA that signed this certificate.</div>
                         <div class="invalid-feedback">Please select an issuing CA.</div>
                     </div>
                 </div>
@@ -57,7 +62,7 @@
                     <div class="mb-3">
                         <label for="certFile" class="form-label">Upload Certificate File *</label>
                         <input type="file" class="form-control" id="certFile" accept=".crt,.pem,.cer" required>
-                        <div class="form-text">Upload a PEM-encoded certificate (.crt, .pem, or .cer file)</div>
+                        <div class="form-text">Upload a single PEM-encoded certificate file (.crt, .pem, or .cer).</div>
                         <div class="invalid-feedback">Please upload a valid certificate file.</div>
                     </div>
 
@@ -68,7 +73,7 @@
 
                     <div id="certInfoContainer" style="display: none;">
                         <hr>
-                        <h6>Extracted Certificate Information:</h6>
+                        <h6>Certificate Information:</h6>
                         <table class="table table-sm">
                             <tbody id="certInfoTable">
                             </tbody>
@@ -84,9 +89,9 @@
                     <div class="mb-3">
                         <label for="certName" class="form-label">Certificate Name *</label>
                         <input type="text" class="form-control" id="certName" name="cert_name" required
-                               placeholder="e.g. imported-example-cert" pattern="^[a-zA-Z0-9-_]+$">
-                        <div class="form-text">Unique identifier for this certificate (alphanumeric, hyphens, underscores)</div>
-                        <div class="invalid-feedback">Please enter a valid certificate name (alphanumeric, hyphens, underscores only).</div>
+                               placeholder="e.g. webserver-cert" pattern="^[a-zA-Z0-9-_]+$">
+                        <div class="form-text">Unique identifier for this certificate (alphanumeric, hyphens, underscores).</div>
+                        <div class="invalid-feedback">Please enter a valid certificate name.</div>
                     </div>
                 </div>
             </div>
@@ -105,33 +110,44 @@
     <div class="col-lg-4">
         <div class="card sticky-top" style="top: 20px;">
             <div class="card-header">
-                <i class="bi bi-info-circle"></i> About Import
+                <i class="bi bi-info-circle"></i> About Certificate Import
             </div>
             <div class="card-body">
-                <p><strong>What is certificate import?</strong></p>
+                <p><strong>What can I import?</strong></p>
                 <p class="text-muted small">
-                    Importing allows you to track certificates that were signed externally
-                    (by a different CA or system) within this management interface.
+                    Import server/client certificates (TLS, code signing, etc.) for tracking purposes.
                 </p>
 
                 <hr>
 
-                <p><strong>Prerequisites:</strong></p>
-                <div class="alert alert-warning small">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    <strong>Important:</strong> Before importing a certificate, you must first import its issuing CA (and any other CAs in the chain) into this system.
-                </div>
+                <p><strong>Prerequisites</strong></p>
                 <p class="text-muted small">
-                    This ensures that the certificate can be correctly organized and its trust chain can be verified.
+                    The issuing CA must already exist in the system. Import CAs first:
                 </p>
+                <ol class="text-muted small">
+                    <li>Root CA (via <a href="/rootcas/import">Import Root CA</a>)</li>
+                    <li>Intermediate CA (via <a href="/intermediates/import">Import Intermediate CA</a>)</li>
+                    <li>Then import certificates here</li>
+                </ol>
+
+                <hr>
+
+                <p><strong>File Format</strong></p>
+                <p class="text-muted small">
+                    Upload a single PEM-encoded certificate file (.crt, .pem, .cer).
+                </p>
+
+                <div class="alert alert-warning small mt-3">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <strong>Note:</strong> CA certificates cannot be imported here. Use the CA Import pages instead.
+                </div>
 
                 <hr>
 
                 <p><strong>What gets stored?</strong></p>
                 <ul class="text-muted small">
-                    <li>Certificate file (.crt)</li>
+                    <li>The certificate file</li>
                     <li>Certificate metadata</li>
-                    <li>Subject and SANs information</li>
                 </ul>
 
                 <hr>
@@ -139,15 +155,11 @@
                 <p><strong>What does NOT get stored?</strong></p>
                 <ul class="text-muted small">
                     <li>Private key (managed externally)</li>
-                    <li>CSR file (not needed for import)</li>
                 </ul>
 
-                <div class="alert alert-info mt-3">
-                    <small>
-                        <i class="bi bi-shield-lock"></i>
-                        Imported certificates are marked as "External" to indicate
-                        that the private key is not managed by this system.
-                    </small>
+                <div class="alert alert-info small mt-3">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Imported certificates are marked as <span class="badge bg-warning text-dark">External</span> to indicate the private key is not managed by this system.
                 </div>
             </div>
         </div>
@@ -166,7 +178,7 @@ document.getElementById('certFile').addEventListener('change', async function(e)
         certContent = '';
         document.getElementById('certPreviewContainer').style.display = 'none';
         document.getElementById('certInfoContainer').style.display = 'none';
-        document.getElementById('submitBtn').disabled = true;
+        updateSubmitButton();
         return;
     }
 
@@ -187,57 +199,73 @@ document.getElementById('certFile').addEventListener('change', async function(e)
             certNameInput.value = fileName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
         }
 
-        document.getElementById('submitBtn').disabled = false;
+        updateSubmitButton();
     } catch (error) {
         alert(`Error reading file: ${error.message}`);
         certContent = '';
-        document.getElementById('submitBtn').disabled = true;
+        updateSubmitButton();
     }
 });
+
+// Issuing CA selection handler
+document.getElementById('issuingCa').addEventListener('change', updateSubmitButton);
+
+function updateSubmitButton() {
+    const issuingCaSelected = document.getElementById('issuingCa').value !== '';
+    const hasContent = certContent !== '';
+    document.getElementById('submitBtn').disabled = !(issuingCaSelected && hasContent);
+}
 
 function displayCertInfo(certContent) {
     const container = document.getElementById('certInfoContainer');
     const table = document.getElementById('certInfoTable');
 
-    // Check if it's a valid PEM certificate
-    const isPEM = certContent.includes('-----BEGIN CERTIFICATE-----') &&
-                  certContent.includes('-----END CERTIFICATE-----');
+    const certCount = (certContent.match(/-----BEGIN CERTIFICATE-----/g) || []).length;
 
-    if (isPEM) {
+    if (certCount === 1) {
         table.innerHTML = `
             <tr>
                 <th width="30%">Format</th>
-                <td><span class="badge bg-success">Valid PEM Certificate</span></td>
+                <td><span class="badge bg-success">Valid PEM</span></td>
+            </tr>
+            <tr>
+                <th>Certificates</th>
+                <td><span class="badge bg-info">1</span></td>
             </tr>
             <tr>
                 <th>Type</th>
                 <td><span class="badge bg-warning">External</span> (Private key not managed)</td>
             </tr>
+        `;
+    } else if (certCount > 1) {
+        table.innerHTML = `
             <tr>
-                <th>Note</th>
-                <td class="text-muted">Certificate details will be extracted upon import</td>
+                <th width="30%">Format</th>
+                <td><span class="badge bg-warning">Multiple Certificates</span></td>
+            </tr>
+            <tr>
+                <th>Certificates</th>
+                <td><span class="badge bg-warning">${certCount}</span></td>
+            </tr>
+            <tr>
+                <th>Warning</th>
+                <td class="text-warning">Please provide only a single certificate.</td>
             </tr>
         `;
     } else {
         table.innerHTML = `
             <tr>
                 <th width="30%">Format</th>
-                <td><span class="badge bg-warning">Unknown format</span></td>
+                <td><span class="badge bg-danger">Invalid PEM format</span></td>
             </tr>
             <tr>
                 <th>Note</th>
-                <td class="text-muted">File should be PEM-encoded (-----BEGIN CERTIFICATE-----)</td>
+                <td class="text-muted">File should contain a PEM-encoded certificate.</td>
             </tr>
         `;
     }
 
     container.style.display = 'block';
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 // Form submission
@@ -256,11 +284,17 @@ document.getElementById('importForm').addEventListener('submit', async function(
     }
 
     const formData = new FormData(this);
+    const issuingCaId = formData.get('issuing_ca_id');
+
+    if (!issuingCaId) {
+        alert('Please select an issuing CA');
+        return;
+    }
 
     const request = {
-        issuing_ca_id: formData.get('issuing_ca_id'),
         cert_content: certContent,
-        cert_name: formData.get('cert_name')
+        cert_name: formData.get('cert_name'),
+        issuing_ca_id: issuingCaId
     };
 
     try {
@@ -275,7 +309,13 @@ document.getElementById('importForm').addEventListener('submit', async function(
             window.location.href = `/certs/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            let errorMsg = error.detail;
+            if (Array.isArray(error.detail)) {
+                errorMsg = error.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+            } else if (typeof error.detail === 'object') {
+                errorMsg = JSON.stringify(error.detail);
+            }
+            alert(`Error: ${errorMsg}`);
         }
     } catch (error) {
         alert(`Error: ${error.message}`);

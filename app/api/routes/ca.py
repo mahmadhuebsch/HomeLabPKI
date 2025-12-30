@@ -4,15 +4,18 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.dependencies import get_ca_service, require_auth
+from app.api.dependencies import get_ca_service, get_cert_service, require_auth
 from app.models.auth import Session
 from app.models.ca import (
     CACreateRequest,
     CAResponse,
+    ChainImportRequest,
+    ChainImportResponse,
     IntermediateCAImportRequest,
     RootCAImportRequest,
 )
 from app.services.ca_service import CAService
+from app.services.cert_service import CertificateService
 
 router = APIRouter(prefix="/api/cas", tags=["CA"])
 
@@ -157,6 +160,32 @@ def import_intermediate_ca(
     """
     try:
         return ca_service.import_intermediate_ca(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.post("/import-chain", response_model=ChainImportResponse, status_code=201)
+def import_certificate_chain(
+    request: ChainImportRequest,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+    cert_service: CertificateService = Depends(get_cert_service),
+):
+    """
+    Import a complete certificate chain (root CA + intermediate CAs + leaf certificates).
+
+    This endpoint validates the chain and imports all certificates.
+    The chain must be complete:
+    - Must contain a self-signed root CA
+    - All certificates must form a valid chain (proper issuer relationships)
+    - All signatures must be valid
+
+    Both CA certificates and leaf certificates are imported.
+    """
+    try:
+        return ca_service.import_certificate_chain(request, cert_service)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

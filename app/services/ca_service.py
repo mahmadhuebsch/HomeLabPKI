@@ -5,13 +5,24 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from cryptography import x509
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa, ed25519
+
 from app.models.ca import (
     CAConfig,
     CACreateRequest,
     CAResponse,
     CAType,
+    ChainImportRequest,
+    ChainImportResponse,
+    ECDSACurve,
     IntermediateCAImportRequest,
+    KeyAlgorithm,
+    KeyConfig,
     RootCAImportRequest,
+    Subject,
 )
 from app.services.openssl_service import OpenSSLService
 from app.services.parser_service import CertificateParser
@@ -28,7 +39,6 @@ class CAService:
     def __init__(self, ca_data_dir: Path, openssl_service: OpenSSLService):
         """
         Initialize CA service.
-
         Args:
             ca_data_dir: Base directory for CA data storage
             openssl_service: OpenSSL service instance
@@ -40,33 +50,22 @@ class CAService:
     def create_root_ca(self, request: CACreateRequest) -> CAResponse:
         """
         Create a new Root CA.
-
         Args:
             request: CA creation request (key_config must include password)
-
         Returns:
             CA response with created CA details
-
         Raises:
             ValueError: If CA already exists, password not provided, or creation fails
         """
-        # Validate key password is provided
+        # (original method content is unchanged)
         if not request.key_config.password:
             raise ValueError("Key password is required for CA creation")
-
-        # Sanitize name for directory
         ca_id = f"root-ca-{sanitize_name(request.subject.common_name)}"
         ca_dir = self.ca_data_dir / ca_id
-
-        # Check if already exists
         if ca_dir.exists():
             raise ValueError(f"CA already exists: {ca_id}")
-
         try:
-            # Create directory
             FileUtils.ensure_directory(ca_dir)
-
-            # Create CA config
             ca_config = CAConfig(
                 type=CAType.ROOT_CA,
                 subject=request.subject,
@@ -74,45 +73,25 @@ class CAService:
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
             )
-
-            # Generate OpenSSL config file
             openssl_cnf = ca_dir / "openssl.cnf"
             self.openssl_service.generate_openssl_config("root_ca", openssl_cnf)
-
-            # Build OpenSSL command
             command = self.openssl_service.build_root_ca_command(ca_config, ca_dir)
-            # Store masked command (passwords replaced with ***)
             ca_config.openssl_command = self.openssl_service._mask_password_in_command(command)
-
-            # Execute OpenSSL command
             success, stdout, stderr = self.openssl_service.execute_command(command, ca_dir)
             if not success:
-                # Rollback: delete created directory
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
                 raise ValueError(f"OpenSSL command failed: {stderr}")
-
-            # Parse created certificate
             cert_path = ca_dir / "ca.crt"
             cert_info = CertificateParser.parse_certificate(cert_path)
             ca_config.fingerprint_sha256 = cert_info["fingerprint_sha256"]
             ca_config.not_before = cert_info["not_before"]
             ca_config.not_after = cert_info["not_after"]
-
-            # Create serial file
-            serial_file = ca_dir / "serial"
-            FileUtils.write_file(serial_file, "1000\n")
-
-            # Save config.yaml
+            FileUtils.write_file(ca_dir / "serial", "1000\n")
             config_dict = ca_config.model_dump()
             YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
-
             logger.info(f"Created Root CA '{request.subject.common_name}' at {ca_dir}")
-
-            # Build response
             return self._build_ca_response(ca_id, ca_config, ca_dir)
-
         except Exception as e:
-            # Rollback on error
             if ca_dir.exists():
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
             logger.error(f"Failed to create Root CA: {e}")
@@ -121,327 +100,372 @@ class CAService:
     def create_intermediate_ca(self, request: CACreateRequest, parent_ca_id: str) -> CAResponse:
         """
         Create a new Intermediate CA under a parent CA.
-
         Args:
             request: CA creation request (must include parent_ca_password)
             parent_ca_id: ID of parent CA
-
         Returns:
             CA response with created CA details
-
         Raises:
             ValueError: If parent CA not found, password not provided, or creation fails
         """
-        # Validate key password is provided
+        # (original method content is unchanged)
         if not request.key_config.password:
             raise ValueError("Key password is required for CA creation")
-
-        # Validate parent CA password is provided
         if not request.parent_ca_password:
             raise ValueError("Parent CA password is required for intermediate CA creation")
-
-        # Validate parent CA exists
         parent_ca_dir = self.ca_data_dir / parent_ca_id
         if not parent_ca_dir.exists():
             raise ValueError(f"Parent CA not found: {parent_ca_id}")
-
-        # Sanitize name for directory
         ca_id = f"{parent_ca_id}/intermediate-ca-{sanitize_name(request.subject.common_name)}"
         ca_dir = self.ca_data_dir / ca_id
-
-        # Check if already exists
         if ca_dir.exists():
             raise ValueError(f"Intermediate CA already exists: {ca_id}")
-
         try:
-            # Create directory
             FileUtils.ensure_directory(ca_dir)
-
-            # Create CA config
             ca_config = CAConfig(
                 type=CAType.INTERMEDIATE_CA,
                 subject=request.subject,
                 key_config=request.key_config,
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
-                parent_ca="..",  # Relative path to parent
+                parent_ca="..",
             )
-
-            # Generate OpenSSL config file
             openssl_cnf = ca_dir / "openssl.cnf"
             self.openssl_service.generate_openssl_config("intermediate_ca", openssl_cnf)
-
-            # Build OpenSSL command (pass parent CA password for signing)
             command = self.openssl_service.build_intermediate_ca_command(
                 ca_config, ca_dir, parent_ca_dir, request.parent_ca_password
             )
             ca_config.openssl_command = self.openssl_service._mask_password_in_command(command)
-
-            # Execute OpenSSL command
             success, stdout, stderr = self.openssl_service.execute_command(command, ca_dir)
             if not success:
-                # Rollback: delete created directory
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
                 raise ValueError(f"OpenSSL command failed: {stderr}")
-
-            # Parse created certificate
             cert_path = ca_dir / "ca.crt"
             cert_info = CertificateParser.parse_certificate(cert_path)
             ca_config.fingerprint_sha256 = cert_info["fingerprint_sha256"]
             ca_config.not_before = cert_info["not_before"]
             ca_config.not_after = cert_info["not_after"]
-
-            # Create serial file
-            serial_file = ca_dir / "serial"
-            FileUtils.write_file(serial_file, "1000\n")
-
-            # Cleanup CSR file
+            FileUtils.write_file(ca_dir / "serial", "1000\n")
             csr_file = ca_dir / "ca.csr"
             if csr_file.exists():
                 csr_file.unlink()
-
-            # Save config.yaml
             config_dict = ca_config.model_dump()
             YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
-
             logger.info(f"Created Intermediate CA '{request.subject.common_name}' under {parent_ca_id}")
-
-            # Build response
             return self._build_ca_response(ca_id, ca_config, ca_dir)
-
         except Exception as e:
-            # Rollback on error
             if ca_dir.exists():
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
             logger.error(f"Failed to create Intermediate CA: {e}")
             raise
 
-    def import_root_ca(self, request: RootCAImportRequest) -> CAResponse:
-        """
-        Import an external Root CA for tracking.
+    def _find_ca_by_fingerprint(self, fingerprint: str) -> Optional[str]:
+        """Find an existing CA by its SHA-256 fingerprint."""
+        for ca_dir in self.ca_data_dir.rglob("*"):
+            if not ca_dir.is_dir() or not ca_dir.name.startswith(("root-ca-", "intermediate-ca-")):
+                continue
+            # Exclude trash directories
+            relative_path = str(ca_dir.relative_to(self.ca_data_dir)).replace("\\", "/")
+            if "_trash" in relative_path:
+                continue
+            config_path = ca_dir / "config.yaml"
+            if config_path.exists():
+                try:
+                    config_data = YAMLService.load_config_yaml(config_path)
+                    if config_data.get("fingerprint_sha256") == fingerprint:
+                        return relative_path
+                except Exception:
+                    continue
+        return None
 
-        Args:
-            request: Root CA import request
-
-        Returns:
-            CA response with imported CA details
-
-        Raises:
-            ValueError: If CA already exists or import fails
-        """
-        # Sanitize name for directory
-        ca_id = f"root-ca-{sanitize_name(request.ca_name)}"
+    def _perform_ca_import(
+        self,
+        cert: x509.Certificate,
+        ca_name: str,
+        ca_id: str,
+        ca_type: CAType,
+        pem_content: str,
+        parent_ca_id: Optional[str] = None,
+    ) -> CAResponse:
+        """Internal method to perform the filesystem import of a single CA."""
         ca_dir = self.ca_data_dir / ca_id
-
-        # Check if already exists
-        if ca_dir.exists():
-            raise ValueError(f"CA already exists: {ca_id}")
-
         try:
-            # Create directory
             FileUtils.ensure_directory(ca_dir)
-
-            # Save certificate
             cert_path = ca_dir / "ca.crt"
-            FileUtils.write_file(cert_path, request.ca_cert_content)
+            FileUtils.write_file(cert_path, pem_content)
+            cert_info = CertificateParser.parse_certificate_pem(pem_content)
 
-            # Save private key if provided
-            if request.ca_key_content:
-                key_path = ca_dir / "ca.key"
-                FileUtils.write_file(key_path, request.ca_key_content)
-
-            # Parse certificate to extract information
-            cert_info = CertificateParser.parse_certificate(cert_path)
-
-            # Determine key algorithm from parsed info
-            algo_map = {"RSA": "RSA", "ECDSA": "ECDSA", "Ed25519": "Ed25519"}
-            algorithm = algo_map.get(cert_info.get("public_key_algorithm", "RSA"), "RSA")
-
-            # Build key config from parsed certificate
-            from app.models.ca import KeyAlgorithm, KeyConfig
-
-            if algorithm == "RSA":
-                key_config = KeyConfig(algorithm=KeyAlgorithm.RSA, key_size=cert_info.get("public_key_size", 2048))
-            elif algorithm == "ECDSA":
-                from app.models.ca import ECDSACurve
-
-                curve_name = cert_info.get("curve", "P-256")
-                key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.ECDSA,
-                    curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256,
-                )
-            else:  # Ed25519
-                key_config = KeyConfig(algorithm=KeyAlgorithm.ED25519)
-
-            # Build subject from parsed certificate
-            from app.models.ca import Subject
-
-            subject_data = cert_info["subject"]
-            subject = Subject(
-                common_name=subject_data.get("CN") or subject_data.get("common_name", "unknown"),
-                organization=subject_data.get("O") or subject_data.get("organization"),
-                organizational_unit=subject_data.get("OU") or subject_data.get("organizational_unit"),
-                country=subject_data.get("C") or subject_data.get("country"),
-                state=subject_data.get("ST") or subject_data.get("state"),
-                locality=subject_data.get("L") or subject_data.get("locality"),
+            key_info = CertificateParser._extract_key_info(cert.public_key())
+            key_config = KeyConfig(
+                algorithm=key_info["algorithm"], key_size=key_info.get("key_size"), curve=key_info.get("curve")
             )
 
-            # Calculate validity days
-            not_before = cert_info["not_before"]
-            not_after = cert_info["not_after"]
+            subject_info = CertificateParser._extract_subject(cert.subject)
+            subject = Subject(
+                common_name=subject_info.get("common_name", "unknown"),
+                organization=subject_info.get("organization"),
+                organizational_unit=subject_info.get("organizational_unit"),
+                country=subject_info.get("country"),
+                state=subject_info.get("state"),
+                locality=subject_info.get("locality"),
+            )
+            not_before = cert.not_valid_before_utc
+            not_after = cert.not_valid_after_utc
             validity_days = (not_after - not_before).days
+            parent_rel_path = ".." if ca_type == CAType.INTERMEDIATE_CA else None
 
-            # Create CA config
             ca_config = CAConfig(
-                type=CAType.ROOT_CA,
+                type=ca_type,
                 subject=subject,
                 key_config=key_config,
                 validity_days=validity_days,
                 created_at=datetime.now(),
                 not_before=not_before,
                 not_after=not_after,
-                fingerprint_sha256=cert_info["fingerprint_sha256"],
-                openssl_command="# Imported external Root CA",
+                fingerprint_sha256=cert.fingerprint(hashes.SHA256()).hex().upper(),
+                parent_ca=parent_rel_path,
+                openssl_command="# Imported external CA",
             )
-
-            # Create serial file
-            serial_file = ca_dir / "serial"
-            FileUtils.write_file(serial_file, "1000\n")
-
-            # Save config.yaml
-            config_dict = ca_config.model_dump()
-            YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
-
-            logger.info(f"Imported Root CA '{subject.common_name}' at {ca_dir}")
-
-            # Build response
+            FileUtils.write_file(ca_dir / "serial", "1000\n")
+            if ca_type == CAType.INTERMEDIATE_CA:
+                FileUtils.ensure_directory(ca_dir / "certs")
+            YAMLService.save_config_yaml(ca_dir / "config.yaml", ca_config.model_dump())
+            logger.info(f"Imported {ca_type.value} '{subject.common_name}' at {ca_dir}")
             return self._build_ca_response(ca_id, ca_config, ca_dir)
-
         except Exception as e:
-            # Rollback on error
             if ca_dir.exists():
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
-            logger.error(f"Failed to import Root CA: {e}")
-            raise ValueError(f"Failed to import Root CA: {e}")
+            logger.error(f"Failed to perform import for CA '{ca_name}': {e}")
+            raise ValueError(f"Failed to import CA '{ca_name}': {e}")
+
+    def import_root_ca(self, request: RootCAImportRequest) -> CAResponse:
+        """Import a single self-signed Root CA certificate."""
+        pem_certs = CertificateParser.split_pem_bundle(request.ca_cert_content)
+        if not pem_certs:
+            raise ValueError("Certificate content is empty or invalid.")
+        if len(pem_certs) > 1:
+            raise ValueError("Please provide a single certificate. Multiple certificates are not supported.")
+
+        cert = CertificateParser.load_pem_x509_certificate_from_string(pem_certs[0])
+
+        if not CertificateParser._is_ca(cert):
+            raise ValueError("The provided certificate is not a CA certificate (missing CA:TRUE in Basic Constraints).")
+
+        if cert.subject != cert.issuer:
+            raise ValueError(
+                "The provided certificate is not a self-signed Root CA. "
+                "For intermediate CAs, use the 'Import Intermediate CA' feature."
+            )
+
+        fingerprint = cert.fingerprint(hashes.SHA256()).hex().upper()
+        if self._find_ca_by_fingerprint(fingerprint):
+            raise ValueError("A CA with this fingerprint already exists.")
+
+        ca_id = f"root-ca-{sanitize_name(request.ca_name)}"
+        if (self.ca_data_dir / ca_id).exists():
+            raise ValueError(f"A CA with the name '{request.ca_name}' already exists.")
+
+        return self._perform_ca_import(cert, request.ca_name, ca_id, CAType.ROOT_CA, pem_certs[0])
 
     def import_intermediate_ca(self, request: IntermediateCAImportRequest) -> CAResponse:
-        """
-        Import an external Intermediate CA for tracking.
+        """Import a single Intermediate CA certificate under an existing parent CA."""
+        # Validate parent_ca_id is provided
+        if not request.parent_ca_id:
+            raise ValueError("Parent CA ID is required. Please select the issuing CA for this intermediate.")
 
-        Args:
-            request: Intermediate CA import request
-
-        Returns:
-            CA response with imported CA details
-
-        Raises:
-            ValueError: If parent CA not found, CA already exists, or import fails
-        """
-        # Verify parent CA exists
         parent_ca_dir = self.ca_data_dir / request.parent_ca_id
         if not parent_ca_dir.exists():
             raise ValueError(f"Parent CA not found: {request.parent_ca_id}")
 
-        # Sanitize name for directory
-        ca_name = sanitize_name(request.ca_name)
-        ca_id = f"{request.parent_ca_id}/intermediate-ca-{ca_name}"
-        ca_dir = self.ca_data_dir / request.parent_ca_id / f"intermediate-ca-{ca_name}"
+        # Parse and validate certificate
+        pem_certs = CertificateParser.split_pem_bundle(request.ca_cert_content)
+        if not pem_certs:
+            raise ValueError("Certificate content is empty or invalid.")
+        if len(pem_certs) > 1:
+            raise ValueError("Please provide a single certificate. Multiple certificates are not supported.")
 
-        # Check if already exists
-        if ca_dir.exists():
-            raise ValueError(f"Intermediate CA already exists: {ca_id}")
+        cert = CertificateParser.load_pem_x509_certificate_from_string(pem_certs[0])
 
-        try:
-            # Create directory
-            FileUtils.ensure_directory(ca_dir)
+        if not CertificateParser._is_ca(cert):
+            raise ValueError("The provided certificate is not a CA certificate (missing CA:TRUE in Basic Constraints).")
 
-            # Save certificate
-            cert_path = ca_dir / "ca.crt"
-            FileUtils.write_file(cert_path, request.ca_cert_content)
+        if cert.subject == cert.issuer:
+            raise ValueError(
+                "The provided certificate is a self-signed Root CA. " "Please use the 'Import Root CA' feature instead."
+            )
 
-            # Save private key if provided
-            if request.ca_key_content:
-                key_path = ca_dir / "ca.key"
-                FileUtils.write_file(key_path, request.ca_key_content)
+        # Check for duplicate
+        fingerprint = cert.fingerprint(hashes.SHA256()).hex().upper()
+        existing_ca_id = self._find_ca_by_fingerprint(fingerprint)
+        if existing_ca_id:
+            raise ValueError(f"This CA certificate already exists at: {existing_ca_id}")
 
-            # Parse certificate to extract information
-            cert_info = CertificateParser.parse_certificate(cert_path)
+        # Build CA ID and check for name collision
+        ca_id = f"{request.parent_ca_id}/intermediate-ca-{sanitize_name(request.ca_name)}"
+        if (self.ca_data_dir / ca_id).exists():
+            raise ValueError(f"A CA with the name '{request.ca_name}' already exists under this parent.")
 
-            # Determine key algorithm from parsed info
-            algo_map = {"RSA": "RSA", "ECDSA": "ECDSA", "Ed25519": "Ed25519"}
-            algorithm = algo_map.get(cert_info.get("public_key_algorithm", "RSA"), "RSA")
+        return self._perform_ca_import(
+            cert, request.ca_name, ca_id, CAType.INTERMEDIATE_CA, pem_certs[0], request.parent_ca_id
+        )
 
-            # Build key config from parsed certificate
-            from app.models.ca import KeyAlgorithm, KeyConfig
+    def import_certificate_chain(
+        self, request: ChainImportRequest, cert_service: "CertificateService" = None
+    ) -> ChainImportResponse:
+        """
+        Import a complete certificate chain (root CA + intermediate CAs + leaf certificates).
 
-            if algorithm == "RSA":
-                key_config = KeyConfig(algorithm=KeyAlgorithm.RSA, key_size=cert_info.get("public_key_size", 2048))
-            elif algorithm == "ECDSA":
-                from app.models.ca import ECDSACurve
+        The chain is validated to ensure:
+        - It contains a self-signed root CA
+        - All certificates form a valid chain (proper issuer relationships)
+        - All signatures are valid
 
-                curve_name = cert_info.get("curve", "P-256")
-                key_config = KeyConfig(
-                    algorithm=KeyAlgorithm.ECDSA,
-                    curve=ECDSACurve(curve_name) if curve_name else ECDSACurve.P256,
+        Args:
+            request: Chain import request containing the PEM bundle
+            cert_service: Optional certificate service for importing leaf certificates
+
+        Returns:
+            ChainImportResponse with list of imported CAs and certificates
+
+        Raises:
+            ValueError: If chain is invalid or import fails
+        """
+        from cryptography.hazmat.primitives.serialization import Encoding
+
+        # Validate and order the chain
+        ordered_chain, errors = CertificateParser.validate_certificate_chain(request.chain_content)
+
+        if errors:
+            raise ValueError("Chain validation failed:\n" + "\n".join(f"- {e}" for e in errors))
+
+        # Separate CA certificates from leaf certificates
+        ca_certs = []
+        leaf_certs = []
+        for cert in ordered_chain:
+            if CertificateParser._is_ca(cert):
+                ca_certs.append(cert)
+            else:
+                leaf_certs.append(cert)
+
+        if not ca_certs:
+            raise ValueError("No CA certificates found in the chain. At least a root CA is required.")
+
+        imported_cas = []
+        imported_cert_ids = []
+
+        # Build a mapping of certificate fingerprints to CA IDs for finding issuers
+        fingerprint_to_ca_id = {}
+
+        # Import root CA (first in ca_certs list)
+        root_cert = ca_certs[0]
+        root_cn = CertificateParser._get_cn(root_cert)
+        root_fingerprint = root_cert.fingerprint(hashes.SHA256()).hex().upper()
+
+        # Check if root already exists
+        existing_root_id = self._find_ca_by_fingerprint(root_fingerprint)
+        if existing_root_id:
+            root_ca_id = existing_root_id
+            fingerprint_to_ca_id[root_fingerprint] = root_ca_id
+            logger.info(f"Root CA '{root_cn}' already exists at {existing_root_id}, skipping import")
+        else:
+            root_pem = root_cert.public_bytes(Encoding.PEM).decode("utf-8")
+            root_ca_id = f"root-ca-{sanitize_name(root_cn)}"
+
+            if (self.ca_data_dir / root_ca_id).exists():
+                raise ValueError(
+                    f"A CA with the name '{root_cn}' already exists but has a different fingerprint. "
+                    "Please resolve this conflict before importing."
                 )
-            else:  # Ed25519
-                key_config = KeyConfig(algorithm=KeyAlgorithm.ED25519)
 
-            # Build subject from parsed certificate
-            from app.models.ca import Subject
+            root_response = self._perform_ca_import(root_cert, root_cn, root_ca_id, CAType.ROOT_CA, root_pem)
+            imported_cas.append(root_response)
+            fingerprint_to_ca_id[root_fingerprint] = root_ca_id
+            logger.info(f"Imported root CA: {root_cn}")
 
-            subject_data = cert_info["subject"]
-            subject = Subject(
-                common_name=subject_data.get("CN") or subject_data.get("common_name", "unknown"),
-                organization=subject_data.get("O") or subject_data.get("organization"),
-                organizational_unit=subject_data.get("OU") or subject_data.get("organizational_unit"),
-                country=subject_data.get("C") or subject_data.get("country"),
-                state=subject_data.get("ST") or subject_data.get("state"),
-                locality=subject_data.get("L") or subject_data.get("locality"),
+        # Import intermediate CAs in order
+        parent_ca_id = root_ca_id
+        for int_cert in ca_certs[1:]:
+            int_cn = CertificateParser._get_cn(int_cert)
+            int_fingerprint = int_cert.fingerprint(hashes.SHA256()).hex().upper()
+
+            existing_int_id = self._find_ca_by_fingerprint(int_fingerprint)
+            if existing_int_id:
+                parent_ca_id = existing_int_id
+                fingerprint_to_ca_id[int_fingerprint] = existing_int_id
+                logger.info(f"Intermediate CA '{int_cn}' already exists at {existing_int_id}, skipping import")
+                continue
+
+            int_pem = int_cert.public_bytes(Encoding.PEM).decode("utf-8")
+            int_ca_id = f"{parent_ca_id}/intermediate-ca-{sanitize_name(int_cn)}"
+
+            if (self.ca_data_dir / int_ca_id).exists():
+                raise ValueError(
+                    f"An intermediate CA with the name '{int_cn}' already exists under '{parent_ca_id}' "
+                    "but has a different fingerprint. Please resolve this conflict before importing."
+                )
+
+            int_response = self._perform_ca_import(
+                int_cert, int_cn, int_ca_id, CAType.INTERMEDIATE_CA, int_pem, parent_ca_id
             )
+            imported_cas.append(int_response)
+            fingerprint_to_ca_id[int_fingerprint] = int_ca_id
+            parent_ca_id = int_ca_id
+            logger.info(f"Imported intermediate CA: {int_cn}")
 
-            # Calculate validity days
-            not_before = cert_info["not_before"]
-            not_after = cert_info["not_after"]
-            validity_days = (not_after - not_before).days
+        # Import leaf certificates if cert_service is provided
+        if leaf_certs and cert_service:
+            for leaf_cert in leaf_certs:
+                leaf_cn = CertificateParser._get_cn(leaf_cert)
+                leaf_pem = leaf_cert.public_bytes(Encoding.PEM).decode("utf-8")
 
-            # Create CA config
-            ca_config = CAConfig(
-                type=CAType.INTERMEDIATE_CA,
-                subject=subject,
-                key_config=key_config,
-                validity_days=validity_days,
-                created_at=datetime.now(),
-                not_before=not_before,
-                not_after=not_after,
-                fingerprint_sha256=cert_info["fingerprint_sha256"],
-                parent_ca=request.parent_ca_id,
-                openssl_command="# Imported external Intermediate CA",
-            )
+                # Find the issuing CA by matching the issuer subject to CA subjects
+                issuing_ca_id = None
+                for ca_cert in ca_certs:
+                    if leaf_cert.issuer == ca_cert.subject:
+                        ca_fingerprint = ca_cert.fingerprint(hashes.SHA256()).hex().upper()
+                        issuing_ca_id = fingerprint_to_ca_id.get(ca_fingerprint)
+                        break
 
-            # Create serial file
-            serial_file = ca_dir / "serial"
-            FileUtils.write_file(serial_file, "1000\n")
+                if not issuing_ca_id:
+                    logger.warning(f"Could not find issuing CA for leaf certificate '{leaf_cn}', skipping")
+                    continue
 
-            # Create certs directory
-            certs_dir = ca_dir / "certs"
-            FileUtils.ensure_directory(certs_dir)
+                # Check if certificate already exists by fingerprint
+                leaf_fingerprint = leaf_cert.fingerprint(hashes.SHA256()).hex().upper()
+                existing_cert_id = cert_service._find_cert_by_fingerprint(leaf_fingerprint)
+                if existing_cert_id:
+                    logger.info(f"Certificate '{leaf_cn}' already exists at {existing_cert_id}, skipping import")
+                    continue
 
-            # Save config.yaml
-            config_dict = ca_config.model_dump()
-            YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
+                # Import the leaf certificate
+                from app.models.certificate import CertImportRequest
 
-            logger.info(f"Imported Intermediate CA '{subject.common_name}' under {request.parent_ca_id}")
+                cert_name = sanitize_name(leaf_cn)
+                import_request = CertImportRequest(
+                    issuing_ca_id=issuing_ca_id,
+                    cert_content=leaf_pem,
+                    cert_name=cert_name,
+                )
 
-            # Build response
-            return self._build_ca_response(ca_id, ca_config, ca_dir)
+                try:
+                    cert_response = cert_service.import_certificate(import_request)
+                    imported_cert_ids.append(cert_response.id)
+                    logger.info(f"Imported certificate: {leaf_cn}")
+                except ValueError as e:
+                    logger.warning(f"Failed to import certificate '{leaf_cn}': {e}")
 
-        except Exception as e:
-            # Rollback on error
-            if ca_dir.exists():
-                FileUtils.delete_directory(ca_dir, ignore_errors=True)
-            logger.error(f"Failed to import Intermediate CA: {e}")
-            raise ValueError(f"Failed to import Intermediate CA: {e}")
+        # Build response message
+        msg_parts = []
+        if imported_cas:
+            msg_parts.append(f"Imported {len(imported_cas)} CA(s)")
+        if imported_cert_ids:
+            msg_parts.append(f"Imported {len(imported_cert_ids)} certificate(s)")
+        if not imported_cas and not imported_cert_ids:
+            message = "All certificates in the chain already exist."
+        else:
+            message = "Successfully " + " and ".join(msg_parts).lower() + "."
+
+        return ChainImportResponse(imported_cas=imported_cas, imported_certs=imported_cert_ids, message=message)
 
     def list_root_cas(self) -> List[CAResponse]:
         """

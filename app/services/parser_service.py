@@ -1,10 +1,11 @@
 """Certificate parsing service."""
 
 import logging
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -16,6 +17,29 @@ logger = logging.getLogger("homelabpki")
 
 class CertificateParser:
     """Service for parsing X.509 certificates."""
+
+    @staticmethod
+    def split_pem_bundle(pem_bundle: str) -> List[str]:
+        """
+        Split a string containing multiple PEM certificates into a list.
+        Args:
+            pem_bundle: A string containing one or more PEM-encoded certificates.
+        Returns:
+            A list of individual PEM certificate strings.
+        """
+        cert_pattern = r"-----BEGIN CERTIFICATE-----(?:.|\n)+?-----END CERTIFICATE-----"
+        return re.findall(cert_pattern, pem_bundle)
+
+    @staticmethod
+    def load_pem_x509_certificate_from_string(pem_string: str) -> x509.Certificate:
+        """
+        Load a PEM certificate from a string.
+        Args:
+            pem_string: The PEM-encoded certificate string.
+        Returns:
+            A cryptography x509.Certificate object.
+        """
+        return x509.load_pem_x509_certificate(pem_string.encode("utf-8"), default_backend())
 
     @staticmethod
     def parse_certificate(cert_path: Path) -> Dict[str, Any]:
@@ -374,3 +398,221 @@ class CertificateParser:
         except Exception as e:
             logger.error(f"Error verifying key pair: {e}")
             return False
+
+    @staticmethod
+    def validate_certificate_chain(pem_bundle: str) -> tuple[list[x509.Certificate], list[str]]:
+        """
+        Parse, order, and validate a certificate chain from a PEM bundle.
+
+        A valid chain must:
+        - Start with a self-signed root CA
+        - Each certificate must be signed by the next one in the chain
+        - All CA certificates must have CA:TRUE in Basic Constraints
+
+        Args:
+            pem_bundle: PEM-encoded certificates (may contain multiple)
+
+        Returns:
+            Tuple of (ordered_certificates, error_messages)
+            - ordered_certificates: List of x509.Certificate objects ordered from root to leaf
+            - error_messages: List of validation errors (empty if valid)
+
+        Raises:
+            ValueError: If no certificates found in bundle
+        """
+        errors = []
+
+        # Split and parse all certificates
+        pem_certs = CertificateParser.split_pem_bundle(pem_bundle)
+        if not pem_certs:
+            raise ValueError("No certificates found in the provided content")
+
+        if len(pem_certs) < 2:
+            raise ValueError("A certificate chain must contain at least 2 certificates (root CA and one other)")
+
+        # Parse all certificates
+        certs = []
+        for i, pem in enumerate(pem_certs):
+            try:
+                cert = CertificateParser.load_pem_x509_certificate_from_string(pem)
+                certs.append(cert)
+            except Exception as e:
+                errors.append(f"Failed to parse certificate #{i + 1}: {str(e)}")
+
+        if errors:
+            return [], errors
+
+        # Order the chain: find root (self-signed), then follow issuer relationships
+        ordered_chain = CertificateParser._order_certificate_chain(certs)
+
+        if not ordered_chain:
+            errors.append("Could not establish chain order. Certificates may not form a valid chain.")
+            return [], errors
+
+        if len(ordered_chain) != len(certs):
+            errors.append(
+                f"Chain ordering incomplete: {len(ordered_chain)} of {len(certs)} certificates could be ordered. "
+                "Some certificates may not be part of the chain."
+            )
+            return [], errors
+
+        # Validate the chain
+        validation_errors = CertificateParser._validate_chain_signatures(ordered_chain)
+        if validation_errors:
+            errors.extend(validation_errors)
+            return [], errors
+
+        return ordered_chain, []
+
+    @staticmethod
+    def _order_certificate_chain(certs: list[x509.Certificate]) -> list[x509.Certificate]:
+        """
+        Order certificates into a chain from root to leaf.
+
+        Args:
+            certs: Unordered list of certificates
+
+        Returns:
+            Ordered list from root (first) to leaf (last), or empty list if ordering fails
+        """
+        if not certs:
+            return []
+
+        # Find the root (self-signed certificate)
+        root = None
+        for cert in certs:
+            if cert.subject == cert.issuer:
+                root = cert
+                break
+
+        if not root:
+            return []  # No self-signed root found
+
+        # Build chain by following subject -> issuer relationships
+        ordered = [root]
+        remaining = [c for c in certs if c != root]
+
+        while remaining:
+            # Find certificate whose issuer matches the last cert's subject
+            found = None
+            for cert in remaining:
+                if cert.issuer == ordered[-1].subject:
+                    found = cert
+                    break
+
+            if found:
+                ordered.append(found)
+                remaining.remove(found)
+            else:
+                # No more certificates can be added to the chain
+                break
+
+        return ordered
+
+    @staticmethod
+    def _validate_chain_signatures(ordered_chain: list[x509.Certificate]) -> list[str]:
+        """
+        Validate that each certificate in the chain is properly signed by its issuer.
+
+        Args:
+            ordered_chain: Certificates ordered from root to leaf
+
+        Returns:
+            List of validation error messages (empty if valid)
+        """
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa, ed25519, padding
+
+        errors = []
+
+        if not ordered_chain:
+            return ["Empty chain"]
+
+        # Validate root is self-signed
+        root = ordered_chain[0]
+        if root.subject != root.issuer:
+            errors.append("First certificate in chain is not self-signed (not a root CA)")
+            return errors
+
+        # Validate root is a CA
+        if not CertificateParser._is_ca(root):
+            errors.append("Root certificate does not have CA:TRUE in Basic Constraints")
+
+        # Validate each certificate is signed by the previous one (its issuer)
+        for i in range(1, len(ordered_chain)):
+            cert = ordered_chain[i]
+            issuer_cert = ordered_chain[i - 1]
+
+            # Verify issuer relationship
+            if cert.issuer != issuer_cert.subject:
+                errors.append(
+                    f"Certificate #{i + 1} ({CertificateParser._get_cn(cert)}) "
+                    f"issuer does not match certificate #{i} ({CertificateParser._get_cn(issuer_cert)}) subject"
+                )
+                continue
+
+            # Verify signature
+            try:
+                issuer_public_key = issuer_cert.public_key()
+
+                if isinstance(issuer_public_key, rsa.RSAPublicKey):
+                    issuer_public_key.verify(
+                        cert.signature,
+                        cert.tbs_certificate_bytes,
+                        padding.PKCS1v15(),
+                        cert.signature_hash_algorithm,
+                    )
+                elif isinstance(issuer_public_key, ec.EllipticCurvePublicKey):
+                    issuer_public_key.verify(
+                        cert.signature,
+                        cert.tbs_certificate_bytes,
+                        ec.ECDSA(cert.signature_hash_algorithm),
+                    )
+                elif isinstance(issuer_public_key, ed25519.Ed25519PublicKey):
+                    issuer_public_key.verify(
+                        cert.signature,
+                        cert.tbs_certificate_bytes,
+                    )
+                else:
+                    errors.append(f"Certificate #{i + 1}: Unsupported key type for signature verification")
+                    continue
+
+            except Exception as e:
+                errors.append(
+                    f"Certificate #{i + 1} ({CertificateParser._get_cn(cert)}) "
+                    f"signature verification failed: {str(e)}"
+                )
+
+            # For intermediate CAs (not leaf), verify CA constraint
+            if i < len(ordered_chain) - 1:  # Not the last cert
+                if not CertificateParser._is_ca(cert):
+                    errors.append(
+                        f"Certificate #{i + 1} ({CertificateParser._get_cn(cert)}) "
+                        "is in the middle of the chain but does not have CA:TRUE"
+                    )
+
+        return errors
+
+    @staticmethod
+    def _get_cn(cert: x509.Certificate) -> str:
+        """Get Common Name from certificate subject."""
+        try:
+            cn_attrs = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+            return cn_attrs[0].value if cn_attrs else "Unknown"
+        except Exception:
+            return "Unknown"
+
+    @staticmethod
+    def get_chain_ca_certificates(ordered_chain: list[x509.Certificate]) -> list[x509.Certificate]:
+        """
+        Extract only CA certificates from an ordered chain.
+
+        This filters out leaf/end-entity certificates, returning only
+        certificates with CA:TRUE in Basic Constraints.
+
+        Args:
+            ordered_chain: Certificates ordered from root to leaf
+
+        Returns:
+            List of CA certificates only (root + intermediates)
+        """
+        return [cert for cert in ordered_chain if CertificateParser._is_ca(cert)]

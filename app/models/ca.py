@@ -124,7 +124,7 @@ class CACreateRequest(BaseModel):
 class RootCAImportRequest(BaseModel):
     """Request model for importing an external Root CA."""
 
-    ca_cert_content: str  # PEM-encoded CA certificate content
+    ca_cert_content: str  # PEM-encoded CA certificate (single self-signed certificate)
     ca_name: str  # Name/identifier for the CA (will be sanitized)
     ca_key_content: Optional[str] = None  # Optional: Private key content (if available)
 
@@ -132,10 +132,33 @@ class RootCAImportRequest(BaseModel):
 class IntermediateCAImportRequest(BaseModel):
     """Request model for importing an external Intermediate CA."""
 
-    parent_ca_id: str  # Parent CA under which to import
-    ca_cert_content: str  # PEM-encoded CA certificate content
+    parent_ca_id: str  # Parent CA under which to import (required)
+    ca_cert_content: str  # PEM-encoded CA certificate (single certificate)
     ca_name: str  # Name/identifier for the CA (will be sanitized)
     ca_key_content: Optional[str] = None  # Optional: Private key content (if available)
+
+
+class ChainImportRequest(BaseModel):
+    """Request model for importing a complete certificate chain."""
+
+    chain_content: str  # PEM-encoded certificate chain (root + intermediates, in any order)
+
+    class Config:
+        """Pydantic config."""
+
+        json_schema_extra = {
+            "example": {
+                "chain_content": "-----BEGIN CERTIFICATE-----\n...(root CA)...\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\n...(intermediate CA)...\n-----END CERTIFICATE-----"
+            }
+        }
+
+
+class ChainImportResponse(BaseModel):
+    """Response model for chain import operations."""
+
+    imported_cas: list["CAResponse"]  # List of imported CAs (root + intermediates)
+    imported_certs: list[str]  # List of imported certificate IDs (leaf certs)
+    message: str  # Summary message
 
 
 class CAResponse(BaseModel):

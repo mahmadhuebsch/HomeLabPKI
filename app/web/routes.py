@@ -359,6 +359,23 @@ async def rootca_import_form(
         return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 
 
+@router.get("/rootcas/import-chain", response_class=HTMLResponse)
+async def rootca_import_chain_form(
+    request: Request,
+    session: Session = Depends(require_auth_web),
+    ca_service: CAService = Depends(get_ca_service),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Certificate chain import form."""
+    try:
+        return templates.TemplateResponse(
+            "ca/import-chain.html",
+            {"request": request, "auth_enabled": auth_service.is_enabled},
+        )
+    except Exception as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
+
+
 @router.get("/rootcas/{ca_id:path}", response_class=HTMLResponse)
 async def rootca_detail(
     request: Request,
@@ -488,15 +505,17 @@ async def intermediate_import_form(
 ):
     """Intermediate CA import form."""
     try:
-        # Get all root CAs for parent selection
+        # Get all CAs for parent selection
         root_cas = ca_service.list_root_cas()
+        intermediate_cas = ca_service.list_all_intermediate_cas()
 
         return templates.TemplateResponse(
             "ca/import-intermediate.html",
             {
                 "request": request,
                 "root_cas": root_cas,
-                "selected_parent_id": parent_ca_id,
+                "intermediate_cas": intermediate_cas,
+                "preselected_parent": parent_ca_id,
                 "auth_enabled": auth_service.is_enabled,
             },
         )
@@ -668,19 +687,17 @@ async def cert_import_form(
 ):
     """Certificate import form."""
     try:
-        # Get all CAs for selection (both root and intermediate)
+        # Get all CAs for selection
         root_cas = ca_service.list_root_cas()
         intermediate_cas = ca_service.list_all_intermediate_cas()
-
-        # Combine all CAs
-        all_cas = root_cas + intermediate_cas
 
         return templates.TemplateResponse(
             "cert/import.html",
             {
                 "request": request,
-                "selected_ca_id": ca_id,
-                "available_cas": all_cas,
+                "root_cas": root_cas,
+                "intermediate_cas": intermediate_cas,
+                "preselected_ca": ca_id,
                 "auth_enabled": auth_service.is_enabled,
             },
         )

@@ -227,8 +227,8 @@ class CSRSignRequest(BaseModel):
 class CertImportRequest(BaseModel):
     """Request model for importing an external certificate."""
 
-    issuing_ca_id: str
-    cert_content: str  # PEM-encoded certificate content
+    issuing_ca_id: str  # Issuing CA under which to import (required)
+    cert_content: str  # PEM-encoded certificate (single certificate)
     cert_name: str  # Name/identifier for the certificate
 
 
