@@ -684,10 +684,10 @@ document.getElementById('caForm').addEventListener('submit', async function(e) {
             window.location.href = `/rootcas/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            showError(error.detail || 'Failed to create CA');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

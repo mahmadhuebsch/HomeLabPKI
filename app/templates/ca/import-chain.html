@@ -190,7 +190,7 @@ document.getElementById('chainFile').addEventListener('change', async function(e
         analyzeChain(chainContent);
 
     } catch (error) {
-        alert(`Error reading file: ${error.message}`);
+        showError('Error reading file: ' + error.message);
         resetForm();
     }
 });
@@ -273,7 +273,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
     }
 
     if (!chainContent) {
-        alert('Please upload a certificate chain file');
+        showWarning('Please upload a certificate chain file');
         return;
     }
 

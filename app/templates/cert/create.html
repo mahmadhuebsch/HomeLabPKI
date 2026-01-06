@@ -950,10 +950,10 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
             window.location.href = `/certs/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            showError(error.detail || 'Failed to create certificate');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

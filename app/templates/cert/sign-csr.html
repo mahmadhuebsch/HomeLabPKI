@@ -404,7 +404,7 @@ document.getElementById('csrFile').addEventListener('change', async function(e) 
         document.getElementById('submitBtn').disabled = false;
         updateCommandPreview();
     } catch (error) {
-        alert(`Error reading file: ${error.message}`);
+        showError('Error reading file: ' + error.message);
         csrContent = '';
         document.getElementById('submitBtn').disabled = true;
     }
@@ -606,7 +606,7 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
     e.preventDefault();
 
     if (!csrContent) {
-        alert('Please upload a CSR file');
+        showWarning('Please upload a CSR file');
         return;
     }
 
@@ -651,10 +651,10 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
             window.location.href = `/certs/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            showError(error.detail || 'Failed to sign CSR');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

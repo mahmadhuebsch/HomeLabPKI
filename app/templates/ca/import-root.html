@@ -166,7 +166,7 @@ document.getElementById('certFile').addEventListener('change', async function(e)
 
         document.getElementById('submitBtn').disabled = false;
     } catch (error) {
-        alert(`Error reading file: ${error.message}`);
+        showError('Error reading file: ' + error.message);
         certContent = '';
         document.getElementById('submitBtn').disabled = true;
     }
@@ -230,7 +230,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
     }
 
     if (!certContent) {
-        alert('Please upload a certificate file');
+        showWarning('Please upload a certificate file');
         return;
     }
 
@@ -259,10 +259,10 @@ document.getElementById('importForm').addEventListener('submit', async function(
             } else if (typeof error.detail === 'object') {
                 errorMsg = JSON.stringify(error.detail);
             }
-            alert(`Error: ${errorMsg}`);
+            showError(errorMsg || 'Failed to import root CA');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

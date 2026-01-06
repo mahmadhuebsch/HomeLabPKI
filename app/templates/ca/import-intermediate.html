@@ -193,7 +193,7 @@ document.getElementById('certFile').addEventListener('change', async function(e)
 
         updateSubmitButton();
     } catch (error) {
-        alert(`Error reading file: ${error.message}`);
+        showError('Error reading file: ' + error.message);
         certContent = '';
         updateSubmitButton();
     }
@@ -266,7 +266,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
     }
 
     if (!certContent) {
-        alert('Please upload a certificate file');
+        showWarning('Please upload a certificate file');
         return;
     }
 
@@ -274,7 +274,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
     const parentCaId = formData.get('parent_ca_id');
 
     if (!parentCaId) {
-        alert('Please select a parent CA');
+        showWarning('Please select a parent CA');
         return;
     }
 
@@ -302,10 +302,10 @@ document.getElementById('importForm').addEventListener('submit', async function(
             } else if (typeof error.detail === 'object') {
                 errorMsg = JSON.stringify(error.detail);
             }
-            alert(`Error: ${errorMsg}`);
+            showError(errorMsg || 'Failed to import intermediate CA');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

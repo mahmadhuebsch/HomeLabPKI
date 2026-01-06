@@ -123,7 +123,7 @@
             <i class="bi bi-download"></i> Certificate (.crt)
         </a>
         <a href="/download/ca/{{ ca.id }}/key" class="btn btn-sm btn-outline-warning"
-           onclick="return confirm('Warning: This downloads the private key! Only for authorized personnel!')">
+           onclick="return confirmKeyDownload(event, this.href)">
             <i class="bi bi-download"></i> Private Key (.key)
         </a>
     </div>
@@ -323,19 +323,41 @@ function copyActiveTabContent() {
     }
 
     navigator.clipboard.writeText(content);
-    alert('Certificate content copied!');
+    showSuccess('Certificate content copied!');
 }
 
-function confirmDelete() {
-    if (confirm(`Move CA "{{ ca.subject.common_name }}" to trash?\n\nThis will also move all Intermediate CAs and certificates to trash.`)) {
-        fetch(`/api/cas/{{ ca.id }}`, { method: 'DELETE' })
-            .then(response => {
-                if (response.ok) {
-                    window.location.href = '/rootcas';
-                } else {
-                    alert('Error moving to trash!');
-                }
-            });
+function confirmKeyDownload(event, href) {
+    event.preventDefault();
+    showConfirm('Warning: This downloads the private key!\n\nOnly for authorized personnel!', {
+        title: 'Download Private Key',
+        confirmText: 'Download',
+        confirmClass: 'btn-warning'
+    }).then(confirmed => {
+        if (confirmed) {
+            window.location.href = href;
+        }
+    });
+    return false;
+}
+
+async function confirmDelete() {
+    const confirmed = await showConfirm('Move CA "{{ ca.subject.common_name }}" to trash?\n\nThis will also move all Intermediate CAs and certificates to trash.', {
+        title: 'Move to Trash',
+        confirmText: 'Move to Trash',
+        confirmClass: 'btn-danger'
+    });
+
+    if (confirmed) {
+        try {
+            const response = await fetch(`/api/cas/{{ ca.id }}`, { method: 'DELETE' });
+            if (response.ok) {
+                window.location.href = '/rootcas';
+            } else {
+                showError('Error moving to trash!');
+            }
+        } catch (error) {
+            showError('Error moving to trash: ' + error.message);
+        }
     }
 }
 </script>
