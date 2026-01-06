@@ -69,8 +69,8 @@
                         <div class="col-md-6 mb-3">
                             <label for="country" class="form-label">Country (C)</label>
                             <input type="text" class="form-control" id="country"
-                                   name="country" maxlength="2"
-                                   placeholder="DE">
+                                   name="country" maxlength="2" pattern="^[A-Z]{0,2}$"
+                                   placeholder="DE" title="2-letter country code (uppercase)">
                         </div>
                     </div>
                 </div>
@@ -242,7 +242,8 @@
                         <input type="number" class="form-control" id="validityDays"
                                name="validity_days"
                                value="{{ defaults.validity_days or 365 }}"
-                               min="1" required>
+                               min="1" max="36500" required>
+                        <div class="invalid-feedback">Validity must be between 1 and 36500 days.</div>
                         <div class="form-text">Default: 365 days (1 year)</div>
                     </div>
                 </div>
@@ -609,6 +610,29 @@ function getSelectedExtensions() {
     return { keyUsage, extendedKeyUsage };
 }
 
+function validateExtensions() {
+    const preset = document.getElementById('extensionPreset').value;
+
+    // Only validate for custom preset
+    if (preset !== 'custom') {
+        return true;
+    }
+
+    const extensions = getSelectedExtensions();
+
+    if (extensions.keyUsage.length === 0) {
+        showWarning('Please select at least one Key Usage for custom extensions.');
+        return false;
+    }
+
+    if (extensions.extendedKeyUsage.length === 0) {
+        showWarning('Please select at least one Extended Key Usage for custom extensions.');
+        return false;
+    }
+
+    return true;
+}
+
 function updateExtensionPreview() {
     const extensions = getSelectedExtensions();
     document.getElementById('kuPreview').textContent = extensions.keyUsage.join(', ') || '-';
@@ -900,6 +924,11 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
 
     if (!validateIssuingCaPassword()) {
         document.getElementById('issuingCaPassword').focus();
+        return;
+    }
+
+    // Validate extensions (for custom preset)
+    if (!validateExtensions()) {
         return;
     }
 

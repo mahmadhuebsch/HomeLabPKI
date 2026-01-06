@@ -191,6 +191,9 @@ document.getElementById('certFile').addEventListener('change', async function(e)
             caNameInput.value = fileName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
         }
 
+        // Auto-detect parent CA by parsing the certificate
+        await autoDetectParentCA(certContent);
+
         updateSubmitButton();
     } catch (error) {
         showError('Error reading file: ' + error.message);
@@ -198,6 +201,51 @@ document.getElementById('certFile').addEventListener('change', async function(e)
         updateSubmitButton();
     }
 });
+
+// Auto-detect and select the correct parent CA based on certificate issuer
+async function autoDetectParentCA(certPem) {
+    try {
+        const response = await fetch('/api/cas/parse-cert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cert_content: certPem })
+        });
+
+        if (!response.ok) return;
+
+        const parsed = await response.json();
+
+        if (parsed.is_self_signed) {
+            showWarning('This appears to be a self-signed (root) certificate. Use "Import Root CA" instead.');
+            return;
+        }
+
+        const issuerCN = parsed.issuer_cn;
+        if (!issuerCN) return;
+
+        // Find matching parent CA in the dropdown
+        const parentSelect = document.getElementById('parentCa');
+        let matchFound = false;
+
+        for (const option of parentSelect.options) {
+            if (option.value && option.text.includes(issuerCN)) {
+                parentSelect.value = option.value;
+                matchFound = true;
+                showSuccess(`Auto-selected parent CA: ${issuerCN}`);
+                break;
+            }
+        }
+
+        if (!matchFound && issuerCN) {
+            showWarning(`Issuer "${issuerCN}" not found in available CAs. Please import the issuing CA first or select manually.`);
+        }
+
+        updateSubmitButton();
+    } catch (error) {
+        // Silently fail - user can still select manually
+        console.log('Could not auto-detect parent CA:', error);
+    }
+}
 
 // Parent CA selection handler
 document.getElementById('parentCa').addEventListener('change', updateSubmitButton);

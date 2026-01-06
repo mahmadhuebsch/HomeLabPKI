@@ -84,8 +84,8 @@
                         <div class="col-md-4 mb-3">
                             <label for="country" class="form-label">Country (C)</label>
                             <input type="text" class="form-control" id="country"
-                                   name="country" maxlength="2"
-                                   placeholder="DE">
+                                   name="country" maxlength="2" pattern="^[A-Z]{0,2}$"
+                                   placeholder="DE" title="2-letter country code (uppercase)">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="state" class="form-label">State/Province (ST)</label>
@@ -172,7 +172,8 @@
                         <input type="number" class="form-control" id="validityDays"
                                name="validity_days"
                                value="{{ defaults.validity_days or (3650 if ca_type == 'root' else 1825) }}"
-                               min="1" required>
+                               min="1" max="36500" required>
+                        <div class="invalid-feedback">Validity must be between 1 and 36500 days.</div>
                         <div class="form-text">
                             Default: {{ '3650 days (10 years)' if ca_type == 'root' else '1825 days (5 years)' }}
                         </div>
