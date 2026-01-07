@@ -16,7 +16,7 @@ from app.services.yaml_service import YAMLService
 logger = logging.getLogger("homelabpki")
 
 # Default password
-DEFAULT_PASSWORD = "admin"
+DEFAULT_PASSWORD = "adminadmin"
 
 
 class AuthService:
@@ -38,7 +38,7 @@ class AuthService:
     def _ensure_password_hash(self) -> None:
         """Ensure password hash exists, create default if not."""
         if not self.settings.password_hash:
-            logger.warning("No password hash found, setting default password 'admin'")
+            logger.warning("No password hash found, setting default password 'adminadmin'")
             hash_value = self.hash_password(DEFAULT_PASSWORD)
             self._update_config("password_hash", hash_value)
             self.settings.password_hash = hash_value

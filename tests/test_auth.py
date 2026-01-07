@@ -10,7 +10,7 @@ class TestAuthAPI:
 
     def test_login_success(self, client_with_auth, auth_service):
         """Test successful login."""
-        response = client_with_auth.post("/api/auth/login", json={"password": "admin"})
+        response = client_with_auth.post("/api/auth/login", json={"password": "adminadmin"})
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "token" in data
@@ -66,7 +66,7 @@ class TestAuthAPI:
         """Test password change."""
         response = client_with_auth.post(
             "/api/auth/change-password",
-            json={"current_password": "admin", "new_password": "newpassword123"},
+            json={"current_password": "adminadmin", "new_password": "newpassword123"},
             headers=auth_headers,
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -93,7 +93,7 @@ class TestAuthAPI:
         """Test password change with too short new password."""
         response = client_with_auth.post(
             "/api/auth/change-password",
-            json={"current_password": "admin", "new_password": "short"},
+            json={"current_password": "adminadmin", "new_password": "short"},
             headers=auth_headers,
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -110,7 +110,7 @@ class TestAuthDisabled:
 
     def test_login_fails_when_disabled(self, client):
         """Test that login returns error when auth is disabled."""
-        response = client.post("/api/auth/login", json={"password": "admin"})
+        response = client.post("/api/auth/login", json={"password": "adminadmin"})
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "disabled" in response.json()["detail"].lower()
 
@@ -129,12 +129,12 @@ class TestAuthService:
         assert hash1 != hash2
 
         # But both should verify
-        assert auth_service.verify_password(password) or True  # Default is admin
+        assert auth_service.verify_password(password) or True  # Default is adminadmin
 
     def test_verify_password(self, auth_service):
         """Test password verification."""
-        # Default password is "admin"
-        assert auth_service.verify_password("admin")
+        # Default password is "adminadmin"
+        assert auth_service.verify_password("adminadmin")
         assert not auth_service.verify_password("wrongpassword")
 
     def test_create_session(self, auth_service):
@@ -165,10 +165,10 @@ class TestAuthService:
 
     def test_change_password(self, auth_service):
         """Test password change."""
-        # Default password is "admin"
-        assert auth_service.change_password("admin", "newpassword123")
+        # Default password is "adminadmin"
+        assert auth_service.change_password("adminadmin", "newpassword123")
         assert auth_service.verify_password("newpassword123")
-        assert not auth_service.verify_password("admin")
+        assert not auth_service.verify_password("adminadmin")
 
     def test_change_password_wrong_current(self, auth_service):
         """Test password change with wrong current password."""

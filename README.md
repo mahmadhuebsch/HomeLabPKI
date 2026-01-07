@@ -89,7 +89,7 @@ openssl version
 python main.py
 ```
 
-1. Navigate to `http://localhost:8000`  (Default Password: "admin")
+1. Navigate to `http://localhost:8000`  (Default Password: "adminadmin")
 2. Create a Root CA from the dashboard
 3. Optionally create an Intermediate CA under the Root CA
 4. Issue server certificates as needed
@@ -177,7 +177,7 @@ paths:
 
 auth:
   enabled: true             # Enable/disable authentication
-  password_hash: null       # Auto-generated on first run (default: "admin")
+  password_hash: null       # Auto-generated on first run (default: "adminadmin")
   session_expiry_hours: 24  # Session timeout
 
 defaults:
@@ -209,7 +209,7 @@ HomeLab PKI includes built-in password protection with session-based authenticat
 
 ### Default Credentials
 
-- **Password**: `admin` (no username required)
+- **Password**: `adminadmin` (no username required)
 
 ### Features
 
@@ -224,7 +224,7 @@ HomeLab PKI includes built-in password protection with session-based authenticat
 # Get a session token
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"password": "admin"}'
+  -d '{"password": "adminadmin"}'
 
 # Response: {"token": "uuid-token", "expires_at": "..."}
 
@@ -235,7 +235,7 @@ curl http://localhost:8000/api/cas \
 
 ### Password Recovery
 
-If you forget your password, delete the `password_hash` line from `config.yaml` and restart the application. The password will reset to `admin`.
+If you forget your password, delete the `password_hash` line from `config.yaml` and restart the application. The password will reset to `adminadmin`.
 
 ```yaml
 auth:

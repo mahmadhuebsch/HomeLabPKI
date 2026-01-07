@@ -316,7 +316,7 @@ HomeLab PKI includes password-based authentication to protect access to the appl
 ```yaml
 auth:
   enabled: true
-  password_hash: null  # Auto-set on first run (default: "admin")
+  password_hash: null  # Auto-set on first run (default: "adminadmin")
   session_expiry_hours: 24
 ```
 
@@ -338,7 +338,7 @@ If you forget your password:
 2. Edit `config.yaml`
 3. Set `password_hash: null`
 4. Restart the application
-5. Login with default password: `admin`
+5. Login with default password: `adminadmin`
 6. Immediately change your password
 
 ### Auth Service (`app/services/auth_service.py`)
