@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.models.ca import KeyConfig, Subject
+from app.models.ca import KeyAlgorithm, Subject
 from app.models.certificate import CertCreateRequest
 
 
@@ -17,7 +17,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="test.example.com", organization="Test Org", country="US"),
             sans=["test.example.com", "*.test.example.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -37,7 +39,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="test.com", country="US"),
             sans=["test.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id="nonexistent-ca",
             issuing_ca_password="test_password_123",
@@ -52,7 +56,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="test1.com", country="US"),
             sans=["test1.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -70,7 +76,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="global-test.com", country="US"),
             sans=["global-test.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -87,7 +95,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="get-test.com", country="US"),
             sans=["get-test.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -104,7 +114,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="delete-test.com", country="US"),
             sans=["delete-test.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -123,7 +135,9 @@ class TestCertificateService:
         request = CertCreateRequest(
             subject=Subject(common_name="chain-test.com", country="US"),
             sans=["chain-test.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -147,7 +161,9 @@ class TestCertificateSANs:
         request = CertCreateRequest(
             subject=Subject(common_name="multi-san.com", country="US"),
             sans=["multi-san.com", "*.multi-san.com", "www.multi-san.com", "192.168.1.1"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",
@@ -164,7 +180,9 @@ class TestCertificateSANs:
         request = CertCreateRequest(
             subject=Subject(common_name="no-san.com", country="US"),
             sans=[],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_root_ca.id,
             issuing_ca_password="test_password_123",

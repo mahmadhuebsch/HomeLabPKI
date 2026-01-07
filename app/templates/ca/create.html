@@ -641,7 +641,7 @@ document.getElementById('caForm').addEventListener('submit', async function(e) {
     // Build request object
     const caType = formData.get('type');
     const algorithm = formData.get('algorithm');
-    const password = formData.get('key_password');
+    const keyPassword = formData.get('key_password');
 
     const request = {
         type: caType,
@@ -653,18 +653,16 @@ document.getElementById('caForm').addEventListener('submit', async function(e) {
             state: formData.get('state') || null,
             locality: formData.get('locality') || null
         },
-        key_config: {
-            algorithm: algorithm,
-            password: password  // Include password for key encryption
-        },
+        key_algorithm: algorithm,
+        key_password: keyPassword,  // Password for key encryption (not stored)
         validity_days: parseInt(formData.get('validity_days'))
     };
 
     // Add key size or curve based on algorithm
     if (algorithm === 'RSA') {
-        request.key_config.key_size = parseInt(formData.get('key_size'));
+        request.key_size = parseInt(formData.get('key_size'));
     } else if (algorithm === 'ECDSA') {
-        request.key_config.curve = formData.get('key_size');  // Actually the curve
+        request.key_curve = formData.get('key_size');  // Actually the curve
     }
 
     // Add parent CA ID and password for intermediate

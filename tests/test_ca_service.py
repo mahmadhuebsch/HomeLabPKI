@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.models.ca import CACreateRequest, CAType, KeyConfig, Subject
+from app.models.ca import CACreateRequest, CAType, KeyAlgorithm, Subject
 from app.services.ca_service import CAService
 
 
@@ -56,7 +56,9 @@ class TestCAService:
         request = CACreateRequest(
             type=CAType.INTERMEDIATE_CA,
             subject=Subject(common_name="Test Intermediate CA", organization="Test Org", country="US"),
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="intermediate_password"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="intermediate_password",
             validity_days=365,
             parent_ca_password="test_password_123",  # Password for root CA
         )
@@ -73,7 +75,9 @@ class TestCAService:
         request = CACreateRequest(
             type=CAType.INTERMEDIATE_CA,
             subject=Subject(common_name="Test Int CA", country="US"),
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="intermediate_password"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="intermediate_password",
             validity_days=365,
             parent_ca_password="test_password_123",
         )
@@ -120,7 +124,9 @@ class TestCAKeyAlgorithms:
         request = CACreateRequest(
             type=CAType.ROOT_CA,
             subject=sample_ca_subject,
-            key_config=KeyConfig(algorithm="RSA", key_size=4096, password="test_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=4096,
+            key_password="test_password_123",
             validity_days=365,
         )
 
@@ -132,7 +138,9 @@ class TestCAKeyAlgorithms:
         request = CACreateRequest(
             type=CAType.ROOT_CA,
             subject=Subject(common_name="ECDSA Test CA", organization="Test Org", country="US"),
-            key_config=KeyConfig(algorithm="ECDSA", curve="P-256", password="test_password_123"),
+            key_algorithm=KeyAlgorithm.ECDSA,
+            key_curve="P-256",
+            key_password="test_password_123",
             validity_days=365,
         )
 
@@ -144,7 +152,8 @@ class TestCAKeyAlgorithms:
         request = CACreateRequest(
             type=CAType.ROOT_CA,
             subject=Subject(common_name="Ed25519 Test CA", organization="Test Org", country="US"),
-            key_config=KeyConfig(algorithm="Ed25519", password="test_password_123"),
+            key_algorithm=KeyAlgorithm.ED25519,
+            key_password="test_password_123",
             validity_days=365,
         )
 

@@ -22,17 +22,20 @@ from app.services.parser_service import CertificateParser
 
 class ParseCertRequest(BaseModel):
     """Request to parse a certificate."""
+
     cert_content: str
 
 
 class ParseCertResponse(BaseModel):
     """Response with parsed certificate info."""
+
     subject_cn: Optional[str] = None
     issuer_cn: Optional[str] = None
     issuer_o: Optional[str] = None
     issuer_ou: Optional[str] = None
     is_ca: bool = False
     is_self_signed: bool = False
+
 
 router = APIRouter(prefix="/api/cas", tags=["CA"])
 

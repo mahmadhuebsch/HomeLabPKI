@@ -7,7 +7,7 @@ from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .ca import KeyConfig, Subject
+from .ca import ECDSACurve, KeyAlgorithm, KeyConfig, Subject
 
 
 class KeyUsageType(str, Enum):
@@ -133,7 +133,14 @@ class CertCreateRequest(BaseModel):
     issuing_ca_id: str
     subject: Subject
     sans: list[str] = Field(default_factory=list)
-    key_config: KeyConfig
+    key_algorithm: KeyAlgorithm
+    key_size: Optional[int] = Field(None, ge=2048)  # for RSA
+    key_curve: Optional[ECDSACurve] = None  # for ECDSA
+    key_password: str = Field(
+        ...,
+        min_length=8,
+        description="Password for encrypting the new private key (AES-256). Not stored.",
+    )
     validity_days: int = Field(..., gt=0)
     issuing_ca_password: str = Field(..., description="Password for issuing CA's private key")
     key_usage: list[str] = Field(default_factory=lambda: DEFAULT_KEY_USAGE.copy())

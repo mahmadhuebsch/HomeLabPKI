@@ -269,10 +269,11 @@ HomeLab PKI provides a complete RESTful API with automatic interactive documenta
 
 ### Key Security Notes
 
-- **Private Key Storage**: Private keys are stored unencrypted on disk. It is highly recommended to choose a strong password and/or encrypt the `ca-data` directory at the file system level (e.g. [Cryptomator](https://github.com/cryptomator/cryptomator)).
+- **Private Key Encryption**: All private keys are encrypted with AES-256 using a password you provide during creation. Passwords are **never stored** - you must provide the password each time you need to sign certificates with that key.
+- **Password Handling**: When creating intermediate CAs or certificates, you must provide both the password for the new key and the password for the parent/issuing CA's key.
 - **Authentication**: Built-in password protection is enabled by default. Change the default password immediately after installation.
 - **HTTPS**: Always use HTTPS when deploying in any networked environment. Consider a reverse proxy (nginx, Caddy) for TLS termination.
-- **Backup**: Regularly backup the `ca-data` directory.
+- **Backup**: Regularly backup the `ca-data` directory. Note that restoring backups requires knowing the passwords for all encrypted keys.
 
 ### Best Practices
 

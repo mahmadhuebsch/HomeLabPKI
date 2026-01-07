@@ -616,3 +616,28 @@ class CertificateParser:
             List of CA certificates only (root + intermediates)
         """
         return [cert for cert in ordered_chain if CertificateParser._is_ca(cert)]
+
+    @staticmethod
+    def is_key_encrypted(key_path: Path) -> bool:
+        """
+        Check if a private key file is encrypted.
+
+        Encrypted keys have PEM header: '-----BEGIN ENCRYPTED PRIVATE KEY-----'
+        Unencrypted keys have: '-----BEGIN PRIVATE KEY-----' or '-----BEGIN RSA PRIVATE KEY-----'
+
+        Args:
+            key_path: Path to the private key file
+
+        Returns:
+            True if the key is encrypted, False otherwise
+        """
+        if not key_path.exists():
+            return False
+
+        try:
+            with open(key_path, "r") as f:
+                first_line = f.readline().strip()
+                return "ENCRYPTED" in first_line
+        except Exception as e:
+            logger.warning(f"Could not read key file {key_path}: {e}")
+            return False

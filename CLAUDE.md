@@ -213,6 +213,22 @@ HomeLabPKI/
 - Extensions are parsed from imported certificates for display
 - Applies to: Certificate creation form and CSR signing form
 
+### Private Key Password Handling
+- **All private keys are encrypted** with AES-256 using a user-provided password
+- **Passwords are NEVER stored** in config files or anywhere else
+- `config.yaml` stores only `encrypted: bool` flag to indicate key encryption status
+- Password required at runtime for:
+  - Creating intermediate CAs (parent CA password required to sign)
+  - Creating certificates (issuing CA password required to sign)
+  - Any future operations that need to decrypt the private key
+- Request models use flat structure for passwords:
+  - `CACreateRequest`: `key_password` (for new key), `parent_ca_password` (for signing)
+  - `CertCreateRequest`: `key_password` (for new key), `issuing_ca_password` (for signing)
+- Key methods:
+  - `CertificateParser.is_key_encrypted(key_path)` - Detects encryption from PEM header
+  - `OpenSSLService.verify_key_password(key_path, password)` - Verifies password can decrypt key
+- Migration script: `scripts/migrate_remove_passwords.py` for existing installations
+
 ## Important Implementation Details
 
 ### Path Handling
@@ -237,8 +253,8 @@ HomeLabPKI/
 ### File Structure
 Each CA directory contains:
 - `ca.crt` - Public certificate
-- `ca.key` - Private key (unencrypted)
-- `config.yaml` - CA configuration
+- `ca.key` - Private key (AES-256 encrypted)
+- `config.yaml` - CA configuration (contains `encrypted: true` flag, NO password stored)
 - `serial` - Serial number tracker
 - `openssl.cnf` - OpenSSL configuration
 - `certs/` - Issued certificates subdirectory
@@ -247,8 +263,8 @@ Each CA directory contains:
 
 Each certificate directory contains:
 - `cert.crt` - Public certificate
-- `cert.key` - Private key (unencrypted)
-- `config.yaml` - Certificate configuration
+- `cert.key` - Private key (AES-256 encrypted)
+- `config.yaml` - Certificate configuration (contains `encrypted: true` flag, NO password stored)
 
 ### Trash Structure
 ```
@@ -355,7 +371,7 @@ If you forget your password:
 
 ### Security Considerations
 - **Single Password**: Application uses single password (no multi-user)
-- **Unencrypted Keys**: Private keys stored in plaintext
+- **Encrypted Keys**: Private keys are encrypted with AES-256, but passwords must be remembered (not stored)
 - **For Development**: Not recommended for production PKI
 - **In-memory Sessions**: Sessions lost on application restart
 

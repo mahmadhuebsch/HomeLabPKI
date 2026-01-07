@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.models.auth import Session
-from app.models.ca import CAConfig, CACreateRequest, CAType, KeyConfig, Subject
+from app.models.ca import CAConfig, CACreateRequest, CAType, KeyAlgorithm, KeyConfig, Subject
 from app.models.certificate import CertCreateRequest
 from app.models.config import AuthSettings
 from app.services.auth_service import AuthService
@@ -71,17 +71,19 @@ def sample_ca_subject():
 
 @pytest.fixture
 def sample_key_config():
-    """Create a sample key configuration (RSA 2048) with password."""
-    return KeyConfig(algorithm="RSA", key_size=2048, password="test_password_123")
+    """Create a sample key configuration (RSA 2048) - passwords no longer stored."""
+    return KeyConfig(algorithm="RSA", key_size=2048, encrypted=True)
 
 
 @pytest.fixture
-def sample_root_ca_request(sample_ca_subject, sample_key_config):
+def sample_root_ca_request(sample_ca_subject):
     """Create a sample Root CA creation request."""
     return CACreateRequest(
         type=CAType.ROOT_CA,
         subject=sample_ca_subject,
-        key_config=sample_key_config,
+        key_algorithm=KeyAlgorithm.RSA,
+        key_size=2048,
+        key_password="test_password_123",
         validity_days=365,
     )
 
@@ -93,12 +95,14 @@ def sample_cert_subject():
 
 
 @pytest.fixture
-def sample_cert_request(sample_cert_subject, sample_key_config):
+def sample_cert_request(sample_cert_subject):
     """Create a sample certificate creation request with passwords."""
     return CertCreateRequest(
         subject=sample_cert_subject,
         sans=["test.example.com", "*.test.example.com", "192.168.1.100"],
-        key_config=sample_key_config,
+        key_algorithm=KeyAlgorithm.RSA,
+        key_size=2048,
+        key_password="test_password_123",  # Password for key encryption (not stored)
         validity_days=365,
         issuing_ca_id="root-ca-test-root-ca",
         issuing_ca_password="test_password_123",  # Password for the issuing CA
@@ -228,7 +232,9 @@ def created_intermediate_ca(ca_service, created_root_ca):
     request = CACreateRequest(
         type=CAType.INTERMEDIATE_CA,
         subject=Subject(common_name="Test Intermediate CA", organization="Test Organization", country="US"),
-        key_config=KeyConfig(algorithm="RSA", key_size=2048, password="intermediate_password_123"),
+        key_algorithm=KeyAlgorithm.RSA,
+        key_size=2048,
+        key_password="intermediate_password_123",  # Password for key encryption (not stored)
         validity_days=365,
         parent_ca_password="test_password_123",  # Password for root CA
     )

@@ -57,12 +57,14 @@ def clean_ca_service(ca_service):
 @pytest.fixture
 def created_root_ca(ca_service, clean_ca_service):
     # Create a real root CA for testing
-    from app.models.ca import CACreateRequest, KeyConfig, Subject, CAType
+    from app.models.ca import CACreateRequest, KeyAlgorithm, Subject, CAType
 
     req = CACreateRequest(
         type=CAType.ROOT_CA,
         subject=Subject(common_name="Existing Root"),
-        key_config=KeyConfig(algorithm="RSA", key_size=2048, password="password"),
+        key_algorithm=KeyAlgorithm.RSA,
+        key_size=2048,
+        key_password="password123",
         validity_days=30,
     )
     return ca_service.create_root_ca(req)

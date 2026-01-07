@@ -7,7 +7,7 @@ import shutil
 
 import pytest
 
-from app.models.ca import KeyConfig, Subject
+from app.models.ca import KeyAlgorithm, Subject
 from app.models.certificate import CertImportRequest, CSRSignRequest
 
 
@@ -210,7 +210,9 @@ class TestCertificateImportAPI:
         create_request = CertCreateRequest(
             subject=Subject(common_name="api-import.com", country="US"),
             sans=["api-import.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
             validity_days=365,
             issuing_ca_id=created_intermediate_ca.id,
             issuing_ca_password="intermediate_password_123",

@@ -54,13 +54,42 @@ class OpenSSLService:
 
         logger.info(f"Using OpenSSL command: {self.openssl_path}")
 
-    def build_root_ca_command(self, config: CAConfig, output_dir: Path) -> str:
+    def verify_key_password(self, key_path: Path, password: str) -> bool:
+        """
+        Verify that the provided password can decrypt the private key.
+
+        Args:
+            key_path: Path to the encrypted private key
+            password: Password to verify
+
+        Returns:
+            True if password is correct, False otherwise
+        """
+        import shlex
+
+        try:
+            key_file_posix = self._path_to_posix(key_path)
+            # Try to read the key with the password - if it works, password is correct
+            cmd = f"{self.openssl_path} pkey -in {key_file_posix} -passin pass:{password} -noout"
+            result = subprocess.run(
+                shlex.split(cmd),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            return result.returncode == 0
+        except Exception as e:
+            logger.warning(f"Password verification failed for {key_path}: {e}")
+            return False
+
+    def build_root_ca_command(self, config: CAConfig, output_dir: Path, key_password: str) -> str:
         """
         Generate OpenSSL command for Root CA creation.
 
         Args:
-            config: CA configuration (key_config includes password)
+            config: CA configuration
             output_dir: Output directory for CA files
+            key_password: Password for encrypting the new private key
 
         Returns:
             OpenSSL command string
@@ -69,10 +98,9 @@ class OpenSSLService:
         key_file = "ca.key"
         cert_file = "ca.crt"
         config_file = "openssl.cnf"
-        password = config.key_config.password
 
         # 1. Private Key Generation (encrypted with AES-256)
-        key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
+        key_cmd = self._build_key_gen_cmd(config.key_config, key_file, key_password)
 
         # 2. Self-Signed Certificate (requires password to read encrypted key)
         subject = self._build_subject_string(config.subject)
@@ -80,7 +108,7 @@ class OpenSSLService:
             f"{self.openssl_path} req -new -x509 "
             f"-days {config.validity_days} "
             f"-key {key_file} "
-            f"-passin pass:{password} "
+            f"-passin pass:{key_password} "
             f"-out {cert_file} "
             f'-subj "{subject}" '
             f"-config {config_file} "
@@ -90,15 +118,21 @@ class OpenSSLService:
         return f"{key_cmd}\n{cert_cmd}"
 
     def build_intermediate_ca_command(
-        self, config: CAConfig, output_dir: Path, parent_ca_dir: Path, parent_ca_password: str
+        self,
+        config: CAConfig,
+        output_dir: Path,
+        parent_ca_dir: Path,
+        key_password: str,
+        parent_ca_password: str,
     ) -> str:
         """
         Generate OpenSSL command for Intermediate CA.
 
         Args:
-            config: CA configuration (key_config includes password for new key)
+            config: CA configuration
             output_dir: Output directory for CA files
             parent_ca_dir: Parent CA directory
+            key_password: Password for encrypting the new private key
             parent_ca_password: Password for parent CA's private key
 
         Returns:
@@ -109,21 +143,20 @@ class OpenSSLService:
         csr_file = "ca.csr"
         cert_file = "ca.crt"
         config_file = "openssl.cnf"
-        new_key_password = config.key_config.password
 
         # Use relative paths for parent CA files (parent is always one level up)
         parent_cert = "../ca.crt"
         parent_key = "../ca.key"
 
         # 1. Private Key (encrypted with AES-256)
-        key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
+        key_cmd = self._build_key_gen_cmd(config.key_config, key_file, key_password)
 
         # 2. CSR (requires password to read new encrypted key)
         subject = self._build_subject_string(config.subject)
         csr_cmd = (
             f"{self.openssl_path} req -new "
             f"-key {key_file} "
-            f"-passin pass:{new_key_password} "
+            f"-passin pass:{key_password} "
             f"-out {csr_file} "
             f'-subj "{subject}" '
             f"-config {config_file}"
@@ -152,16 +185,18 @@ class OpenSSLService:
         output_dir: Path,
         issuing_ca_dir: Path,
         serial_number: str,
+        key_password: str,
         issuing_ca_password: str,
     ) -> str:
         """
         Generate OpenSSL command for Server Certificate.
 
         Args:
-            config: Certificate configuration (key_config includes password for new key)
+            config: Certificate configuration
             output_dir: Output directory for cert files
             issuing_ca_dir: Issuing CA directory
             serial_number: Serial number (hex)
+            key_password: Password for encrypting the new private key
             issuing_ca_password: Password for issuing CA's private key
 
         Returns:
@@ -172,21 +207,20 @@ class OpenSSLService:
         csr_file = "cert.csr"
         cert_file = "cert.crt"
         san_config = "san.cnf"
-        new_key_password = config.key_config.password
 
         # Use relative paths for CA files (certs are in certs/{name}/, so CA is two levels up)
         ca_cert = "../../ca.crt"
         ca_key = "../../ca.key"
 
         # 1. Private Key (encrypted with AES-256)
-        key_cmd = self._build_key_gen_cmd(config.key_config, key_file)
+        key_cmd = self._build_key_gen_cmd(config.key_config, key_file, key_password)
 
         # 2. CSR (requires password to read new encrypted key)
         subject = self._build_subject_string(config.subject)
         csr_cmd = (
             f"{self.openssl_path} req -new "
             f"-key {key_file} "
-            f"-passin pass:{new_key_password} "
+            f"-passin pass:{key_password} "
             f"-out {csr_file} "
             f'-subj "{subject}" '
             f"-config {san_config}"
@@ -209,19 +243,18 @@ class OpenSSLService:
 
         return f"{key_cmd}\n{csr_cmd}\n{cert_cmd}"
 
-    def _build_key_gen_cmd(self, key_config: KeyConfig, output_file: str) -> str:
+    def _build_key_gen_cmd(self, key_config: KeyConfig, output_file: str, password: str) -> str:
         """
         Generate key generation command based on algorithm with AES-256 encryption.
 
         Args:
-            key_config: Key configuration (includes password)
+            key_config: Key configuration
             output_file: Output filename (string)
+            password: Password for encrypting the key
 
         Returns:
             Key generation command with password encryption
         """
-        password = key_config.password
-
         if key_config.algorithm == KeyAlgorithm.RSA:
             return (
                 f"{self.openssl_path} genrsa -aes256 "

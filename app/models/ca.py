@@ -61,16 +61,15 @@ class KeyConfig(BaseModel):
     algorithm: KeyAlgorithm
     key_size: Optional[int] = Field(None, ge=2048)  # for RSA
     curve: Optional[ECDSACurve] = None  # for ECDSA
-    password: Optional[str] = Field(
-        None,
-        min_length=8,
-        description="Password for key encryption (AES-256). Required for key generation.",
+    encrypted: bool = Field(
+        default=False,
+        description="Whether the private key is encrypted (AES-256). True if password-protected.",
     )
 
     class Config:
         """Pydantic config."""
 
-        json_schema_extra = {"example": {"algorithm": "RSA", "key_size": 4096, "password": "********"}}
+        json_schema_extra = {"example": {"algorithm": "RSA", "key_size": 4096, "encrypted": True}}
 
 
 class CAConfig(BaseModel):
@@ -113,7 +112,14 @@ class CACreateRequest(BaseModel):
 
     type: CAType
     subject: Subject
-    key_config: KeyConfig
+    key_algorithm: KeyAlgorithm
+    key_size: Optional[int] = Field(None, ge=2048)  # for RSA
+    key_curve: Optional[ECDSACurve] = None  # for ECDSA
+    key_password: str = Field(
+        ...,
+        min_length=8,
+        description="Password for encrypting the new private key (AES-256). Not stored.",
+    )
     validity_days: int = Field(..., gt=0)
     parent_ca_id: Optional[str] = None
     parent_ca_password: Optional[str] = Field(

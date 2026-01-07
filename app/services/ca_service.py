@@ -51,46 +51,64 @@ class CAService:
         """
         Create a new Root CA.
         Args:
-            request: CA creation request (key_config must include password)
+            request: CA creation request with key_password (not stored)
         Returns:
             CA response with created CA details
         Raises:
             ValueError: If CA already exists, password not provided, or creation fails
         """
-        # (original method content is unchanged)
-        if not request.key_config.password:
+        if not request.key_password:
             raise ValueError("Key password is required for CA creation")
+
         ca_id = f"root-ca-{sanitize_name(request.subject.common_name)}"
         ca_dir = self.ca_data_dir / ca_id
         if ca_dir.exists():
             raise ValueError(f"CA already exists: {ca_id}")
+
         try:
             FileUtils.ensure_directory(ca_dir)
+
+            # Build KeyConfig with encrypted=True (password NOT stored)
+            key_config = KeyConfig(
+                algorithm=request.key_algorithm,
+                key_size=request.key_size,
+                curve=request.key_curve,
+                encrypted=True,
+            )
+
             ca_config = CAConfig(
                 type=CAType.ROOT_CA,
                 subject=request.subject,
-                key_config=request.key_config,
+                key_config=key_config,
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
             )
+
             openssl_cnf = ca_dir / "openssl.cnf"
             self.openssl_service.generate_openssl_config("root_ca", openssl_cnf)
-            command = self.openssl_service.build_root_ca_command(ca_config, ca_dir)
+
+            # Pass password to OpenSSL service (not stored in config)
+            command = self.openssl_service.build_root_ca_command(ca_config, ca_dir, request.key_password)
             ca_config.openssl_command = self.openssl_service._mask_password_in_command(command)
+
             success, stdout, stderr = self.openssl_service.execute_command(command, ca_dir)
             if not success:
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
                 raise ValueError(f"OpenSSL command failed: {stderr}")
+
             cert_path = ca_dir / "ca.crt"
             cert_info = CertificateParser.parse_certificate(cert_path)
             ca_config.fingerprint_sha256 = cert_info["fingerprint_sha256"]
             ca_config.not_before = cert_info["not_before"]
             ca_config.not_after = cert_info["not_after"]
+
             FileUtils.write_file(ca_dir / "serial", "1000\n")
             config_dict = ca_config.model_dump()
             YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
+
             logger.info(f"Created Root CA '{request.subject.common_name}' at {ca_dir}")
             return self._build_ca_response(ca_id, ca_config, ca_dir)
+
         except Exception as e:
             if ca_dir.exists():
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
@@ -101,58 +119,84 @@ class CAService:
         """
         Create a new Intermediate CA under a parent CA.
         Args:
-            request: CA creation request (must include parent_ca_password)
+            request: CA creation request with key_password and parent_ca_password (not stored)
             parent_ca_id: ID of parent CA
         Returns:
             CA response with created CA details
         Raises:
-            ValueError: If parent CA not found, password not provided, or creation fails
+            ValueError: If parent CA not found, password not provided/invalid, or creation fails
         """
-        # (original method content is unchanged)
-        if not request.key_config.password:
+        if not request.key_password:
             raise ValueError("Key password is required for CA creation")
         if not request.parent_ca_password:
             raise ValueError("Parent CA password is required for intermediate CA creation")
+
         parent_ca_dir = self.ca_data_dir / parent_ca_id
         if not parent_ca_dir.exists():
             raise ValueError(f"Parent CA not found: {parent_ca_id}")
+
+        # Verify parent CA password before proceeding
+        parent_key_path = parent_ca_dir / "ca.key"
+        if parent_key_path.exists():
+            if not self.openssl_service.verify_key_password(parent_key_path, request.parent_ca_password):
+                raise ValueError("Invalid password for parent CA private key")
+
         ca_id = f"{parent_ca_id}/intermediate-ca-{sanitize_name(request.subject.common_name)}"
         ca_dir = self.ca_data_dir / ca_id
         if ca_dir.exists():
             raise ValueError(f"Intermediate CA already exists: {ca_id}")
+
         try:
             FileUtils.ensure_directory(ca_dir)
+
+            # Build KeyConfig with encrypted=True (password NOT stored)
+            key_config = KeyConfig(
+                algorithm=request.key_algorithm,
+                key_size=request.key_size,
+                curve=request.key_curve,
+                encrypted=True,
+            )
+
             ca_config = CAConfig(
                 type=CAType.INTERMEDIATE_CA,
                 subject=request.subject,
-                key_config=request.key_config,
+                key_config=key_config,
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
                 parent_ca="..",
             )
+
             openssl_cnf = ca_dir / "openssl.cnf"
             self.openssl_service.generate_openssl_config("intermediate_ca", openssl_cnf)
+
+            # Pass passwords to OpenSSL service (not stored in config)
             command = self.openssl_service.build_intermediate_ca_command(
-                ca_config, ca_dir, parent_ca_dir, request.parent_ca_password
+                ca_config, ca_dir, parent_ca_dir, request.key_password, request.parent_ca_password
             )
             ca_config.openssl_command = self.openssl_service._mask_password_in_command(command)
+
             success, stdout, stderr = self.openssl_service.execute_command(command, ca_dir)
             if not success:
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
                 raise ValueError(f"OpenSSL command failed: {stderr}")
+
             cert_path = ca_dir / "ca.crt"
             cert_info = CertificateParser.parse_certificate(cert_path)
             ca_config.fingerprint_sha256 = cert_info["fingerprint_sha256"]
             ca_config.not_before = cert_info["not_before"]
             ca_config.not_after = cert_info["not_after"]
+
             FileUtils.write_file(ca_dir / "serial", "1000\n")
             csr_file = ca_dir / "ca.csr"
             if csr_file.exists():
                 csr_file.unlink()
+
             config_dict = ca_config.model_dump()
             YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
+
             logger.info(f"Created Intermediate CA '{request.subject.common_name}' under {parent_ca_id}")
             return self._build_ca_response(ca_id, ca_config, ca_dir)
+
         except Exception as e:
             if ca_dir.exists():
                 FileUtils.delete_directory(ca_dir, ignore_errors=True)
@@ -197,7 +241,10 @@ class CAService:
 
             key_info = CertificateParser._extract_key_info(cert.public_key())
             key_config = KeyConfig(
-                algorithm=key_info["algorithm"], key_size=key_info.get("key_size"), curve=key_info.get("curve")
+                algorithm=key_info["algorithm"],
+                key_size=key_info.get("key_size"),
+                curve=key_info.get("curve"),
+                encrypted=False,  # Imported CAs don't have keys managed by us
             )
 
             subject_info = CertificateParser._extract_subject(cert.subject)

@@ -932,7 +932,7 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
         return;
     }
 
-    const password = formData.get('key_password');
+    const keyPassword = formData.get('key_password');
     const algorithm = formData.get('algorithm');
 
     // Parse SANs
@@ -950,10 +950,8 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
             country: formData.get('country') || null
         },
         sans: sans,
-        key_config: {
-            algorithm: algorithm,
-            password: password  // Include password for key encryption
-        },
+        key_algorithm: algorithm,
+        key_password: keyPassword,  // Password for key encryption (not stored)
         validity_days: parseInt(formData.get('validity_days')),
         issuing_ca_password: formData.get('issuing_ca_password'),  // Password for signing
         key_usage: extensions.keyUsage,
@@ -962,9 +960,9 @@ document.getElementById('certForm').addEventListener('submit', async function(e)
 
     // Add key size or curve
     if (algorithm === 'RSA') {
-        request.key_config.key_size = parseInt(formData.get('key_size'));
+        request.key_size = parseInt(formData.get('key_size'));
     } else if (algorithm === 'ECDSA') {
-        request.key_config.curve = formData.get('key_size');  // Actually the curve
+        request.key_curve = formData.get('key_size');  // Actually the curve
     }
 
     try {
