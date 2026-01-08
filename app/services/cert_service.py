@@ -567,6 +567,7 @@ class CertificateService:
             ValueError: If the certificate is invalid or import fails.
         """
         from cryptography import x509
+
         from app.models.ca import Subject
 
         # Validate issuing_ca_id is provided

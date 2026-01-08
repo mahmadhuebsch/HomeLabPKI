@@ -1,8 +1,8 @@
-import pytest
 import shutil
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
+import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -57,7 +57,7 @@ def clean_ca_service(ca_service):
 @pytest.fixture
 def created_root_ca(ca_service, clean_ca_service):
     # Create a real root CA for testing
-    from app.models.ca import CACreateRequest, KeyAlgorithm, Subject, CAType
+    from app.models.ca import CACreateRequest, CAType, KeyAlgorithm, Subject
 
     req = CACreateRequest(
         type=CAType.ROOT_CA,

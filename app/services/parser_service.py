@@ -520,7 +520,7 @@ class CertificateParser:
         Returns:
             List of validation error messages (empty if valid)
         """
-        from cryptography.hazmat.primitives.asymmetric import ec, rsa, ed25519, padding
+        from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 
         errors = []
 

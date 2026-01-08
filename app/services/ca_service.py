@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa, ed25519
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 
 from app.models.ca import (
     CAConfig,
