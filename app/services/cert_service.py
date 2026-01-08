@@ -3,7 +3,10 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from app.services.ca_service import CAService
 
 from app.models.ca import KeyConfig
 from app.models.certificate import (

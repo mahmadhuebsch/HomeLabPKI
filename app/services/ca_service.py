@@ -3,7 +3,10 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from app.services.cert_service import CertificateService
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
