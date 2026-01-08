@@ -11,6 +11,7 @@ from app.api.dependencies import (
     get_ca_service,
     get_cert_service,
     get_config,
+    get_csr_service,
     get_optional_session,
     require_auth_web,
 )
@@ -18,6 +19,7 @@ from app.models.auth import Session
 from app.services.auth_service import AuthService
 from app.services.ca_service import CAService
 from app.services.cert_service import CertificateService
+from app.services.csr_service import CSRService
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -701,6 +703,130 @@ async def cert_import_form(
                 "auth_enabled": auth_service.is_enabled,
             },
         )
+    except Exception as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
+
+
+# =============================================================================
+# CSR Routes - MUST be defined before the generic /certs/{cert_id:path} route
+# =============================================================================
+
+
+@router.get("/certs/csrs", response_class=HTMLResponse)
+async def csr_list(
+    request: Request,
+    session: Session = Depends(require_auth_web),
+    csr_service: CSRService = Depends(get_csr_service),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """CSR list page."""
+    try:
+        csrs = csr_service.list_csrs()
+        return templates.TemplateResponse(
+            "cert/csr-list.html",
+            {
+                "request": request,
+                "csrs": csrs,
+                "auth_enabled": auth_service.is_enabled,
+            },
+        )
+    except Exception as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
+
+
+@router.get("/certs/csrs/create", response_class=HTMLResponse)
+async def csr_create_page(
+    request: Request,
+    session: Session = Depends(require_auth_web),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """CSR creation form."""
+    try:
+        return templates.TemplateResponse(
+            "cert/csr-create.html",
+            {
+                "request": request,
+                "auth_enabled": auth_service.is_enabled,
+            },
+        )
+    except Exception as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
+
+
+@router.get("/certs/csrs/{csr_id}", response_class=HTMLResponse)
+async def csr_detail(
+    request: Request,
+    csr_id: str,
+    session: Session = Depends(require_auth_web),
+    csr_service: CSRService = Depends(get_csr_service),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """CSR detail page."""
+    try:
+        from app.services.parser_service import CertificateParser
+        from app.utils.file_utils import FileUtils
+
+        csr = csr_service.get_csr(csr_id)
+
+        # Read CSR content
+        csr_path = csr_service.csrs_dir / csr_id / "csr.pem"
+        csr_content = FileUtils.read_file(csr_path) if csr_path.exists() else ""
+
+        # Get text format
+        csr_text = ""
+        if csr_path.exists():
+            try:
+                csr_text = CertificateParser.csr_to_text(csr_path)
+            except Exception as e:
+                csr_text = f"Error converting to text format: {str(e)}"
+
+        # Check if signed certificate exists
+        cert_path = csr_service.csrs_dir / csr_id / "cert.pem"
+        cert_content = FileUtils.read_file(cert_path) if cert_path.exists() else None
+
+        # Check if chain exists
+        chain_path = csr_service.csrs_dir / csr_id / "chain.pem"
+        chain_content = FileUtils.read_file(chain_path) if chain_path.exists() else None
+
+        return templates.TemplateResponse(
+            "cert/csr-detail.html",
+            {
+                "request": request,
+                "csr": csr,
+                "csr_content": csr_content,
+                "csr_text": csr_text,
+                "cert_content": cert_content,
+                "chain_content": chain_content,
+                "auth_enabled": auth_service.is_enabled,
+            },
+        )
+    except ValueError as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
+    except Exception as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
+
+
+@router.get("/certs/csrs/{csr_id}/import-signed", response_class=HTMLResponse)
+async def csr_import_signed_page(
+    request: Request,
+    csr_id: str,
+    session: Session = Depends(require_auth_web),
+    csr_service: CSRService = Depends(get_csr_service),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Import signed certificate form."""
+    try:
+        csr = csr_service.get_csr(csr_id)
+        return templates.TemplateResponse(
+            "cert/csr-import-signed.html",
+            {
+                "request": request,
+                "csr": csr,
+                "auth_enabled": auth_service.is_enabled,
+            },
+        )
+    except ValueError as e:
+        return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=404)
     except Exception as e:
         return templates.TemplateResponse("error.html", {"request": request, "error": str(e)}, status_code=500)
 

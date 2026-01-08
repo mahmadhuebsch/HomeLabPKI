@@ -243,6 +243,52 @@ class OpenSSLService:
 
         return f"{key_cmd}\n{csr_cmd}\n{cert_cmd}"
 
+    def build_csr_command(
+        self,
+        subject: Subject,
+        sans: list[str],
+        key_config: KeyConfig,
+        output_dir: Path,
+        key_password: str,
+        key_usage: Optional[list[str]] = None,
+        extended_key_usage: Optional[list[str]] = None,
+    ) -> str:
+        """
+        Generate OpenSSL command for CSR creation.
+
+        Args:
+            subject: Subject information
+            sans: Subject Alternative Names
+            key_config: Key configuration (algorithm, size, curve)
+            output_dir: Output directory for CSR and key files
+            key_password: Password for encrypting the private key
+            key_usage: List of Key Usage values
+            extended_key_usage: List of Extended Key Usage values
+
+        Returns:
+            OpenSSL command string
+        """
+        # Use relative paths since cwd will be set to output_dir
+        key_file = "key.pem"
+        csr_file = "csr.pem"
+        config_file = "san.cnf"
+
+        # 1. Private Key Generation (encrypted with AES-256)
+        key_cmd = self._build_key_gen_cmd(key_config, key_file, key_password)
+
+        # 2. CSR with subject and SANs (requires password to read encrypted key)
+        subject_str = self._build_subject_string(subject)
+        csr_cmd = (
+            f"{self.openssl_path} req -new "
+            f"-key {key_file} "
+            f"-passin pass:{key_password} "
+            f"-out {csr_file} "
+            f'-subj "{subject_str}" '
+            f"-config {config_file}"
+        )
+
+        return f"{key_cmd}\n{csr_cmd}"
+
     def _build_key_gen_cmd(self, key_config: KeyConfig, output_file: str, password: str) -> str:
         """
         Generate key generation command based on algorithm with AES-256 encryption.

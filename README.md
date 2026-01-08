@@ -33,8 +33,9 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Intermediate CA Support** - Build certificate chains with Intermediate CAs
 - **Server Certificates** - Issue certificates with Subject Alternative Names (SANs)
 - **Certificate Extensions** - Customize Key Usage and Extended Key Usage with presets (TLS Server, TLS Client, Code Signing, etc.) or custom selection
+- **CSR Management** - Create Certificate Signing Requests for external CAs (DigiCert, Let's Encrypt, etc.) with encrypted private keys stored locally
 - **CSR Signing** - Sign external Certificate Signing Requests where private keys are managed externally
-- **Importing** - Import and track externally-signed CAs and certificates
+- **Importing** - Import and track externally-signed CAs and certificates, or import signed certificates back into CSRs
 - **Multiple Certificate Formats** - View certificates in both Text (human-readable) and PEM formats
 - **Modern Web Interface** - Responsive Bootstrap 5 UI with organized navigation
 - **Password Protection** - Built-in authentication with configurable session expiration

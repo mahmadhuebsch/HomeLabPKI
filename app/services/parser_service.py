@@ -641,3 +641,120 @@ class CertificateParser:
         except Exception as e:
             logger.warning(f"Could not read key file {key_path}: {e}")
             return False
+
+    @staticmethod
+    def csr_to_text(csr_path: Path) -> str:
+        """
+        Convert CSR to human-readable text format.
+
+        Args:
+            csr_path: Path to CSR file
+
+        Returns:
+            CSR in text format
+
+        Raises:
+            ValueError: If conversion fails
+        """
+        if not csr_path.exists():
+            raise ValueError(f"CSR not found: {csr_path}")
+
+        try:
+            # Use OpenSSL to convert to text format
+            result = subprocess.run(
+                ["openssl", "req", "-in", str(csr_path), "-text", "-noout"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return result.stdout
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error converting CSR to text: {e.stderr}")
+            raise ValueError(f"Failed to convert CSR to text: {e.stderr}")
+        except FileNotFoundError:
+            raise ValueError("OpenSSL not found in PATH")
+
+    @staticmethod
+    def get_csr_public_key_fingerprint(csr_path: Path) -> str:
+        """
+        Get SHA256 fingerprint of CSR's public key for matching with certificates.
+
+        Args:
+            csr_path: Path to CSR file
+
+        Returns:
+            Hex-encoded SHA256 fingerprint (uppercase with colons)
+
+        Raises:
+            ValueError: If CSR cannot be read
+        """
+        if not csr_path.exists():
+            raise ValueError(f"CSR not found: {csr_path}")
+
+        try:
+            # Load CSR
+            with open(csr_path, "rb") as f:
+                from cryptography import x509
+
+                csr = x509.load_pem_x509_csr(f.read(), default_backend())
+
+            # Get public key and compute fingerprint
+            public_key = csr.public_key()
+
+            from cryptography.hazmat.primitives import serialization as ser
+
+            public_key_bytes = public_key.public_bytes(
+                encoding=ser.Encoding.DER, format=ser.PublicFormat.SubjectPublicKeyInfo
+            )
+
+            # Compute SHA256 hash
+            fingerprint = hashes.Hash(hashes.SHA256(), backend=default_backend())
+            fingerprint.update(public_key_bytes)
+            hash_bytes = fingerprint.finalize()
+
+            return hash_bytes.hex(":").upper()
+
+        except Exception as e:
+            logger.error(f"Error reading CSR public key: {e}")
+            raise ValueError(f"Failed to get CSR public key fingerprint: {e}")
+
+    @staticmethod
+    def verify_cert_matches_csr(cert_path: Path, csr_path: Path) -> bool:
+        """
+        Verify that a certificate's public key matches a CSR's public key.
+
+        Args:
+            cert_path: Path to certificate
+            csr_path: Path to CSR
+
+        Returns:
+            True if public keys match, False otherwise
+        """
+        try:
+            # Get fingerprints
+            csr_fingerprint = CertificateParser.get_csr_public_key_fingerprint(csr_path)
+
+            # Get certificate's public key fingerprint
+            with open(cert_path, "rb") as f:
+                cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+
+            public_key = cert.public_key()
+
+            from cryptography.hazmat.primitives import serialization as ser
+
+            public_key_bytes = public_key.public_bytes(
+                encoding=ser.Encoding.DER, format=ser.PublicFormat.SubjectPublicKeyInfo
+            )
+
+            # Compute SHA256 hash
+            fingerprint_hash = hashes.Hash(hashes.SHA256(), backend=default_backend())
+            fingerprint_hash.update(public_key_bytes)
+            hash_bytes = fingerprint_hash.finalize()
+            cert_fingerprint = hash_bytes.hex(":").upper()
+
+            return csr_fingerprint == cert_fingerprint
+
+        except Exception as e:
+            logger.error(f"Error verifying cert/CSR match: {e}")
+            return False

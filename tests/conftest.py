@@ -15,6 +15,7 @@ from app.models.config import AuthSettings
 from app.services.auth_service import AuthService
 from app.services.ca_service import CAService
 from app.services.cert_service import CertificateService
+from app.services.csr_service import CSRService
 from app.services.openssl_service import OpenSSLService
 
 
@@ -54,6 +55,12 @@ def ca_service(ca_data_dir, openssl_service):
 def cert_service(ca_data_dir, openssl_service, ca_service):
     """Create Certificate service instance with test directory."""
     return CertificateService(ca_data_dir, openssl_service, ca_service)
+
+
+@pytest.fixture
+def csr_service(ca_data_dir, openssl_service):
+    """Create CSR service instance with test directory."""
+    return CSRService(ca_data_dir, openssl_service)
 
 
 @pytest.fixture

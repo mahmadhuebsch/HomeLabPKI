@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Import Signed Certificate - {{ csr.subject.common_name }} - HomeLab PKI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-3">
+            <div class="col">
+                <a href="/certs/csrs/{{ csr.id }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to CSR
+                </a>
+            </div>
+        </div>
+
+        <h1><i class="bi bi-upload"></i> Import Signed Certificate</h1>
+        <p class="text-muted">CSR: {{ csr.subject.common_name }}</p>
+
+        <form id="importForm">
+            <!-- Signed Certificate -->
+            <div class="card mb-3">
+                <div class="card-header">Signed Certificate *</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="certContent" class="form-label">Certificate (PEM format) *</label>
+                        <textarea class="form-control font-monospace" id="certContent"
+                                  name="cert_content" rows="15" required
+                                  placeholder="-----BEGIN CERTIFICATE-----&#10;MIIDXTCCAkWgAwIBAgIJAKZ...&#10;-----END CERTIFICATE-----"></textarea>
+                        <div class="form-text">Paste the signed certificate from your CA (PEM format)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Certificate Chain (Optional) -->
+            <div class="card mb-3">
+                <div class="card-header">Certificate Chain (Optional)</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="chainContent" class="form-label">Intermediate + Root Certificates</label>
+                        <textarea class="form-control font-monospace" id="chainContent"
+                                  name="chain_content" rows="10"
+                                  placeholder="-----BEGIN CERTIFICATE-----&#10;Intermediate CA Certificate&#10;-----END CERTIFICATE-----&#10;-----BEGIN CERTIFICATE-----&#10;Root CA Certificate&#10;-----END CERTIFICATE-----"></textarea>
+                        <div class="form-text">Optional: Paste the intermediate and root CA certificates (multiple certificates in PEM format)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Verification:</strong> The system will verify that the signed certificate's public key matches the CSR's public key.
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="/certs/csrs/{{ csr.id }}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-success" id="submitBtn">
+                    <span id="submitBtnText"><i class="bi bi-check-circle"></i> Import Certificate</span>
+                    <span id="submitBtnSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Import Instructions
+            </div>
+            <div class="card-body">
+                <p><strong>What to import:</strong></p>
+                <ul class="text-muted small">
+                    <li><strong>Required:</strong> The signed certificate from your CA</li>
+                    <li><strong>Optional:</strong> The certificate chain (intermediate + root CA certificates)</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>Verification:</strong></p>
+                <p class="text-muted small">
+                    The system will automatically verify that the certificate's public key matches
+                    this CSR's public key. If they don't match, the import will fail.
+                </p>
+
+                <hr>
+
+                <p><strong>After import:</strong></p>
+                <ul class="text-muted small">
+                    <li>CSR status changes to "Signed"</li>
+                    <li>Certificate becomes available for download</li>
+                    <li>Private key remains encrypted and secure</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('importForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtnText.style.display = 'none';
+        submitBtnSpinner.style.display = 'inline-block';
+
+        // Build request
+        const formData = new FormData(form);
+        const data = {
+            cert_content: formData.get('cert_content').trim(),
+            chain_content: formData.get('chain_content').trim() || null
+        };
+
+        try {
+            const response = await fetch('/api/csrs/{{ csr.id }}/signed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to import signed certificate');
+            }
+
+            const result = await response.json();
+            window.location.href = `/certs/csrs/{{ csr.id }}`;
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+            submitBtn.disabled = false;
+            submitBtnText.style.display = 'inline-block';
+            submitBtnSpinner.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

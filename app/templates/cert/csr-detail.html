@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}{{ csr.subject.common_name }} - CSR - HomeLab PKI{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="row mb-3">
+            <div class="col">
+                <a href="/certs/csrs" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to CSRs
+                </a>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1>
+                    {{ csr.subject.common_name }}
+                    <span class="badge {% if csr.status.value == 'pending' %}bg-warning text-dark{% elif csr.status.value == 'signed' %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ csr.status.value|upper }}
+                    </span>
+                </h1>
+                <p class="text-muted">
+                    <i class="bi bi-file-earmark-text"></i> Certificate Signing Request
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+
+        <!-- CSR Information -->
+        <div class="card mb-4">
+            <div class="card-header">CSR Information</div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Subject:</th>
+                        <td>
+                            {% if csr.subject.common_name %}CN={{ csr.subject.common_name }}{% endif %}
+                            {% if csr.subject.organization %}, O={{ csr.subject.organization }}{% endif %}
+                            {% if csr.subject.country %}, C={{ csr.subject.country }}{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Subject Alternative Names:</th>
+                        <td>
+                            {% if csr.sans %}
+                                {% for san in csr.sans %}
+                                    <span class="badge bg-secondary">{{ san }}</span>
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Created:</th>
+                        <td>{{ csr.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    </tr>
+                    <tr>
+                        <th>Target CA:</th>
+                        <td>{{ csr.target_ca or 'Not specified' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            <span class="badge {% if csr.status.value == 'pending' %}bg-warning text-dark{% elif csr.status.value == 'signed' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ csr.status.value|upper }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Public Key Fingerprint:</th>
+                        <td><code>{{ csr.fingerprint_sha256 }}</code></td>
+                    </tr>
+                    {% if csr.key_usage %}
+                    <tr>
+                        <th>Key Usage:</th>
+                        <td>
+                            {% for ku in csr.key_usage %}
+                                <span class="badge bg-info">{{ ku }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if csr.extended_key_usage %}
+                    <tr>
+                        <th>Extended Key Usage:</th>
+                        <td>
+                            {% for eku in csr.extended_key_usage %}
+                                <span class="badge bg-info">{{ eku }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- CSR Content Tabs -->
+        <ul class="nav nav-tabs" id="csrTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text" type="button">
+                    <i class="bi bi-file-text"></i> Text Format
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pem-tab" data-bs-toggle="tab" data-bs-target="#pem" type="button">
+                    <i class="bi bi-code"></i> PEM Format
+                </button>
+            </li>
+            {% if cert_content %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cert-tab" data-bs-toggle="tab" data-bs-target="#cert" type="button">
+                    <i class="bi bi-award"></i> Signed Certificate
+                </button>
+            </li>
+            {% endif %}
+        </ul>
+        <div class="tab-content border border-top-0 p-3 mb-4">
+            <div class="tab-pane fade show active" id="text" role="tabpanel">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('csrTextContent')">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                <pre id="csrTextContent" class="bg-light p-3" style="max-height: 400px; overflow-y: auto;">{{ csr_text }}</pre>
+            </div>
+            <div class="tab-pane fade" id="pem" role="tabpanel">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('csrPemContent')">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                <pre id="csrPemContent" class="bg-light p-3" style="max-height: 400px; overflow-y: auto;">{{ csr_content }}</pre>
+            </div>
+            {% if cert_content %}
+            <div class="tab-pane fade" id="cert" role="tabpanel">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('certPemContent')">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                <pre id="certPemContent" class="bg-light p-3" style="max-height: 400px; overflow-y: auto;">{{ cert_content }}</pre>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div class="card mb-4">
+            <div class="card-header">Actions</div>
+            <div class="card-body">
+                <div class="btn-group" role="group">
+                    <a href="/api/csrs/{{ csr.id }}/download/csr" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Download CSR
+                    </a>
+                    <a href="/api/csrs/{{ csr.id }}/download/key" class="btn btn-outline-primary">
+                        <i class="bi bi-key"></i> Download Private Key
+                    </a>
+                    {% if csr.status.value == 'pending' %}
+                    <a href="/certs/csrs/{{ csr.id }}/import-signed" class="btn btn-success">
+                        <i class="bi bi-upload"></i> Import Signed Certificate
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Next Steps
+            </div>
+            <div class="card-body">
+                {% if csr.status.value == 'pending' %}
+                <p><strong>Submit to External CA:</strong></p>
+                <ol class="text-muted small">
+                    <li>Download the CSR file</li>
+                    <li>Submit to your chosen CA ({{ csr.target_ca or 'DigiCert, Let\'s Encrypt, etc.' }})</li>
+                    <li>Wait for the signed certificate</li>
+                    <li>Click "Import Signed Certificate" when ready</li>
+                </ol>
+                {% elif csr.status.value == 'signed' %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> This CSR has been signed! The certificate and private key are ready for use.
+                </div>
+                <p class="text-muted small">
+                    You can download both the private key and signed certificate for deployment.
+                </p>
+                {% endif %}
+
+                <hr>
+
+                <p><strong>Important:</strong></p>
+                <ul class="text-muted small">
+                    <li>Keep your private key password safe</li>
+                    <li>Never share your private key</li>
+                    <li>The CSR can only be used once</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard!');
+    });
+}
+
+async function confirmDelete() {
+    if (confirm('Are you sure you want to delete this CSR? This action cannot be undone.')) {
+        try {
+            const response = await fetch('/api/csrs/{{ csr.id }}', {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete CSR');
+            }
+
+            window.location.href = '/certs/csrs';
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
+    }
+}
+</script>
+{% endblock %}

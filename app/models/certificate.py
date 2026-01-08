@@ -267,3 +267,155 @@ class CertResponse(BaseModel):
         if isinstance(v, list):
             return [str(item) for item in v]
         return v
+
+
+# CSR Models
+
+
+class CSRStatus(str, Enum):
+    """CSR status enum."""
+
+    PENDING = "pending"
+    SIGNED = "signed"
+    EXPIRED = "expired"
+
+
+class CSRConfig(BaseModel):
+    """CSR configuration stored in config.yaml."""
+
+    type: Literal["csr"] = "csr"
+    created_at: datetime = Field(default_factory=datetime.now)
+    subject: Subject
+    sans: list[str] = Field(default_factory=list)
+    key_config: KeyConfig
+    target_ca: Optional[str] = None  # Target external CA (DigiCert, Let's Encrypt, etc.)
+    status: CSRStatus = CSRStatus.PENDING
+    openssl_command: str = ""
+    fingerprint_sha256: Optional[str] = None  # Public key fingerprint for matching
+    key_usage: list[str] = Field(default_factory=lambda: DEFAULT_KEY_USAGE.copy())
+    extended_key_usage: list[str] = Field(default_factory=lambda: DEFAULT_EXTENDED_KEY_USAGE.copy())
+
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
+
+    @field_validator("key_usage", mode="before")
+    @classmethod
+    def validate_key_usage(cls, v):
+        """Validate key usage values and reject forbidden ones."""
+        if v is None:
+            return DEFAULT_KEY_USAGE.copy()
+        if isinstance(v, list):
+            for ku in v:
+                if ku in FORBIDDEN_KEY_USAGE:
+                    raise ValueError(f"Key Usage '{ku}' is forbidden for end-entity certificates (CA-only)")
+            return v
+        return v
+
+    @field_validator("extended_key_usage", mode="before")
+    @classmethod
+    def validate_extended_key_usage(cls, v):
+        """Validate extended key usage values and reject forbidden ones."""
+        if v is None:
+            return DEFAULT_EXTENDED_KEY_USAGE.copy()
+        if isinstance(v, list):
+            for eku in v:
+                if eku in FORBIDDEN_EKU:
+                    raise ValueError(f"Extended Key Usage '{eku}' is forbidden")
+            return v
+        return v
+
+
+class CSRCreateRequest(BaseModel):
+    """Request model for creating a CSR."""
+
+    subject: Subject
+    sans: list[str] = Field(default_factory=list)
+    key_algorithm: KeyAlgorithm
+    key_size: Optional[int] = Field(None, ge=2048)  # for RSA
+    key_curve: Optional[ECDSACurve] = None  # for ECDSA
+    key_password: str = Field(
+        ...,
+        min_length=8,
+        description="Password for encrypting the private key (AES-256). Not stored.",
+    )
+    target_ca: Optional[str] = Field(None, description="Target external CA (e.g., DigiCert, Let's Encrypt)")
+    key_usage: list[str] = Field(default_factory=lambda: DEFAULT_KEY_USAGE.copy())
+    extended_key_usage: list[str] = Field(default_factory=lambda: DEFAULT_EXTENDED_KEY_USAGE.copy())
+
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
+
+    @field_validator("key_usage", mode="before")
+    @classmethod
+    def validate_key_usage(cls, v):
+        """Validate key usage values and reject forbidden ones."""
+        if v is None:
+            return DEFAULT_KEY_USAGE.copy()
+        if isinstance(v, list):
+            for ku in v:
+                if ku in FORBIDDEN_KEY_USAGE:
+                    raise ValueError(f"Key Usage '{ku}' is forbidden for end-entity certificates (CA-only)")
+            return v
+        return v
+
+    @field_validator("extended_key_usage", mode="before")
+    @classmethod
+    def validate_extended_key_usage(cls, v):
+        """Validate extended key usage values and reject forbidden ones."""
+        if v is None:
+            return DEFAULT_EXTENDED_KEY_USAGE.copy()
+        if isinstance(v, list):
+            for eku in v:
+                if eku in FORBIDDEN_EKU:
+                    raise ValueError(f"Extended Key Usage '{eku}' is forbidden")
+            return v
+        return v
+
+
+class CSRSignedRequest(BaseModel):
+    """Request model for importing a signed certificate for a CSR."""
+
+    cert_content: str  # PEM-encoded signed certificate
+    chain_content: Optional[str] = Field(
+        None, description="Optional PEM-encoded certificate chain (intermediate + root)"
+    )
+
+
+class CSRResponse(BaseModel):
+    """Response model for CSR operations."""
+
+    id: str
+    path: str
+    subject: Subject
+    sans: list[str]
+    status: CSRStatus
+    created_at: datetime
+    target_ca: Optional[str] = None
+    openssl_command: str
+    fingerprint_sha256: Optional[str] = None
+    key_usage: list[str] = Field(default_factory=list)
+    extended_key_usage: list[str] = Field(default_factory=list)
+
+    @field_validator("sans", mode="before")
+    @classmethod
+    def convert_sans_to_strings(cls, v):
+        """Convert IP addresses or other types in SANs to strings."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return v
