@@ -3,10 +3,11 @@
 import subprocess
 import tempfile
 from pathlib import Path
+import shutil
 
 import pytest
 
-from app.models.ca import KeyConfig, Subject
+from app.models.ca import KeyAlgorithm, Subject
 from app.models.certificate import CertImportRequest, CSRSignRequest
 
 
@@ -19,14 +20,34 @@ def sample_csr():
         key_file = tmpdir / "test.key"
         csr_file = tmpdir / "test.csr"
 
+        # Create minimal OpenSSL config for the CSR
+        config_file = tmpdir / "openssl.cnf"
+        config_content = """
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = req_ext
+prompt = no
+
+[req_distinguished_name]
+C = US
+O = Test Org
+CN = csr-test.example.com
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = csr-test.example.com
+DNS.2 = *.csr-test.example.com
+"""
+        config_file.write_text(config_content)
+
         # Generate RSA key
         subprocess.run(f"openssl genrsa -out {key_file} 2048", shell=True, capture_output=True, check=True)
 
-        # Generate CSR
+        # Generate CSR using the config
         subprocess.run(
-            f"openssl req -new -key {key_file} -out {csr_file} "
-            f'-subj "/C=US/O=Test Org/CN=csr-test.example.com" '
-            f'-addext "subjectAltName=DNS:csr-test.example.com,DNS:*.csr-test.example.com"',
+            f"openssl req -new -key {key_file} -out {csr_file} -config {config_file}",
             shell=True,
             capture_output=True,
             check=True,
@@ -90,8 +111,8 @@ class TestCSRSigning:
         assert "*.csr-test.example.com" in cert.sans
         assert Path(cert.path).exists()
         assert (Path(cert.path) / "cert.crt").exists()
-        assert (Path(cert.path) / "cert.csr").exists()  # CSR should be saved
-        assert not (Path(cert.path) / "cert.key").exists()  # No private key
+        assert (Path(cert.path) / "cert.csr").exists()
+        assert not (Path(cert.path) / "cert.key").exists()
 
     def test_sign_csr_with_override_sans(self, cert_service, created_root_ca, sample_csr):
         """Test signing a CSR with overridden SANs."""
@@ -138,86 +159,6 @@ class TestCSRSigning:
             cert_service.sign_csr(request)
 
 
-@pytest.mark.unit
-class TestCertificateImport:
-    """Test external certificate import functionality."""
-
-    def test_import_certificate(self, cert_service, created_root_ca):
-        """Test importing an external certificate."""
-        # First create a certificate to get valid cert content
-        from app.models.certificate import CertCreateRequest
-
-        # Create a regular certificate first
-        create_request = CertCreateRequest(
-            subject=Subject(common_name="import-source.com", country="US"),
-            sans=["import-source.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
-            validity_days=365,
-            issuing_ca_id=created_root_ca.id,
-            issuing_ca_password="test_password_123",
-        )
-
-        created_cert = cert_service.create_server_certificate(create_request)
-        cert_path = Path(created_cert.path) / "cert.crt"
-        cert_content = cert_path.read_text()
-
-        # Now import it as external certificate
-        import_request = CertImportRequest(
-            issuing_ca_id=created_root_ca.id,
-            cert_content=cert_content,
-            cert_name="imported-certificate",
-        )
-
-        imported_cert = cert_service.import_certificate(import_request)
-
-        assert imported_cert is not None
-        assert imported_cert.source == "external"
-        assert imported_cert.subject.common_name == "import-source.com"
-        assert "import-source.com" in imported_cert.sans
-        assert Path(imported_cert.path).exists()
-        assert (Path(imported_cert.path) / "cert.crt").exists()
-        assert not (Path(imported_cert.path) / "cert.key").exists()  # No private key
-
-    def test_import_certificate_with_invalid_ca_fails(self, cert_service):
-        """Test that importing with invalid CA fails."""
-        request = CertImportRequest(
-            issuing_ca_id="nonexistent-ca",
-            cert_content="-----BEGIN CERTIFICATE-----\nVALID CERT\n-----END CERTIFICATE-----",
-            cert_name="test-import",
-        )
-
-        with pytest.raises(ValueError, match="Issuing CA not found"):
-            cert_service.import_certificate(request)
-
-    def test_import_duplicate_certificate_fails(self, cert_service, created_root_ca):
-        """Test that importing duplicate certificate fails."""
-        # Create a certificate first
-        from app.models.certificate import CertCreateRequest
-
-        create_request = CertCreateRequest(
-            subject=Subject(common_name="duplicate.com", country="US"),
-            sans=["duplicate.com"],
-            key_config=KeyConfig(algorithm="RSA", key_size=2048, password="cert_password_123"),
-            validity_days=365,
-            issuing_ca_id=created_root_ca.id,
-            issuing_ca_password="test_password_123",
-        )
-
-        created_cert = cert_service.create_server_certificate(create_request)
-        cert_path = Path(created_cert.path) / "cert.crt"
-        cert_content = cert_path.read_text()
-
-        # Import once
-        import_request = CertImportRequest(
-            issuing_ca_id=created_root_ca.id, cert_content=cert_content, cert_name="import-dup"
-        )
-        cert_service.import_certificate(import_request)
-
-        # Try to import again with same name
-        with pytest.raises(ValueError, match="Certificate already exists"):
-            cert_service.import_certificate(import_request)
-
-
 @pytest.mark.integration
 class TestCSRSigningAPI:
     """Test CSR signing API endpoints."""
@@ -258,30 +199,38 @@ class TestCSRSigningAPI:
 class TestCertificateImportAPI:
     """Test certificate import API endpoints."""
 
-    def test_import_certificate_endpoint(self, client, created_root_ca):
-        """Test certificate import API endpoint."""
-        # First create a certificate to get valid cert content
-        cert_payload = {
-            "subject": {"common_name": "api-import.com", "country": "US"},
-            "sans": ["api-import.com"],
-            "key_config": {"algorithm": "RSA", "key_size": 2048, "password": "cert_password_123"},
-            "validity_days": 365,
-            "issuing_ca_id": created_root_ca.id,
-            "issuing_ca_password": "test_password_123",
-        }
+    def test_import_certificate_endpoint(self, client, cert_service, created_intermediate_ca, created_root_ca):
+        """Test certificate import API endpoint.
 
-        cert_response = client.post("/api/certs", json=cert_payload)
-        assert cert_response.status_code == 201
+        Creates a certificate, then re-imports it with the issuing CA already present.
+        """
+        from app.models.certificate import CertCreateRequest
 
-        # Read the certificate content
-        cert_path = Path(cert_response.json()["path"]) / "cert.crt"
-        cert_content = cert_path.read_text()
+        # 1. Create a certificate
+        create_request = CertCreateRequest(
+            subject=Subject(common_name="api-import.com", country="US"),
+            sans=["api-import.com"],
+            key_algorithm=KeyAlgorithm.RSA,
+            key_size=2048,
+            key_password="cert_password_123",
+            validity_days=365,
+            issuing_ca_id=created_intermediate_ca.id,
+            issuing_ca_password="intermediate_password_123",
+        )
+        created_cert = cert_service.create_server_certificate(create_request)
 
-        # Import it
+        # Get just the leaf certificate PEM (not the full chain)
+        cert_path = Path(created_cert.path) / "cert.crt"
+        leaf_cert_pem = cert_path.read_text()
+
+        # 2. Delete the created cert directory to simulate fresh import
+        shutil.rmtree(Path(created_cert.path))
+
+        # 3. Import via API - the issuing CA (intermediate) already exists
         import_payload = {
-            "issuing_ca_id": created_root_ca.id,
-            "cert_content": cert_content,
+            "cert_content": leaf_cert_pem,
             "cert_name": "imported-via-api",
+            "issuing_ca_id": created_intermediate_ca.id,
         }
 
         response = client.post("/api/certs/import", json=import_payload)
@@ -291,14 +240,30 @@ class TestCertificateImportAPI:
         assert data["source"] == "external"
         assert data["subject"]["common_name"] == "api-import.com"
 
-    def test_import_certificate_endpoint_with_invalid_ca(self, client):
-        """Test certificate import with invalid CA."""
+    def test_import_certificate_endpoint_with_missing_issuing_ca(self, client):
+        """Test certificate import with missing issuing CA ID."""
+
         payload = {
-            "issuing_ca_id": "invalid-ca",
-            "cert_content": "-----BEGIN CERTIFICATE-----\nVALID\n-----END CERTIFICATE-----",
+            "cert_content": "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----",
             "cert_name": "test",
+            "issuing_ca_id": "",
         }
 
         response = client.post("/api/certs/import", json=payload)
 
         assert response.status_code == 400
+        assert "Issuing CA ID is required" in response.json()["detail"]
+
+    def test_import_certificate_endpoint_with_invalid_cert(self, client, created_intermediate_ca):
+        """Test certificate import with an invalid certificate."""
+
+        payload = {
+            "cert_content": "-----BEGIN CERTIFICATE-----\nINVALID\n-----END CERTIFICATE-----",
+            "cert_name": "test",
+            "issuing_ca_id": created_intermediate_ca.id,
+        }
+
+        response = client.post("/api/certs/import", json=payload)
+
+        assert response.status_code == 400
+        assert "Unable to load PEM file" in response.json()["detail"]

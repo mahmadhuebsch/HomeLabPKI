@@ -33,8 +33,9 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Intermediate CA Support** - Build certificate chains with Intermediate CAs
 - **Server Certificates** - Issue certificates with Subject Alternative Names (SANs)
 - **Certificate Extensions** - Customize Key Usage and Extended Key Usage with presets (TLS Server, TLS Client, Code Signing, etc.) or custom selection
+- **CSR Management** - Create Certificate Signing Requests for external CAs (DigiCert, Let's Encrypt, etc.) with encrypted private keys stored locally
 - **CSR Signing** - Sign external Certificate Signing Requests where private keys are managed externally
-- **Importing** - Import and track externally-signed CAs and certificates
+- **Importing** - Import and track externally-signed CAs and certificates, or import signed certificates back into CSRs
 - **Multiple Certificate Formats** - View certificates in both Text (human-readable) and PEM formats
 - **Modern Web Interface** - Responsive Bootstrap 5 UI with organized navigation
 - **Password Protection** - Built-in authentication with configurable session expiration
@@ -89,7 +90,7 @@ openssl version
 python main.py
 ```
 
-1. Navigate to `http://localhost:8000`  (Default Password: "admin")
+1. Navigate to `http://localhost:8000`  (Default Password: "adminadmin")
 2. Create a Root CA from the dashboard
 3. Optionally create an Intermediate CA under the Root CA
 4. Issue server certificates as needed
@@ -177,7 +178,7 @@ paths:
 
 auth:
   enabled: true             # Enable/disable authentication
-  password_hash: null       # Auto-generated on first run (default: "admin")
+  password_hash: null       # Auto-generated on first run (default: "adminadmin")
   session_expiry_hours: 24  # Session timeout
 
 defaults:
@@ -209,7 +210,7 @@ HomeLab PKI includes built-in password protection with session-based authenticat
 
 ### Default Credentials
 
-- **Password**: `admin` (no username required)
+- **Password**: `adminadmin` (no username required)
 
 ### Features
 
@@ -224,7 +225,7 @@ HomeLab PKI includes built-in password protection with session-based authenticat
 # Get a session token
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"password": "admin"}'
+  -d '{"password": "adminadmin"}'
 
 # Response: {"token": "uuid-token", "expires_at": "..."}
 
@@ -235,7 +236,7 @@ curl http://localhost:8000/api/cas \
 
 ### Password Recovery
 
-If you forget your password, delete the `password_hash` line from `config.yaml` and restart the application. The password will reset to `admin`.
+If you forget your password, delete the `password_hash` line from `config.yaml` and restart the application. The password will reset to `adminadmin`.
 
 ```yaml
 auth:
@@ -269,10 +270,11 @@ HomeLab PKI provides a complete RESTful API with automatic interactive documenta
 
 ### Key Security Notes
 
-- **Private Key Storage**: Private keys are stored unencrypted on disk. It is highly recommended to choose a strong password and/or encrypt the `ca-data` directory at the file system level (e.g. [Cryptomator](https://github.com/cryptomator/cryptomator)).
+- **Private Key Encryption**: All private keys are encrypted with AES-256 using a password you provide during creation. Passwords are **never stored** - you must provide the password each time you need to sign certificates with that key.
+- **Password Handling**: When creating intermediate CAs or certificates, you must provide both the password for the new key and the password for the parent/issuing CA's key.
 - **Authentication**: Built-in password protection is enabled by default. Change the default password immediately after installation.
 - **HTTPS**: Always use HTTPS when deploying in any networked environment. Consider a reverse proxy (nginx, Caddy) for TLS termination.
-- **Backup**: Regularly backup the `ca-data` directory.
+- **Backup**: Regularly backup the `ca-data` directory. Note that restoring backups requires knowing the passwords for all encrypted keys.
 
 ### Best Practices
 

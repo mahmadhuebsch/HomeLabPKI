@@ -199,7 +199,8 @@
                         <input type="number" class="form-control" id="validityDays"
                                name="validity_days"
                                value="{{ defaults.validity_days or 365 }}"
-                               min="1" required>
+                               min="1" max="36500" required>
+                        <div class="invalid-feedback">Validity must be between 1 and 36500 days.</div>
                         <div class="form-text">Default: 365 days (1 year)</div>
                     </div>
                 </div>
@@ -404,7 +405,7 @@ document.getElementById('csrFile').addEventListener('change', async function(e) 
         document.getElementById('submitBtn').disabled = false;
         updateCommandPreview();
     } catch (error) {
-        alert(`Error reading file: ${error.message}`);
+        showError('Error reading file: ' + error.message);
         csrContent = '';
         document.getElementById('submitBtn').disabled = true;
     }
@@ -489,6 +490,29 @@ function getSelectedExtensions() {
     });
 
     return { keyUsage, extendedKeyUsage };
+}
+
+function validateExtensions() {
+    const preset = document.getElementById('extensionPreset').value;
+
+    // Only validate for custom preset
+    if (preset !== 'custom') {
+        return true;
+    }
+
+    const extensions = getSelectedExtensions();
+
+    if (extensions.keyUsage.length === 0) {
+        showWarning('Please select at least one Key Usage for custom extensions.');
+        return false;
+    }
+
+    if (extensions.extendedKeyUsage.length === 0) {
+        showWarning('Please select at least one Extended Key Usage for custom extensions.');
+        return false;
+    }
+
+    return true;
 }
 
 function updateExtensionPreview() {
@@ -606,7 +630,7 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
     e.preventDefault();
 
     if (!csrContent) {
-        alert('Please upload a CSR file');
+        showWarning('Please upload a CSR file');
         return;
     }
 
@@ -619,6 +643,11 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
     // Validate CA password
     if (!validateIssuingCaPassword()) {
         document.getElementById('issuingCaPassword').focus();
+        return;
+    }
+
+    // Validate extensions (for custom preset)
+    if (!validateExtensions()) {
         return;
     }
 
@@ -651,10 +680,10 @@ document.getElementById('csrForm').addEventListener('submit', async function(e) 
             window.location.href = `/certs/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            showError(error.detail || 'Failed to sign CSR');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

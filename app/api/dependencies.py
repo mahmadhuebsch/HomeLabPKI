@@ -14,6 +14,7 @@ from app.models.config import AppConfig
 from app.services.auth_service import AuthService
 from app.services.ca_service import CAService
 from app.services.cert_service import CertificateService
+from app.services.csr_service import CSRService
 from app.services.openssl_service import OpenSSLService
 from app.services.yaml_service import YAMLService
 from app.utils.logger import setup_logger
@@ -87,7 +88,21 @@ def get_cert_service() -> CertificateService:
     config = get_config()
     ca_data_dir = Path(config.paths.ca_data)
     openssl_service = get_openssl_service()
-    return CertificateService(ca_data_dir, openssl_service)
+    ca_service = get_ca_service()
+    return CertificateService(ca_data_dir, openssl_service, ca_service)
+
+
+def get_csr_service() -> CSRService:
+    """
+    Get CSR service instance.
+
+    Returns:
+        CSR service
+    """
+    config = get_config()
+    ca_data_dir = Path(config.paths.ca_data)
+    openssl_service = get_openssl_service()
+    return CSRService(ca_data_dir, openssl_service)
 
 
 def get_auth_service() -> AuthService:

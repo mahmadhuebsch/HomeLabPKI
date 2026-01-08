@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.dependencies import AuthRedirect, get_config
-from app.api.routes import auth, ca, cert, download
+from app.api.routes import auth, ca, cert, csr, download
 from app.utils.logger import setup_logger
 from app.web import routes as web_routes
 
@@ -88,6 +88,7 @@ async def auth_redirect_handler(request: Request, exc: AuthRedirect):
 app.include_router(auth.router)
 app.include_router(ca.router)
 app.include_router(cert.router)
+app.include_router(csr.router)
 app.include_router(download.router)
 
 # Include web UI router

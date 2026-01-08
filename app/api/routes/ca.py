@@ -1,20 +1,79 @@
 """CA API endpoints."""
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
-from app.api.dependencies import get_ca_service, require_auth
+from app.api.dependencies import get_ca_service, get_cert_service, require_auth
 from app.models.auth import Session
 from app.models.ca import (
     CACreateRequest,
     CAResponse,
+    ChainImportRequest,
+    ChainImportResponse,
     IntermediateCAImportRequest,
     RootCAImportRequest,
 )
 from app.services.ca_service import CAService
+from app.services.cert_service import CertificateService
+from app.services.parser_service import CertificateParser
+
+
+class ParseCertRequest(BaseModel):
+    """Request to parse a certificate."""
+
+    cert_content: str
+
+
+class ParseCertResponse(BaseModel):
+    """Response with parsed certificate info."""
+
+    subject_cn: Optional[str] = None
+    issuer_cn: Optional[str] = None
+    issuer_o: Optional[str] = None
+    issuer_ou: Optional[str] = None
+    is_ca: bool = False
+    is_self_signed: bool = False
+
 
 router = APIRouter(prefix="/api/cas", tags=["CA"])
+
+
+@router.post("/parse-cert", response_model=ParseCertResponse)
+def parse_certificate(
+    request: ParseCertRequest,
+    session: Session = Depends(require_auth),
+):
+    """
+    Parse a certificate and return subject/issuer information.
+
+    This is used by the import forms to auto-detect the correct parent CA.
+    """
+    try:
+        parsed = CertificateParser.parse_certificate_pem(request.cert_content)
+
+        subject_cn = parsed.get("subject", {}).get("CN")
+        issuer = parsed.get("issuer", {})
+        issuer_cn = issuer.get("common_name")
+        issuer_o = issuer.get("organization")
+        issuer_ou = issuer.get("organizational_unit")
+
+        # Check if self-signed (subject CN == issuer CN)
+        is_self_signed = subject_cn == issuer_cn if subject_cn and issuer_cn else False
+
+        return ParseCertResponse(
+            subject_cn=subject_cn,
+            issuer_cn=issuer_cn,
+            issuer_o=issuer_o,
+            issuer_ou=issuer_ou,
+            is_ca=parsed.get("is_ca", False),
+            is_self_signed=is_self_signed,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse certificate: {str(e)}")
 
 
 @router.post("", response_model=CAResponse, status_code=201)
@@ -157,6 +216,32 @@ def import_intermediate_ca(
     """
     try:
         return ca_service.import_intermediate_ca(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.post("/import-chain", response_model=ChainImportResponse, status_code=201)
+def import_certificate_chain(
+    request: ChainImportRequest,
+    session: Session = Depends(require_auth),
+    ca_service: CAService = Depends(get_ca_service),
+    cert_service: CertificateService = Depends(get_cert_service),
+):
+    """
+    Import a complete certificate chain (root CA + intermediate CAs + leaf certificates).
+
+    This endpoint validates the chain and imports all certificates.
+    The chain must be complete:
+    - Must contain a self-signed root CA
+    - All certificates must form a valid chain (proper issuer relationships)
+    - All signatures must be valid
+
+    Both CA certificates and leaf certificates are imported.
+    """
+    try:
+        return ca_service.import_certificate_chain(request, cert_service)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

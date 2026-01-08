@@ -1,3 +1,9 @@
+# GEMINI.md - Context for AI Assistant
+
+This file is a modified version of `CLAUDE.md`, adapted to provide comprehensive context for the Gemini AI Assistant.
+
+---
+
 # CLAUDE.md - Context for AI Assistant
 
 ## Project Overview
@@ -138,51 +144,19 @@ HomeLabPKI/
   - `build_certificate_chain()` - Build full chain
 - Certificate IDs: `{ca_id}/certs/{sanitized_domain}`
 
-### 4. CSR Service (`app/services/csr_service.py`)
-- Manages Certificate Signing Requests for external CAs
-- CSRs are stored in `ca-data/csrs/` directory (standalone, not under any CA)
-- Key methods:
-  - `create_csr()` - Generate CSR and encrypted private key
-  - `get_csr()` - Get CSR details by ID
-  - `list_csrs()` - List all CSRs with optional status filter
-  - `delete_csr()` - Move CSR to trash (soft delete)
-  - `mark_signed()` - Import signed certificate from external CA
-  - `get_csr_content()` - Get PEM content
-- CSR IDs: `{sanitized_cn}` (e.g., `example-com`)
-- CSR Directory Structure:
-  ```
-  ca-data/csrs/{csr-id}/
-  ├── csr.pem          # Certificate Signing Request
-  ├── key.pem          # Private key (AES-256 encrypted)
-  ├── cert.pem         # Signed certificate (after import)
-  ├── chain.pem        # Certificate chain (optional)
-  └── config.yaml      # CSR configuration
-  ```
-- CSR Status: `pending`, `signed`, `expired`
-- Workflow:
-  1. User creates CSR with encrypted private key
-  2. User downloads CSR and submits to external CA (DigiCert, Let's Encrypt, etc.)
-  3. User receives signed certificate from CA
-  4. User imports signed certificate (system validates public key match)
-  5. CSR status changes to `signed`
-
-### 5. Parser Service (`app/services/parser_service.py`)
+### 4. Parser Service (`app/services/parser_service.py`)
 - Parses X.509 certificates using cryptography library
 - Converts certificates to text format using OpenSSL
-- Converts CSRs to text format using OpenSSL
 - Extracts Key Usage and Extended Key Usage extensions
 - Key methods:
   - `parse_certificate()` - Extract certificate data including extensions
   - `certificate_to_text()` - Convert to human-readable text format
-  - `csr_to_text()` - Convert CSR to human-readable text format
-  - `get_csr_public_key_fingerprint()` - Get CSR public key fingerprint for matching
-  - `verify_cert_matches_csr()` - Verify certificate matches CSR public key
   - `get_validity_status()` - Check expiration status
   - `verify_key_pair()` - Verify cert/key match
   - `_extract_key_usage()` - Extract Key Usage extension values
   - `_extract_extended_key_usage()` - Extract Extended Key Usage values
 
-### 6. YAML Service (`app/services/yaml_service.py`)
+### 5. YAML Service (`app/services/yaml_service.py`)
 - Handles YAML serialization/deserialization
 - **IMPORTANT**: Custom Enum handling to prevent serialization errors
 - Converts Enum objects to their `.value` property before saving
@@ -245,22 +219,6 @@ HomeLabPKI/
 - Extensions are parsed from imported certificates for display
 - Applies to: Certificate creation form and CSR signing form
 
-### Private Key Password Handling
-- **All private keys are encrypted** with AES-256 using a user-provided password
-- **Passwords are NEVER stored** in config files or anywhere else
-- `config.yaml` stores only `encrypted: bool` flag to indicate key encryption status
-- Password required at runtime for:
-  - Creating intermediate CAs (parent CA password required to sign)
-  - Creating certificates (issuing CA password required to sign)
-  - Any future operations that need to decrypt the private key
-- Request models use flat structure for passwords:
-  - `CACreateRequest`: `key_password` (for new key), `parent_ca_password` (for signing)
-  - `CertCreateRequest`: `key_password` (for new key), `issuing_ca_password` (for signing)
-- Key methods:
-  - `CertificateParser.is_key_encrypted(key_path)` - Detects encryption from PEM header
-  - `OpenSSLService.verify_key_password(key_path, password)` - Verifies password can decrypt key
-- Migration script: `scripts/migrate_remove_passwords.py` for existing installations
-
 ## Important Implementation Details
 
 ### Path Handling
@@ -285,18 +243,18 @@ HomeLabPKI/
 ### File Structure
 Each CA directory contains:
 - `ca.crt` - Public certificate
-- `ca.key` - Private key (AES-256 encrypted)
-- `config.yaml` - CA configuration (contains `encrypted: true` flag, NO password stored)
+- `ca.key` - Private key (unencrypted)
+- `config.yaml` - CA configuration
 - `serial` - Serial number tracker
-- `openssl.cnf` - OpenSSL configuration
+- `openssl.cnf` - OpenSSL config
 - `certs/` - Issued certificates subdirectory
 - `intermediate-ca-*/` - Intermediate CA subdirectories
 - `_trash/` - Trash folder for deleted items (excluded from listings)
 
 Each certificate directory contains:
 - `cert.crt` - Public certificate
-- `cert.key` - Private key (AES-256 encrypted)
-- `config.yaml` - Certificate configuration (contains `encrypted: true` flag, NO password stored)
+- `cert.key` - Private key (unencrypted)
+- `config.yaml` - Certificate configuration
 
 ### Trash Structure
 ```
@@ -403,7 +361,7 @@ If you forget your password:
 
 ### Security Considerations
 - **Single Password**: Application uses single password (no multi-user)
-- **Encrypted Keys**: Private keys are encrypted with AES-256, but passwords must be remembered (not stored)
+- **Unencrypted Keys**: Private keys stored in plaintext
 - **For Development**: Not recommended for production PKI
 - **In-memory Sessions**: Sessions lost on application restart
 
@@ -540,15 +498,6 @@ defaults:
 - `GET /api/certs/{cert_id}` - Get certificate details
 - `DELETE /api/certs/{cert_id}` - Delete certificate
 
-### CSRs
-- `POST /api/csrs` - Create new CSR
-- `GET /api/csrs` - List CSRs (optional status filter)
-- `GET /api/csrs/{csr_id}` - Get CSR details
-- `DELETE /api/csrs/{csr_id}` - Delete CSR
-- `POST /api/csrs/{csr_id}/signed` - Import signed certificate
-- `GET /api/csrs/{csr_id}/download/csr` - Download CSR file
-- `GET /api/csrs/{csr_id}/download/key` - Download private key
-
 ### Downloads
 - `GET /download/ca/{ca_id}/cert` - Download CA certificate
 - `GET /download/ca/{ca_id}/key` - Download CA private key
@@ -575,12 +524,6 @@ defaults:
 - `GET /certs` - List all certificates
 - `GET /certs/create` - Create certificate form
 - `GET /certs/{cert_id}` - Certificate detail
-
-### CSRs
-- `GET /certs/csrs` - CSR list page
-- `GET /certs/csrs/create` - CSR creation form
-- `GET /certs/csrs/{csr_id}` - CSR detail page
-- `GET /certs/csrs/{csr_id}/import-signed` - Import signed certificate form
 
 ## Troubleshooting
 

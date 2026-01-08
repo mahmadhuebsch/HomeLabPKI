@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from app.models.ca import KeyConfig
 from app.models.certificate import (
     CertCreateRequest,
     CertImportRequest,
@@ -24,32 +25,34 @@ logger = logging.getLogger("homelabpki")
 class CertificateService:
     """Service for certificate management operations."""
 
-    def __init__(self, ca_data_dir: Path, openssl_service: OpenSSLService):
+    def __init__(self, ca_data_dir: Path, openssl_service: OpenSSLService, ca_service: "CAService"):
         """
         Initialize certificate service.
 
         Args:
             ca_data_dir: Base directory for CA data storage
             openssl_service: OpenSSL service instance
+            ca_service: CA service instance
         """
         self.ca_data_dir = ca_data_dir
         self.openssl_service = openssl_service
+        self.ca_service = ca_service
 
     def create_server_certificate(self, request: CertCreateRequest) -> CertResponse:
         """
         Create a new server certificate.
 
         Args:
-            request: Certificate creation request (must include key password and issuing CA password)
+            request: Certificate creation request with key_password and issuing_ca_password (not stored)
 
         Returns:
             Certificate response
 
         Raises:
-            ValueError: If issuing CA not found, passwords not provided, or creation fails
+            ValueError: If issuing CA not found, passwords not provided/invalid, or creation fails
         """
         # Validate key password is provided
-        if not request.key_config.password:
+        if not request.key_password:
             raise ValueError("Key password is required for certificate creation")
 
         # Validate issuing CA password is provided
@@ -60,6 +63,12 @@ class CertificateService:
         issuing_ca_dir = self.ca_data_dir / request.issuing_ca_id
         if not issuing_ca_dir.exists():
             raise ValueError(f"Issuing CA not found: {request.issuing_ca_id}")
+
+        # Verify issuing CA password before proceeding
+        ca_key_path = issuing_ca_dir / "ca.key"
+        if ca_key_path.exists():
+            if not self.openssl_service.verify_key_password(ca_key_path, request.issuing_ca_password):
+                raise ValueError("Invalid password for issuing CA private key")
 
         # Sanitize domain for directory name
         domain = request.subject.common_name
@@ -78,12 +87,20 @@ class CertificateService:
             # Generate serial number
             serial_number = OpenSSLService.generate_serial_number()
 
+            # Build KeyConfig with encrypted=True (password NOT stored)
+            key_config = KeyConfig(
+                algorithm=request.key_algorithm,
+                key_size=request.key_size,
+                curve=request.key_curve,
+                encrypted=True,
+            )
+
             # Create certificate config
             cert_config = ServerCertConfig(
                 type="server_cert",
                 subject=request.subject,
                 sans=request.sans or [domain],
-                key_config=request.key_config,
+                key_config=key_config,
                 validity_days=request.validity_days,
                 created_at=datetime.now(),
                 serial_number=serial_number,
@@ -102,9 +119,9 @@ class CertificateService:
                 cert_config.extended_key_usage,
             )
 
-            # Build OpenSSL command (pass issuing CA password for signing)
+            # Build OpenSSL command (pass passwords, not stored in config)
             command = self.openssl_service.build_server_cert_command(
-                cert_config, cert_dir, issuing_ca_dir, serial_number, request.issuing_ca_password
+                cert_config, cert_dir, issuing_ca_dir, serial_number, request.key_password, request.issuing_ca_password
             )
             # Store masked command (passwords replaced with ***)
             cert_config.openssl_command = self.openssl_service._mask_password_in_command(command)
@@ -250,6 +267,26 @@ class CertificateService:
 
         return certs
 
+    def _find_cert_by_fingerprint(self, fingerprint: str) -> Optional[str]:
+        """
+        Find a certificate by its SHA256 fingerprint.
+
+        Args:
+            fingerprint: SHA256 fingerprint (uppercase hex with colons)
+
+        Returns:
+            Certificate ID if found, None otherwise
+        """
+        # Normalize fingerprint format
+        normalized_fp = fingerprint.upper().replace(":", "")
+
+        for cert in self.list_all_certificates():
+            if cert.fingerprint_sha256:
+                cert_fp = cert.fingerprint_sha256.upper().replace(":", "")
+                if cert_fp == normalized_fp:
+                    return cert.id
+        return None
+
     def delete_certificate(self, cert_id: str) -> None:
         """
         Delete certificate by moving it to trash.
@@ -386,7 +423,7 @@ class CertificateService:
             Certificate response
 
         Raises:
-            ValueError: If CSR is invalid, password not provided, or signing fails
+            ValueError: If CSR is invalid, password not provided/invalid, or signing fails
         """
         # Validate issuing CA password is provided
         if not request.issuing_ca_password:
@@ -396,6 +433,12 @@ class CertificateService:
         issuing_ca_dir = self.ca_data_dir / request.issuing_ca_id
         if not issuing_ca_dir.exists():
             raise ValueError(f"Issuing CA not found: {request.issuing_ca_id}")
+
+        # Verify issuing CA password before proceeding
+        ca_key_path = issuing_ca_dir / "ca.key"
+        if ca_key_path.exists():
+            if not self.openssl_service.verify_key_password(ca_key_path, request.issuing_ca_password):
+                raise ValueError("Invalid password for issuing CA private key")
 
         # Parse CSR to extract information
         csr_info = self.openssl_service.parse_csr(request.csr_content)
@@ -435,8 +478,6 @@ class CertificateService:
             serial_number = OpenSSLService.generate_serial_number()
 
             # Determine key config from CSR public key info
-            from app.models.ca import KeyConfig
-
             pub_key = csr_info["public_key"]
 
             # Map OpenSSL algorithm names to our enum values
@@ -444,7 +485,12 @@ class CertificateService:
             raw_algo = pub_key.get("algorithm", "rsaEncryption")
             algorithm = algo_map.get(raw_algo, "RSA")
 
-            key_config = KeyConfig(algorithm=algorithm, key_size=pub_key.get("key_size", 2048))
+            # CSR-signed certs don't have a private key we manage
+            key_config = KeyConfig(
+                algorithm=algorithm,
+                key_size=pub_key.get("key_size", 2048),
+                encrypted=False,  # No private key for CSR-signed certs
+            )
 
             # Sign CSR
             cert_file = cert_dir / "cert.crt"
@@ -509,79 +555,80 @@ class CertificateService:
 
     def import_certificate(self, request: CertImportRequest) -> CertResponse:
         """
-        Import an external certificate for tracking.
+        Import a single external certificate for tracking.
 
         Args:
-            request: Certificate import request
+            request: Certificate import request containing the certificate.
 
         Returns:
-            Certificate response
+            Certificate response for the imported certificate.
 
         Raises:
-            ValueError: If certificate is invalid or import fails
+            ValueError: If the certificate is invalid or import fails.
         """
-        # Validate issuing CA exists
-        issuing_ca_dir = self.ca_data_dir / request.issuing_ca_id
-        if not issuing_ca_dir.exists():
-            raise ValueError(f"Issuing CA not found: {request.issuing_ca_id}")
-
-        # Parse certificate
-        cert_info = CertificateParser.parse_certificate_pem(request.cert_content)
-
-        # Build subject
+        from cryptography import x509
         from app.models.ca import Subject
 
-        cn = cert_info["subject"].get("CN", "") or "unknown"
+        # Validate issuing_ca_id is provided
+        if not request.issuing_ca_id:
+            raise ValueError("Issuing CA ID is required. Please select the CA that issued this certificate.")
+
+        issuer_ca_dir = self.ca_data_dir / request.issuing_ca_id
+        if not issuer_ca_dir.exists():
+            raise ValueError(f"Issuing CA not found: {request.issuing_ca_id}")
+
+        # Parse and validate certificate
+        pem_certs = CertificateParser.split_pem_bundle(request.cert_content)
+        if not pem_certs:
+            raise ValueError("Certificate content is empty or invalid.")
+        if len(pem_certs) > 1:
+            raise ValueError("Please provide a single certificate. Multiple certificates are not supported.")
+
+        cert_pem = pem_certs[0]
+        cert = CertificateParser.load_pem_x509_certificate_from_string(cert_pem)
+
+        if CertificateParser._is_ca(cert):
+            raise ValueError("CA certificates must be imported via the CA Import feature.")
+
+        cert_info = CertificateParser.parse_certificate_pem(cert_pem)
+
+        subject_info = cert_info["subject"]
         subject = Subject(
-            common_name=cn,
-            organization=cert_info["subject"].get("O"),
-            organizational_unit=cert_info["subject"].get("OU"),
-            country=cert_info["subject"].get("C"),
-            state=cert_info["subject"].get("ST"),
-            locality=cert_info["subject"].get("L"),
+            common_name=subject_info.get("CN", "unknown"),
+            organization=subject_info.get("O"),
+            organizational_unit=subject_info.get("OU"),
+            country=subject_info.get("C"),
+            state=subject_info.get("ST"),
+            locality=subject_info.get("L"),
         )
 
-        # Get SANs
-        sans = cert_info.get("sans", [])
-        if not sans and subject.common_name:
-            sans = [subject.common_name]
-
-        # Create certificate directory
         cert_id = sanitize_name(request.cert_name)
-        certs_dir = issuing_ca_dir / "certs"
+        certs_dir = issuer_ca_dir / "certs"
         cert_dir = certs_dir / cert_id
-
         if cert_dir.exists():
-            raise ValueError(f"Certificate already exists: {request.cert_name}")
+            raise ValueError(f"A certificate with the name '{request.cert_name}' already exists.")
 
         try:
-            # Create directory
             FileUtils.ensure_directory(cert_dir)
+            FileUtils.write_file(cert_dir / "cert.crt", cert_pem)
+            FileUtils.write_file(cert_dir / "fullchain.pem", cert_pem)  # Single cert as fullchain
 
-            # Save certificate
-            cert_file = cert_dir / "cert.crt"
-            cert_file.write_text(request.cert_content)
-
-            # Build key config from certificate
-            from app.models.ca import KeyConfig
-
+            key_info = CertificateParser._extract_key_info(cert.public_key())
             key_config = KeyConfig(
-                algorithm=cert_info.get("public_key_algorithm", "RSA"),
-                key_size=cert_info.get("public_key_size", 2048),
+                algorithm=key_info["algorithm"],
+                key_size=key_info.get("key_size"),
+                curve=key_info.get("curve"),
+                encrypted=False,  # Imported certs don't have keys we manage
             )
-
-            # Calculate validity days
             not_before = cert_info["not_before"]
             not_after = cert_info["not_after"]
-            validity_days = (not_after - not_before).days
 
-            # Create certificate config
             cert_config = ServerCertConfig(
                 type="server_cert",
                 subject=subject,
-                sans=sans,
+                sans=cert_info.get("sans", []),
                 key_config=key_config,
-                validity_days=validity_days,
+                validity_days=(not_after - not_before).days,
                 created_at=datetime.now(),
                 not_before=not_before,
                 not_after=not_after,
@@ -589,21 +636,114 @@ class CertificateService:
                 issuing_ca="../..",
                 openssl_command="# Imported certificate",
                 fingerprint_sha256=cert_info.get("fingerprint_sha256"),
-                source="external",  # Mark as external (imported)
+                source="external",
             )
-
-            # Save config
-            config_dict = cert_config.model_dump()
-            YAMLService.save_config_yaml(cert_dir / "config.yaml", config_dict)
-
+            YAMLService.save_config_yaml(cert_dir / "config.yaml", cert_config.model_dump())
             logger.info(f"Imported certificate '{request.cert_name}' (Serial: {cert_config.serial_number})")
-
-            # Build certificate ID
             full_cert_id = f"{request.issuing_ca_id}/certs/{cert_id}"
             return self._build_cert_response(full_cert_id, cert_config, cert_dir)
-
         except Exception as e:
-            # Cleanup on failure
             if cert_dir.exists():
                 FileUtils.delete_directory(cert_dir)
             raise
+
+    # def import_certificate(self, request: CertImportRequest) -> CertResponse:
+    #     """
+    #     Import an external certificate for tracking.
+    #
+    #     Args:
+    #         request: Certificate import request
+    #
+    #     Returns:
+    #         Certificate response
+    #
+    #     Raises:
+    #         ValueError: If certificate is invalid or import fails
+    #     """
+    #     # Validate issuing CA exists
+    #     issuing_ca_dir = self.ca_data_dir / request.issuing_ca_id
+    #     if not issuing_ca_dir.exists():
+    #         raise ValueError(f"Issuing CA not found: {request.issuing_ca_id}")
+    #
+    #     # Parse certificate
+    #     cert_info = CertificateParser.parse_certificate_pem(request.cert_content)
+    #
+    #     # Build subject
+    #     from app.models.ca import Subject
+    #
+    #     cn = cert_info["subject"].get("CN", "") or "unknown"
+    #     subject = Subject(
+    #         common_name=cn,
+    #         organization=cert_info["subject"].get("O"),
+    #         organizational_unit=cert_info["subject"].get("OU"),
+    #         country=cert_info["subject"].get("C"),
+    #         state=cert_info["subject"].get("ST"),
+    #         locality=cert_info["subject"].get("L"),
+    #     )
+    #
+    #     # Get SANs
+    #     sans = cert_info.get("sans", [])
+    #     if not sans and subject.common_name:
+    #         sans = [subject.common_name]
+    #
+    #     # Create certificate directory
+    #     cert_id = sanitize_name(request.cert_name)
+    #     certs_dir = issuing_ca_dir / "certs"
+    #     cert_dir = certs_dir / cert_id
+    #
+    #     if cert_dir.exists():
+    #         raise ValueError(f"Certificate already exists: {request.cert_name}")
+    #
+    #     try:
+    #         # Create directory
+    #         FileUtils.ensure_directory(cert_dir)
+    #
+    #         # Save certificate
+    #         cert_file = cert_dir / "cert.crt"
+    #         cert_file.write_text(request.cert_content)
+    #
+    #         # Build key config from certificate
+    #         from app.models.ca import KeyConfig
+    #
+    #         key_config = KeyConfig(
+    #             algorithm=cert_info.get("public_key_algorithm", "RSA"),
+    #             key_size=cert_info.get("public_key_size", 2048),
+    #         )
+    #
+    #         # Calculate validity days
+    #         not_before = cert_info["not_before"]
+    #         not_after = cert_info["not_after"]
+    #         validity_days = (not_after - not_before).days
+    #
+    #         # Create certificate config
+    #         cert_config = ServerCertConfig(
+    #             type="server_cert",
+    #             subject=subject,
+    #             sans=sans,
+    #             key_config=key_config,
+    #             validity_days=validity_days,
+    #             created_at=datetime.now(),
+    #             not_before=not_before,
+    #             not_after=not_after,
+    #             serial_number=cert_info.get("serial_number", "UNKNOWN"),
+    #             issuing_ca="../..",
+    #             openssl_command="# Imported certificate",
+    #             fingerprint_sha256=cert_info.get("fingerprint_sha256"),
+    #             source="external",  # Mark as external (imported)
+    #         )
+    #
+    #         # Save config
+    #         config_dict = cert_config.model_dump()
+    #         YAMLService.save_config_yaml(cert_dir / "config.yaml", config_dict)
+    #
+    #         logger.info(f"Imported certificate '{request.cert_name}' (Serial: {cert_config.serial_number})")
+    #
+    #         # Build certificate ID
+    #         full_cert_id = f"{request.issuing_ca_id}/certs/{cert_id}"
+    #         return self._build_cert_response(full_cert_id, cert_config, cert_dir)
+    #
+    #     except Exception as e:
+    #         # Cleanup on failure
+    #         if cert_dir.exists():
+    #             FileUtils.delete_directory(cert_dir)
+    #         raise

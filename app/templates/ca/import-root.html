@@ -27,17 +27,17 @@
 <div class="row">
     <div class="col-lg-8">
         <h1><i class="bi bi-upload"></i> Import Root CA</h1>
-        <p class="text-muted">Import an external Root CA certificate for tracking and management</p>
+        <p class="text-muted">Import an external self-signed Root CA certificate</p>
 
         <form id="importForm" class="needs-validation" novalidate>
-            <!-- CA Certificate Upload -->
+            <!-- Certificate Upload -->
             <div class="card mb-3">
-                <div class="card-header">CA Certificate *</div>
+                <div class="card-header">Certificate Content</div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="certFile" class="form-label">Upload CA Certificate File *</label>
+                        <label for="certFile" class="form-label">Upload Certificate File *</label>
                         <input type="file" class="form-control" id="certFile" accept=".crt,.pem,.cer" required>
-                        <div class="form-text">Upload the Root CA certificate (.crt, .pem, or .cer file)</div>
+                        <div class="form-text">Upload a single PEM-encoded self-signed Root CA certificate (.crt, .pem, or .cer).</div>
                         <div class="invalid-feedback">Please upload a valid certificate file.</div>
                     </div>
 
@@ -48,34 +48,11 @@
 
                     <div id="certInfoContainer" style="display: none;">
                         <hr>
-                        <h6>Extracted CA Information:</h6>
+                        <h6>Certificate Information:</h6>
                         <table class="table table-sm">
                             <tbody id="certInfoTable">
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Private Key Upload (Optional) -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span>Private Key (Optional)</span>
-                        <span class="badge bg-secondary">Optional</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="keyFile" class="form-label">Upload Private Key File (Optional)</label>
-                        <input type="file" class="form-control" id="keyFile" accept=".key,.pem">
-                        <div class="form-text">Optionally upload the private key for this CA if available</div>
-                    </div>
-
-                    <div class="alert alert-warning" role="alert">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <strong>Security Notice:</strong> Only upload the private key if you intend to use this CA
-                        for signing certificates. Private keys are stored unencrypted on disk.
                     </div>
                 </div>
             </div>
@@ -87,9 +64,9 @@
                     <div class="mb-3">
                         <label for="caName" class="form-label">CA Name *</label>
                         <input type="text" class="form-control" id="caName" name="ca_name" required
-                               placeholder="e.g. imported-company-root-ca" pattern="^[a-zA-Z0-9-_]+$">
-                        <div class="form-text">Unique identifier for this CA (alphanumeric, hyphens, underscores)</div>
-                        <div class="invalid-feedback">Please enter a valid CA name (alphanumeric, hyphens, underscores only).</div>
+                               placeholder="e.g. corp-root-ca" pattern="^[a-zA-Z0-9-_]+$">
+                        <div class="form-text">Unique identifier for this CA (alphanumeric, hyphens, underscores).</div>
+                        <div class="invalid-feedback">Please enter a valid CA name.</div>
                     </div>
                 </div>
             </div>
@@ -97,7 +74,7 @@
             <!-- Actions -->
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
-                    <i class="bi bi-upload"></i> Import Root CA
+                    <i class="bi bi-upload"></i> Import CA
                 </button>
                 <a href="/rootcas" class="btn btn-secondary">Cancel</a>
             </div>
@@ -108,48 +85,47 @@
     <div class="col-lg-4">
         <div class="card sticky-top" style="top: 20px;">
             <div class="card-header">
-                <i class="bi bi-info-circle"></i> About Importing Root CAs
+                <i class="bi bi-info-circle"></i> About Root CA Import
             </div>
             <div class="card-body">
-                <p><strong>What is Root CA import?</strong></p>
+                <p><strong>What can I import?</strong></p>
                 <p class="text-muted small">
-                    Importing allows you to track and manage Root CAs that were created externally
-                    within this management interface.
+                    Import a self-signed Root CA certificate. This is the trust anchor at the top of a certificate hierarchy.
                 </p>
+
+                <hr>
+
+                <p><strong>Requirements</strong></p>
+                <ul class="text-muted small">
+                    <li>Certificate must be self-signed (Subject = Issuer)</li>
+                    <li>Must have CA:TRUE in Basic Constraints</li>
+                    <li>Single certificate only</li>
+                </ul>
+
+                <div class="alert alert-warning small mt-3">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <strong>Note:</strong> For Intermediate CAs, use the <a href="/intermediates/import">Import Intermediate CA</a> page.
+                </div>
 
                 <hr>
 
                 <p><strong>What gets stored?</strong></p>
                 <ul class="text-muted small">
-                    <li>CA certificate file (ca.crt)</li>
-                    <li>CA metadata and configuration</li>
-                    <li>Subject and validity information</li>
-                    <li>Private key (if provided)</li>
+                    <li>The CA certificate</li>
+                    <li>Certificate metadata</li>
                 </ul>
 
                 <hr>
 
-                <p><strong>With Private Key:</strong></p>
-                <p class="text-muted small">
-                    If you provide the private key, this CA can be used to:
-                </p>
+                <p><strong>What does NOT get stored?</strong></p>
                 <ul class="text-muted small">
-                    <li>Create Intermediate CAs</li>
-                    <li>Sign certificates</li>
-                    <li>Full CA functionality</li>
+                    <li>Private key (managed externally)</li>
                 </ul>
 
-                <hr>
-
-                <p><strong>Without Private Key:</strong></p>
-                <p class="text-muted small">
-                    Without the private key, this CA can only be used for:
-                </p>
-                <ul class="text-muted small">
-                    <li>Tracking and monitoring</li>
-                    <li>Viewing certificate details</li>
-                    <li>Building trust chains</li>
-                </ul>
+                <div class="alert alert-info small mt-3">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Imported CAs are marked as <span class="badge bg-warning text-dark">External</span> to indicate the private key is not managed by this system.
+                </div>
             </div>
         </div>
     </div>
@@ -159,9 +135,8 @@
 {% block extra_scripts %}
 <script>
 let certContent = '';
-let keyContent = '';
 
-// Certificate file upload handler
+// File upload handler
 document.getElementById('certFile').addEventListener('change', async function(e) {
     const file = e.target.files[0];
     if (!file) {
@@ -182,7 +157,7 @@ document.getElementById('certFile').addEventListener('change', async function(e)
         // Parse certificate to show information
         displayCertInfo(certContent);
 
-        // Auto-populate CA name from filename (without extension)
+        // Auto-populate cert name from filename (without extension)
         const fileName = file.name.replace(/\.(crt|pem|cer)$/i, '');
         const caNameInput = document.getElementById('caName');
         if (!caNameInput.value) {
@@ -191,25 +166,9 @@ document.getElementById('certFile').addEventListener('change', async function(e)
 
         document.getElementById('submitBtn').disabled = false;
     } catch (error) {
-        alert(`Error reading file: ${error.message}`);
+        showError('Error reading file: ' + error.message);
         certContent = '';
         document.getElementById('submitBtn').disabled = true;
-    }
-});
-
-// Private key file upload handler
-document.getElementById('keyFile').addEventListener('change', async function(e) {
-    const file = e.target.files[0];
-    if (!file) {
-        keyContent = '';
-        return;
-    }
-
-    try {
-        keyContent = await file.text();
-    } catch (error) {
-        alert(`Error reading key file: ${error.message}`);
-        keyContent = '';
     }
 });
 
@@ -217,45 +176,47 @@ function displayCertInfo(certContent) {
     const container = document.getElementById('certInfoContainer');
     const table = document.getElementById('certInfoTable');
 
-    // Check if it's a valid PEM certificate
-    const isPEM = certContent.includes('-----BEGIN CERTIFICATE-----') &&
-                  certContent.includes('-----END CERTIFICATE-----');
+    const certCount = (certContent.match(/-----BEGIN CERTIFICATE-----/g) || []).length;
 
-    if (isPEM) {
+    if (certCount === 1) {
         table.innerHTML = `
             <tr>
                 <th width="30%">Format</th>
-                <td><span class="badge bg-success">Valid PEM Certificate</span></td>
+                <td><span class="badge bg-success">Valid PEM</span></td>
             </tr>
             <tr>
-                <th>Type</th>
-                <td><span class="badge bg-primary">Root CA</span></td>
+                <th>Certificates</th>
+                <td><span class="badge bg-info">1</span></td>
+            </tr>
+        `;
+    } else if (certCount > 1) {
+        table.innerHTML = `
+            <tr>
+                <th width="30%">Format</th>
+                <td><span class="badge bg-warning">Multiple Certificates</span></td>
             </tr>
             <tr>
-                <th>Note</th>
-                <td class="text-muted">Certificate details will be extracted upon import</td>
+                <th>Certificates</th>
+                <td><span class="badge bg-warning">${certCount}</span></td>
+            </tr>
+            <tr>
+                <th>Warning</th>
+                <td class="text-warning">Please provide only a single certificate.</td>
             </tr>
         `;
     } else {
         table.innerHTML = `
             <tr>
                 <th width="30%">Format</th>
-                <td><span class="badge bg-warning">Unknown format</span></td>
+                <td><span class="badge bg-danger">Invalid PEM format</span></td>
             </tr>
             <tr>
                 <th>Note</th>
-                <td class="text-muted">File should be PEM-encoded (-----BEGIN CERTIFICATE-----)</td>
+                <td class="text-muted">File should contain a PEM-encoded certificate.</td>
             </tr>
         `;
     }
-
     container.style.display = 'block';
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 // Form submission
@@ -269,7 +230,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
     }
 
     if (!certContent) {
-        alert('Please upload a CA certificate file');
+        showWarning('Please upload a certificate file');
         return;
     }
 
@@ -277,8 +238,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
 
     const request = {
         ca_cert_content: certContent,
-        ca_name: formData.get('ca_name'),
-        ca_key_content: keyContent || null
+        ca_name: formData.get('ca_name')
     };
 
     try {
@@ -293,10 +253,16 @@ document.getElementById('importForm').addEventListener('submit', async function(
             window.location.href = `/rootcas/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            let errorMsg = error.detail;
+            if (Array.isArray(error.detail)) {
+                errorMsg = error.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+            } else if (typeof error.detail === 'object') {
+                errorMsg = JSON.stringify(error.detail);
+            }
+            showError(errorMsg || 'Failed to import root CA');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

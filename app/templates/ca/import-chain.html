@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}Import Certificate Chain - HomeLab PKI{% endblock %}
+
+{% block extra_head %}
+<style>
+.cert-preview {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    max-height: 300px;
+    overflow-y: auto;
+    color: #212529;
+}
+
+[data-bs-theme="dark"] .cert-preview {
+    background-color: #2b3035;
+    border-color: #495057;
+    color: #dee2e6;
+}
+
+.chain-cert {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.chain-cert.root {
+    background-color: rgba(25, 135, 84, 0.1);
+    border-left: 3px solid #198754;
+}
+
+.chain-cert.intermediate {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-left: 3px solid #0d6efd;
+}
+
+.chain-cert.leaf {
+    background-color: rgba(108, 117, 125, 0.1);
+    border-left: 3px solid #6c757d;
+}
+
+.chain-arrow {
+    text-align: center;
+    color: #6c757d;
+    font-size: 1.2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1><i class="bi bi-link-45deg"></i> Import Certificate Chain</h1>
+        <p class="text-muted">Import a complete certificate chain (Root CA + Intermediate CAs)</p>
+
+        <form id="importForm" class="needs-validation" novalidate>
+            <!-- Chain Upload -->
+            <div class="card mb-3">
+                <div class="card-header">Certificate Chain</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="chainFile" class="form-label">Upload Chain File *</label>
+                        <input type="file" class="form-control" id="chainFile" accept=".crt,.pem,.cer,.chain" required>
+                        <div class="form-text">
+                            Upload a PEM file containing the complete certificate chain.
+                            Certificates can be in any order - they will be automatically sorted.
+                        </div>
+                        <div class="invalid-feedback">Please upload a valid certificate chain file.</div>
+                    </div>
+
+                    <div class="mb-3" id="chainPreviewContainer" style="display: none;">
+                        <label class="form-label">Chain Preview:</label>
+                        <div class="cert-preview" id="chainPreview"></div>
+                    </div>
+
+                    <div id="chainInfoContainer" style="display: none;">
+                        <hr>
+                        <h6>Chain Analysis:</h6>
+                        <div id="chainAnalysis"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Validation Status -->
+            <div class="card mb-3" id="validationCard" style="display: none;">
+                <div class="card-header" id="validationHeader">
+                    <i class="bi bi-check-circle"></i> Validation Status
+                </div>
+                <div class="card-body" id="validationBody">
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                    <i class="bi bi-link-45deg"></i> Import Chain
+                </button>
+                <a href="/rootcas" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <!-- Results -->
+        <div id="resultsContainer" style="display: none;" class="mt-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-check-circle"></i> Import Successful
+                </div>
+                <div class="card-body" id="resultsBody">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> About Chain Import
+            </div>
+            <div class="card-body">
+                <p><strong>What is a Certificate Chain?</strong></p>
+                <p class="text-muted small">
+                    A certificate chain contains all CA certificates from the root CA down to
+                    the issuing CA, establishing a complete trust path.
+                </p>
+
+                <hr>
+
+                <p><strong>Requirements</strong></p>
+                <ul class="text-muted small">
+                    <li>Must contain a self-signed Root CA</li>
+                    <li>Must contain at least one Intermediate CA</li>
+                    <li>All certificates must form a valid chain</li>
+                    <li>All signatures must be valid</li>
+                </ul>
+
+                <hr>
+
+                <p><strong>What happens during import?</strong></p>
+                <ul class="text-muted small">
+                    <li>Chain is validated and ordered automatically</li>
+                    <li>Root CA is imported first</li>
+                    <li>Intermediate CAs are imported in order</li>
+                    <li>Leaf certificates are imported last</li>
+                    <li>Existing CAs are recognized and reused</li>
+                </ul>
+
+                <div class="alert alert-info small mt-3">
+                    <i class="bi bi-lightbulb me-1"></i>
+                    <strong>Tip:</strong> You can paste a full chain from <code>fullchain.pem</code> or
+                    concatenate multiple certificate files.
+                </div>
+
+                <hr>
+
+                <p><strong>Alternative imports:</strong></p>
+                <ul class="text-muted small mb-0">
+                    <li><a href="/rootcas/import">Import single Root CA</a></li>
+                    <li><a href="/intermediates/import">Import single Intermediate CA</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let chainContent = '';
+
+// File upload handler
+document.getElementById('chainFile').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) {
+        resetForm();
+        return;
+    }
+
+    try {
+        chainContent = await file.text();
+
+        // Show chain preview
+        document.getElementById('chainPreview').textContent = chainContent;
+        document.getElementById('chainPreviewContainer').style.display = 'block';
+
+        // Analyze chain
+        analyzeChain(chainContent);
+
+    } catch (error) {
+        showError('Error reading file: ' + error.message);
+        resetForm();
+    }
+});
+
+function resetForm() {
+    chainContent = '';
+    document.getElementById('chainPreviewContainer').style.display = 'none';
+    document.getElementById('chainInfoContainer').style.display = 'none';
+    document.getElementById('validationCard').style.display = 'none';
+    document.getElementById('submitBtn').disabled = true;
+}
+
+function analyzeChain(content) {
+    const container = document.getElementById('chainInfoContainer');
+    const analysis = document.getElementById('chainAnalysis');
+
+    // Count certificates
+    const certMatches = content.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) || [];
+    const certCount = certMatches.length;
+
+    if (certCount === 0) {
+        analysis.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-x-circle me-1"></i>
+                No valid PEM certificates found in the file.
+            </div>
+        `;
+        document.getElementById('submitBtn').disabled = true;
+    } else if (certCount === 1) {
+        analysis.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Only 1 certificate found. A chain requires at least 2 certificates (Root + Intermediate).
+                <br><br>
+                For single certificate import, use:
+                <ul class="mb-0 mt-2">
+                    <li><a href="/rootcas/import">Import Root CA</a> (for self-signed root)</li>
+                    <li><a href="/intermediates/import">Import Intermediate CA</a> (for intermediate)</li>
+                </ul>
+            </div>
+        `;
+        document.getElementById('submitBtn').disabled = true;
+    } else {
+        analysis.innerHTML = `
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-1"></i>
+                Found <strong>${certCount} certificates</strong> in the chain.
+            </div>
+            <p class="text-muted small">
+                The chain will be validated when you click "Import Chain".
+                Certificates will be automatically ordered from Root to Leaf.
+            </p>
+        `;
+        document.getElementById('submitBtn').disabled = false;
+
+        // Show validation card as ready
+        const validationCard = document.getElementById('validationCard');
+        const validationHeader = document.getElementById('validationHeader');
+        const validationBody = document.getElementById('validationBody');
+
+        validationCard.style.display = 'block';
+        validationHeader.className = 'card-header bg-info text-white';
+        validationHeader.innerHTML = '<i class="bi bi-hourglass-split"></i> Ready to Validate';
+        validationBody.innerHTML = `
+            <p class="mb-0">Click "Import Chain" to validate and import the certificates.</p>
+        `;
+    }
+
+    container.style.display = 'block';
+}
+
+// Form submission
+document.getElementById('importForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!this.checkValidity()) {
+        this.classList.add('was-validated');
+        return;
+    }
+
+    if (!chainContent) {
+        showWarning('Please upload a certificate chain file');
+        return;
+    }
+
+    // Show loading state
+    const submitBtn = document.getElementById('submitBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Validating & Importing...';
+
+    const validationCard = document.getElementById('validationCard');
+    const validationHeader = document.getElementById('validationHeader');
+    const validationBody = document.getElementById('validationBody');
+
+    validationCard.style.display = 'block';
+    validationHeader.className = 'card-header bg-warning';
+    validationHeader.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+    validationBody.innerHTML = '<p class="mb-0">Validating chain and importing certificates...</p>';
+
+    try {
+        const response = await fetch('/api/cas/import-chain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chain_content: chainContent })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Success
+            validationHeader.className = 'card-header bg-success text-white';
+            validationHeader.innerHTML = '<i class="bi bi-check-circle"></i> Validation Passed';
+            validationBody.innerHTML = '<p class="mb-0 text-success">Chain is valid!</p>';
+
+            // Show results
+            showResults(result);
+
+            // Hide form
+            document.getElementById('importForm').style.display = 'none';
+
+        } else {
+            // Error
+            validationHeader.className = 'card-header bg-danger text-white';
+            validationHeader.innerHTML = '<i class="bi bi-x-circle"></i> Validation Failed';
+
+            let errorMsg = result.detail;
+            if (Array.isArray(result.detail)) {
+                errorMsg = result.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('<br>');
+            } else if (typeof result.detail === 'object') {
+                errorMsg = JSON.stringify(result.detail);
+            }
+
+            // Format multi-line errors
+            errorMsg = errorMsg.replace(/\n/g, '<br>');
+
+            validationBody.innerHTML = `
+                <div class="text-danger">
+                    <p class="mb-2"><strong>Error:</strong></p>
+                    <p class="mb-0">${errorMsg}</p>
+                </div>
+            `;
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+
+    } catch (error) {
+        validationHeader.className = 'card-header bg-danger text-white';
+        validationHeader.innerHTML = '<i class="bi bi-x-circle"></i> Error';
+        validationBody.innerHTML = `<p class="mb-0 text-danger">${error.message}</p>`;
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+});
+
+function showResults(result) {
+    const container = document.getElementById('resultsContainer');
+    const body = document.getElementById('resultsBody');
+
+    let html = `<p class="mb-3">${result.message}</p>`;
+
+    if (result.imported_cas && result.imported_cas.length > 0) {
+        html += '<h6>Imported CAs:</h6>';
+        html += '<div class="list-group mb-3">';
+
+        for (const ca of result.imported_cas) {
+            const isRoot = ca.type === 'root_ca';
+            const icon = isRoot ? 'shield-fill-check' : 'diagram-3';
+            const badgeClass = isRoot ? 'bg-success' : 'bg-primary';
+            const badgeText = isRoot ? 'Root CA' : 'Intermediate CA';
+            const url = isRoot ? `/rootcas/${ca.id}` : `/intermediates/${ca.id}`;
+
+            html += `
+                <a href="${url}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">
+                            <i class="bi bi-${icon} me-1"></i>
+                            ${ca.subject.common_name}
+                        </h6>
+                        <span class="badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <small class="text-muted">
+                        ${ca.subject.organization || 'N/A'} |
+                        Valid until: ${new Date(ca.not_after).toLocaleDateString()}
+                    </small>
+                </a>
+            `;
+        }
+
+        html += '</div>';
+    }
+
+    if (result.imported_certs && result.imported_certs.length > 0) {
+        html += '<h6>Imported Certificates:</h6>';
+        html += '<div class="list-group mb-3">';
+
+        for (const certId of result.imported_certs) {
+            // Extract certificate name from ID (last part after /certs/)
+            const certName = certId.split('/certs/').pop() || certId;
+
+            html += `
+                <a href="/certs/${certId}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">
+                            <i class="bi bi-file-earmark-lock me-1"></i>
+                            ${certName}
+                        </h6>
+                        <span class="badge bg-secondary">Certificate</span>
+                    </div>
+                    <small class="text-muted">${certId}</small>
+                </a>
+            `;
+        }
+
+        html += '</div>';
+    }
+
+    html += `
+        <div class="mt-3">
+            <a href="/rootcas" class="btn btn-primary">
+                <i class="bi bi-arrow-left"></i> Back to Root CAs
+            </a>
+        </div>
+    `;
+
+    body.innerHTML = html;
+    container.style.display = 'block';
+}
+</script>
+{% endblock %}

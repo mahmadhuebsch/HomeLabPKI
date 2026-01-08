@@ -84,8 +84,8 @@
                         <div class="col-md-4 mb-3">
                             <label for="country" class="form-label">Country (C)</label>
                             <input type="text" class="form-control" id="country"
-                                   name="country" maxlength="2"
-                                   placeholder="DE">
+                                   name="country" maxlength="2" pattern="^[A-Z]{0,2}$"
+                                   placeholder="DE" title="2-letter country code (uppercase)">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="state" class="form-label">State/Province (ST)</label>
@@ -172,7 +172,8 @@
                         <input type="number" class="form-control" id="validityDays"
                                name="validity_days"
                                value="{{ defaults.validity_days or (3650 if ca_type == 'root' else 1825) }}"
-                               min="1" required>
+                               min="1" max="36500" required>
+                        <div class="invalid-feedback">Validity must be between 1 and 36500 days.</div>
                         <div class="form-text">
                             Default: {{ '3650 days (10 years)' if ca_type == 'root' else '1825 days (5 years)' }}
                         </div>
@@ -640,7 +641,7 @@ document.getElementById('caForm').addEventListener('submit', async function(e) {
     // Build request object
     const caType = formData.get('type');
     const algorithm = formData.get('algorithm');
-    const password = formData.get('key_password');
+    const keyPassword = formData.get('key_password');
 
     const request = {
         type: caType,
@@ -652,18 +653,16 @@ document.getElementById('caForm').addEventListener('submit', async function(e) {
             state: formData.get('state') || null,
             locality: formData.get('locality') || null
         },
-        key_config: {
-            algorithm: algorithm,
-            password: password  // Include password for key encryption
-        },
+        key_algorithm: algorithm,
+        key_password: keyPassword,  // Password for key encryption (not stored)
         validity_days: parseInt(formData.get('validity_days'))
     };
 
     // Add key size or curve based on algorithm
     if (algorithm === 'RSA') {
-        request.key_config.key_size = parseInt(formData.get('key_size'));
+        request.key_size = parseInt(formData.get('key_size'));
     } else if (algorithm === 'ECDSA') {
-        request.key_config.curve = formData.get('key_size');  // Actually the curve
+        request.key_curve = formData.get('key_size');  // Actually the curve
     }
 
     // Add parent CA ID and password for intermediate
@@ -684,10 +683,10 @@ document.getElementById('caForm').addEventListener('submit', async function(e) {
             window.location.href = `/rootcas/${result.id}`;
         } else {
             const error = await response.json();
-            alert(`Error: ${error.detail}`);
+            showError(error.detail || 'Failed to create CA');
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showError(error.message || 'An unexpected error occurred');
     }
 });
 </script>

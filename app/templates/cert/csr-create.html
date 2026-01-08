@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+
+{% block title %}Create CSR - HomeLab PKI{% endblock %}
+
+{% block extra_head %}
+<style>
+.command-preview {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #212529;
+}
+
+[data-bs-theme="dark"] .command-preview {
+    background-color: #2b3035;
+    color: #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1><i class="bi bi-file-earmark-text"></i> Create Certificate Signing Request</h1>
+
+        <form id="csrForm">
+            <!-- Subject Information -->
+            <div class="card mb-3">
+                <div class="card-header">Subject Information</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="commonName" class="form-label">Common Name (CN) / Domain *</label>
+                        <input type="text" class="form-control" id="commonName"
+                               name="common_name" required
+                               placeholder="e.g. example.com">
+                        <div class="form-text">The primary domain name for the certificate</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="organization" class="form-label">Organization (O)</label>
+                            <input type="text" class="form-control" id="organization"
+                                   name="organization"
+                                   placeholder="e.g. Example Inc">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="organizationalUnit" class="form-label">Organizational Unit (OU)</label>
+                            <input type="text" class="form-control" id="organizationalUnit"
+                                   name="organizational_unit"
+                                   placeholder="e.g. IT Department">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="country" class="form-label">Country (C)</label>
+                            <input type="text" class="form-control" id="country"
+                                   name="country" maxlength="2" pattern="^[A-Z]{0,2}$"
+                                   placeholder="DE" title="2-letter country code (uppercase)">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="state" class="form-label">State/Province (ST)</label>
+                            <input type="text" class="form-control" id="state"
+                                   name="state"
+                                   placeholder="e.g. California">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="locality" class="form-label">Locality (L)</label>
+                            <input type="text" class="form-control" id="locality"
+                                   name="locality"
+                                   placeholder="e.g. San Francisco">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subject Alternative Names (SANs) -->
+            <div class="card mb-3">
+                <div class="card-header">Subject Alternative Names (SANs)</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="sans" class="form-label">Alternative Domain Names</label>
+                        <textarea class="form-control" id="sans" name="sans" rows="3"
+                                  placeholder="example.com&#10;*.example.com&#10;www.example.com"></textarea>
+                        <div class="form-text">One domain per line. Wildcards (*) allowed.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Certificate Extensions -->
+            <div class="card mb-3">
+                <div class="card-header">Certificate Extensions</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="extensionPreset" class="form-label">Extension Preset *</label>
+                        <select class="form-select" id="extensionPreset" name="extension_preset">
+                            <option value="tls-server" selected>TLS Server</option>
+                            <option value="tls-client">TLS Client</option>
+                            <option value="tls-both">TLS Server + Client</option>
+                            <option value="code-signing">Code Signing</option>
+                            <option value="email">Email (S/MIME)</option>
+                            <option value="timestamping">Timestamping</option>
+                            <option value="ocsp">OCSP Signing</option>
+                        </select>
+                        <div class="form-text">Select the intended use for this certificate</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Configuration -->
+            <div class="card mb-3">
+                <div class="card-header">Key Configuration</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="keyAlgorithm" class="form-label">Key Algorithm *</label>
+                        <select class="form-select" id="keyAlgorithm" name="key_algorithm" required>
+                            <option value="RSA" selected>RSA</option>
+                            <option value="ECDSA">ECDSA</option>
+                            <option value="Ed25519">Ed25519</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="rsaOptions">
+                        <label for="keySize" class="form-label">Key Size *</label>
+                        <select class="form-select" id="keySize" name="key_size">
+                            <option value="2048">2048 bits</option>
+                            <option value="4096" selected>4096 bits (recommended)</option>
+                            <option value="8192">8192 bits</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="ecdsaOptions" style="display: none;">
+                        <label for="keyCurve" class="form-label">ECDSA Curve *</label>
+                        <select class="form-select" id="keyCurve" name="key_curve">
+                            <option value="P-256" selected>P-256 (recommended)</option>
+                            <option value="P-384">P-384</option>
+                            <option value="P-521">P-521</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target CA -->
+            <div class="card mb-3">
+                <div class="card-header">Target CA (Optional)</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="targetCa" class="form-label">External CA</label>
+                        <input type="text" class="form-control" id="targetCa"
+                               name="target_ca"
+                               placeholder="e.g. DigiCert, Let's Encrypt, etc.">
+                        <div class="form-text">Optional: Note which external CA you'll submit this CSR to</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Password -->
+            <div class="card mb-3">
+                <div class="card-header">Private Key Encryption</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="keyPassword" class="form-label">Private Key Password *</label>
+                        <input type="password" class="form-control" id="keyPassword"
+                               name="key_password" required minlength="8"
+                               placeholder="Enter a strong password (min. 8 characters)">
+                        <div class="form-text">This password encrypts your private key using AES-256. <strong>It is NOT stored</strong> - remember it!</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="keyPasswordConfirm" class="form-label">Confirm Password *</label>
+                        <input type="password" class="form-control" id="keyPasswordConfirm"
+                               name="key_password_confirm" required minlength="8"
+                               placeholder="Re-enter password">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="/certs/csrs" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span id="submitBtnText"><i class="bi bi-check-circle"></i> Create CSR</span>
+                    <span id="submitBtnSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Command Preview and Help Panel -->
+    <div class="col-lg-4">
+        <div class="sticky-top" style="top: 20px;">
+            <!-- Command Preview -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-terminal"></i> OpenSSL Command Preview
+                </div>
+                <div class="card-body">
+                    <div class="command-preview" id="commandPreview">
+                        <span class="text-muted">Fill out the form to see the command...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Panel -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> CSR Creation
+                </div>
+                <div class="card-body">
+                    <p><strong>What happens next?</strong></p>
+                    <ol class="text-muted small">
+                        <li>CSR and encrypted private key are generated</li>
+                        <li>Download the CSR file</li>
+                        <li>Submit CSR to your chosen external CA</li>
+                        <li>Import the signed certificate when received</li>
+                    </ol>
+
+                    <hr>
+
+                    <p><strong>Important:</strong></p>
+                    <ul class="text-muted small mb-0">
+                        <li>Your private key password is <strong>NOT stored</strong></li>
+                        <li>Keep your password safe - you'll need it to use the private key</li>
+                        <li>The private key never leaves this server</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== OpenSSL Command Preview =====
+function buildSubjectString(subject) {
+    let parts = [];
+    if (subject.country) parts.push(`C=${subject.country}`);
+    if (subject.state) parts.push(`ST=${subject.state}`);
+    if (subject.locality) parts.push(`L=${subject.locality}`);
+    if (subject.organization) parts.push(`O=${subject.organization}`);
+    if (subject.organizational_unit) parts.push(`OU=${subject.organizational_unit}`);
+    if (subject.common_name) parts.push(`CN=${subject.common_name}`);
+    return '/' + parts.join('/');
+}
+
+function buildKeyGenCommand(algorithm, keySize, keyCurve) {
+    const maskedPassword = '***';
+
+    if (algorithm === 'RSA') {
+        return `openssl genrsa -aes256 \\
+    -passout pass:${maskedPassword} \\
+    -out key.pem ${keySize}`;
+    } else if (algorithm === 'ECDSA') {
+        const curveMap = {
+            'P-256': 'prime256v1',
+            'P-384': 'secp384r1',
+            'P-521': 'secp521r1'
+        };
+        const curve = curveMap[keyCurve] || 'prime256v1';
+        return `openssl genpkey -algorithm EC \\
+    -pkeyopt ec_paramgen_curve:${curve} \\
+    -aes256 -pass pass:${maskedPassword} \\
+    -out key.pem`;
+    } else if (algorithm === 'Ed25519') {
+        return `openssl genpkey -algorithm Ed25519 \\
+    -aes256 -pass pass:${maskedPassword} \\
+    -out key.pem`;
+    }
+    return '';
+}
+
+function buildSanConfig(sans, keyUsage, extendedKeyUsage) {
+    const kuStr = keyUsage.join(', ');
+    const ekuStr = extendedKeyUsage.join(', ');
+
+    if (!sans || sans.length === 0) {
+        return `[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+
+[ v3_req ]
+keyUsage = critical, ${kuStr}
+extendedKeyUsage = ${ekuStr}`;
+    }
+
+    const sanEntries = sans.map((san, i) => `DNS.${i + 1} = ${san}`).join('\n');
+
+    return `[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+
+[ v3_req ]
+keyUsage = critical, ${kuStr}
+extendedKeyUsage = ${ekuStr}
+subjectAltName = @alt_names
+
+[ alt_names ]
+${sanEntries}`;
+}
+
+function buildCSRCommand(subject, algorithm, keySize, keyCurve, sans, extensionPreset) {
+    const keyCmd = buildKeyGenCommand(algorithm, keySize, keyCurve);
+    const subjectStr = buildSubjectString(subject);
+    const maskedPassword = '***';
+
+    // Map extension preset to key usage and extended key usage
+    const presetMap = {
+        'tls-server': {
+            keyUsage: ['digitalSignature', 'keyEncipherment'],
+            extendedKeyUsage: ['serverAuth']
+        },
+        'tls-client': {
+            keyUsage: ['digitalSignature'],
+            extendedKeyUsage: ['clientAuth']
+        },
+        'tls-both': {
+            keyUsage: ['digitalSignature', 'keyEncipherment'],
+            extendedKeyUsage: ['serverAuth', 'clientAuth']
+        },
+        'code-signing': {
+            keyUsage: ['digitalSignature'],
+            extendedKeyUsage: ['codeSigning']
+        },
+        'email': {
+            keyUsage: ['digitalSignature', 'keyEncipherment'],
+            extendedKeyUsage: ['emailProtection']
+        },
+        'timestamping': {
+            keyUsage: ['digitalSignature'],
+            extendedKeyUsage: ['timeStamping']
+        },
+        'ocsp': {
+            keyUsage: ['digitalSignature'],
+            extendedKeyUsage: ['OCSPSigning']
+        }
+    };
+
+    const extensions = presetMap[extensionPreset] || presetMap['tls-server'];
+
+    const csrCmd = `openssl req -new \\
+    -key key.pem \\
+    -passin pass:${maskedPassword} \\
+    -out csr.pem \\
+    -subj "${subjectStr}" \\
+    -config san.cnf`;
+
+    // Build config file preview
+    const configContent = buildSanConfig(sans, extensions.keyUsage, extensions.extendedKeyUsage);
+    const configSection = `\n\n# --- san.cnf ---\n${configContent}`;
+
+    return `${keyCmd}\n\n${csrCmd}${configSection}`;
+}
+
+function updateCommandPreview() {
+    const algorithm = document.getElementById('keyAlgorithm').value;
+    const keySize = document.getElementById('keySize').value || '4096';
+    const keyCurve = document.getElementById('keyCurve').value || 'P-256';
+    const extensionPreset = document.getElementById('extensionPreset').value;
+
+    const subject = {
+        common_name: document.getElementById('commonName').value,
+        organization: document.getElementById('organization').value,
+        organizational_unit: document.getElementById('organizationalUnit').value,
+        country: document.getElementById('country').value,
+        state: document.getElementById('state').value,
+        locality: document.getElementById('locality').value
+    };
+
+    // Parse SANs
+    const sansText = document.getElementById('sans').value;
+    const sans = sansText ? sansText.split('\n').map(s => s.trim()).filter(s => s) : [];
+
+    const command = buildCSRCommand(subject, algorithm, keySize, keyCurve, sans, extensionPreset);
+
+    const previewElement = document.getElementById('commandPreview');
+    if (command && subject.common_name) {
+        previewElement.innerHTML = command;
+    } else {
+        previewElement.innerHTML = '<span class="text-muted">Fill out the form to see the command...</span>';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('csrForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+    const keyAlgorithm = document.getElementById('keyAlgorithm');
+    const rsaOptions = document.getElementById('rsaOptions');
+    const ecdsaOptions = document.getElementById('ecdsaOptions');
+
+    // Toggle key options based on algorithm
+    keyAlgorithm.addEventListener('change', function() {
+        if (this.value === 'RSA') {
+            rsaOptions.style.display = 'block';
+            ecdsaOptions.style.display = 'none';
+        } else if (this.value === 'ECDSA') {
+            rsaOptions.style.display = 'none';
+            ecdsaOptions.style.display = 'block';
+        } else {
+            rsaOptions.style.display = 'none';
+            ecdsaOptions.style.display = 'none';
+        }
+        updateCommandPreview();
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Validate password match
+        const password = document.getElementById('keyPassword').value;
+        const passwordConfirm = document.getElementById('keyPasswordConfirm').value;
+        if (password !== passwordConfirm) {
+            alert('Passwords do not match!');
+            return;
+        }
+
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtnText.style.display = 'none';
+        submitBtnSpinner.style.display = 'inline-block';
+
+        // Build request
+        const formData = new FormData(form);
+        const data = {
+            subject: {
+                common_name: formData.get('common_name'),
+                organization: formData.get('organization') || null,
+                organizational_unit: formData.get('organizational_unit') || null,
+                country: formData.get('country') || null,
+                state: formData.get('state') || null,
+                locality: formData.get('locality') || null
+            },
+            sans: formData.get('sans') ? formData.get('sans').split('\n').map(s => s.trim()).filter(s => s) : [],
+            key_algorithm: formData.get('key_algorithm'),
+            key_password: password,
+            target_ca: formData.get('target_ca') || null
+        };
+
+        // Add key size or curve
+        if (data.key_algorithm === 'RSA') {
+            data.key_size = parseInt(formData.get('key_size'));
+        } else if (data.key_algorithm === 'ECDSA') {
+            data.key_curve = formData.get('key_curve');
+        }
+
+        // Map extension preset to key usage and extended key usage
+        const preset = formData.get('extension_preset');
+        const presetMap = {
+            'tls-server': {
+                key_usage: ['digitalSignature', 'keyEncipherment'],
+                extended_key_usage: ['serverAuth']
+            },
+            'tls-client': {
+                key_usage: ['digitalSignature'],
+                extended_key_usage: ['clientAuth']
+            },
+            'tls-both': {
+                key_usage: ['digitalSignature', 'keyEncipherment'],
+                extended_key_usage: ['serverAuth', 'clientAuth']
+            },
+            'code-signing': {
+                key_usage: ['digitalSignature'],
+                extended_key_usage: ['codeSigning']
+            },
+            'email': {
+                key_usage: ['digitalSignature', 'keyEncipherment'],
+                extended_key_usage: ['emailProtection']
+            },
+            'timestamping': {
+                key_usage: ['digitalSignature'],
+                extended_key_usage: ['timeStamping']
+            },
+            'ocsp': {
+                key_usage: ['digitalSignature'],
+                extended_key_usage: ['OCSPSigning']
+            }
+        };
+
+        if (presetMap[preset]) {
+            data.key_usage = presetMap[preset].key_usage;
+            data.extended_key_usage = presetMap[preset].extended_key_usage;
+        }
+
+        try {
+            const response = await fetch('/api/csrs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to create CSR');
+            }
+
+            const result = await response.json();
+            window.location.href = `/certs/csrs/${result.id}`;
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+            submitBtn.disabled = false;
+            submitBtnText.style.display = 'inline-block';
+            submitBtnSpinner.style.display = 'none';
+        }
+    });
+
+    // Add event listeners for live command preview
+    const formFields = [
+        'commonName', 'organization', 'organizationalUnit', 'country',
+        'state', 'locality', 'sans', 'keySize', 'keyCurve', 'extensionPreset'
+    ];
+
+    formFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', updateCommandPreview);
+            field.addEventListener('change', updateCommandPreview);
+        }
+    });
+
+    // Initial preview update
+    updateCommandPreview();
+});
+</script>
+{% endblock %}

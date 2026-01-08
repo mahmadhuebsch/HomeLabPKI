@@ -28,5 +28,6 @@ logging:
   file: ./logs/homelabpki.log
 auth:
   enabled: true
-  password_hash: # default: "admin"
+  # Set to null to reset password to default: "adminadmin"
+  password_hash: "$2b$12$uhPKRoTY./hfl9PZ2HX6VODCYSoWNOOS5.70dvY.ELicYE.KmV7oC"
   session_expiry_hours: 24
