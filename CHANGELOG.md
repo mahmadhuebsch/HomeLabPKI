@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.1.0] - 2026-01-09
+
+### Added
+- **CSR (Certificate Signing Request) Feature**: Generate CSRs for submission to external CAs (DigiCert, Let's Encrypt, etc.)
+  - Create CSRs with encrypted private keys stored locally
+  - Download CSR and private key files
+  - Import signed certificates back from external CAs
+  - CSR status tracking (pending, signed, expired)
+  - Public key matching validation when importing signed certificates
+- **Full Chain Import**: Import complete certificate chains in a single operation
+  - Import root CA + intermediate CA(s) + end-entity certificate together
+  - Automatic chain validation and verification
+  - Support for importing partial chains (root + intermediates, or just root)
+- **Enhanced Field Validation**: Improved input validation across all forms
+- **Docker GHCR Support**: Container images now available from GitHub Container Registry
+
+### Changed
+- **Default Password**: Changed default admin password for improved security
+- **CI/CD Improvements**: Enhanced GitHub Actions workflow with tag-based triggers and `latest` Docker tag support
+
+### Security
+- **Private Key Password Handling**: Private key passwords are no longer stored in configuration files
+  - Passwords required at runtime for operations that need private key access
+  - Only encryption status flag (`encrypted: true/false`) stored in config
+  - Migration script provided for existing installations
+- **Enhanced Error Messages**: Improved error feedback without exposing sensitive information
+
+### Fixed
+- **Code Quality**: Fixed flake8 forward reference errors
+- **Import Sorting**: Resolved isort compliance issues
+- **Security Documentation**: Updated SECURITY.md to reflect encrypted password storage
+
 ## [1.0.0] - 2025-12-29
 
 ### Added

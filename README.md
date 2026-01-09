@@ -115,7 +115,7 @@ docker run -d \
 
 Available tags:
 - `latest` - Latest stable release
-- `v1.0.0` - Specific version
+- `v1.1.0` - Specific version
 - `main` - Latest from main branch
 
 ### Build from Source
@@ -311,11 +311,13 @@ isort app/ tests/
 ## Planned Features
 
 - [x] Password support
+- [x] Certificate chain import
+- [x] CSR (Certificate Signing Request) management
+- [x] Docker containerization
 - [ ] Email notifications for expiring certificates
 - [ ] ACME Protocol support
 - [ ] CRL support
-- [ ] Certificate chain import
-- [x] Docker containerization
+- [ ] OCSP Responder
 
 ## License
 

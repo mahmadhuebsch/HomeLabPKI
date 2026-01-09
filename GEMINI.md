@@ -550,19 +550,36 @@ defaults:
 
 ## Version History
 
-### Current Version: 1.0.0
+### Current Version: 1.1.0
+
+**v1.1.0 Release (January 2026):**
+- **CSR (Certificate Signing Request) Feature**: Generate CSRs for external CAs with encrypted private keys
+  - CSR creation with all standard certificate fields and extensions
+  - Download CSR and encrypted private key files
+  - Import signed certificates from external CAs with public key validation
+  - CSR status tracking (pending, signed, expired)
+  - Full web UI with creation, detail, and import forms
+- **Full Chain Import**: Import complete certificate chains in single operation
+  - Support for importing root + intermediate(s) + certificate chains
+  - Automatic chain validation and parent-child relationship verification
+  - Migration script for existing installations to use relative paths
+- **Enhanced Security**: Private key passwords no longer stored in config files
+  - Passwords required at runtime for signing operations
+  - Only encryption status flag stored in configuration
+  - Migration script provided for existing installations
+- **Improved User Experience**: Enhanced error messages and field validation
+- **Testing**: Added Playwright browser tests for authentication flows
+- **Docker**: GitHub Container Registry (GHCR) support with automated builds
 
 **v1.0.0 Release (December 2025):**
 - First stable release
 - Air-gapped operation: All frontend assets bundled locally (Bootstrap 5.3, Bootstrap Icons 1.11)
 - Parent CA preselection when creating certificates/intermediate CAs from detail pages
-- Comprehensive test suite with pytest (88 tests, >80% coverage)
+- Comprehensive test suite with pytest (>80% coverage)
 - Full documentation (README, CLAUDE.md, THIRD_PARTY_LICENSES.md)
-
-**Previous Changes:**
 - Root CA, Intermediate CA, and Server Certificate management
 - Certificate extensions (Key Usage, Extended Key Usage) with presets
-- CSR signing and certificate import functionality
+- CSR signing functionality (sign external CSRs)
 - Multiple key algorithms (RSA, ECDSA, Ed25519)
 - RESTful API with OpenAPI documentation
 - Web interface with Bootstrap 5 and dark mode
