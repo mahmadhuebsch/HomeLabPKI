@@ -1,0 +1,25 @@
+========================================
+Certificate Expiration Warning
+========================================
+
+{{ entity_type }} "{{ entity_name }}" will expire in {{ days_remaining }} days on {{ expiry_date }}.
+
+DETAILS
+--------
+Name: {{ entity_name }}
+Type: {{ entity_type }}
+{% if serial_number %}Serial: {{ serial_number }}{% endif %}
+{% if subject %}Subject: {{ subject }}{% endif %}
+{% if issuer %}Issuer: {{ issuer }}{% endif %}
+{% if ca_chain %}CA Chain: {{ ca_chain }}{% endif %}
+Expires: {{ expiry_date }}
+Days Remaining: {{ days_remaining }}
+{% if key_algorithm %}Algorithm: {{ key_algorithm }}{% endif %}
+
+{% if entity_url %}
+View in PKI Dashboard: {{ entity_url }}
+{% endif %}
+
+----------------------------------------
+This is an automated message from HomeLab PKI.
+Sent: {{ timestamp }}

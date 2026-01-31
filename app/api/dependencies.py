@@ -117,6 +117,24 @@ def get_crl_service():
     return CRLService(ca_data_dir, openssl_service)
 
 
+def get_smtp_service():
+    """Get SMTP service instance."""
+    from app.services.smtp_service import SMTPService
+
+    config = get_config()
+    return SMTPService(config.smtp)
+
+
+def get_notification_service():
+    """Get notification service instance."""
+    from app.services.notification_service import NotificationService
+
+    config = get_config()
+    ca_data_dir = Path(config.paths.ca_data)
+    smtp_service = get_smtp_service()
+    return NotificationService(ca_data_dir, config, smtp_service)
+
+
 def get_auth_service() -> AuthService:
     """
     Get authentication service instance (singleton).

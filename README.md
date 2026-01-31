@@ -34,6 +34,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Server Certificates** - Issue certificates with Subject Alternative Names (SANs)
 - **Certificate Extensions** - Customize Key Usage and Extended Key Usage with presets (TLS Server, TLS Client, Code Signing, etc.) or custom selection
 - **Certificate Revocation (CRL)** - Full RFC 5280/2585 compliant CRL support: revoke certificates with 10 standard reasons, auto-regenerate CRL on revocation, public CRL endpoint for clients (no auth required), download in PEM or DER format, support for certificate hold (reversible)
+- **Email Notifications** - Automated expiration warnings via SMTP with configurable thresholds, per-entity overrides, and background scheduling
 - **CSR Management** - Create Certificate Signing Requests for external CAs (DigiCert, Let's Encrypt, etc.) with encrypted private keys stored locally
 - **CSR Signing** - Sign external Certificate Signing Requests where private keys are managed externally
 - **Importing** - Import and track externally-signed CAs and certificates, or import signed certificates back into CSRs
@@ -55,6 +56,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - [Configuration](#configuration)
 - [Authentication](#authentication)
 - [Certificate Revocation Lists (CRL)](#certificate-revocation-lists-crl)
+- [Email Notifications](#email-notifications)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Security Considerations](#security-considerations)
@@ -322,6 +324,116 @@ Clients validating certificates will automatically fetch and check the CRL from 
 - `aACompromise` - Attribute Authority compromised
 
 Only certificates revoked with `certificateHold` can be unrevoked.
+
+## Email Notifications
+
+HomeLab PKI can send email notifications when certificates, CAs, or CRLs are approaching expiration.
+
+### Features
+
+- **Automated Expiration Monitoring** - Periodic checks for expiring certificates
+- **Configurable Thresholds** - Send notifications at multiple intervals (e.g., 90, 60, 30, 14, 7 days before expiry)
+- **SMTP Support** - Send emails via any SMTP server (Gmail, Outlook, internal mail server, etc.)
+- **Per-Entity Overrides** - Custom notification settings for individual CAs or certificates
+- **Test Mode** - Send test emails to verify SMTP configuration
+- **State Tracking** - Prevents duplicate notifications for the same threshold
+
+### Configuration
+
+Edit `config.yaml` to configure email notifications:
+
+```yaml
+smtp:
+  enabled: true
+  host: "smtp.gmail.com"
+  port: 587
+  encryption: starttls  # Options: none, starttls, ssl
+  username: "your-email@gmail.com"
+  password: "your-app-password"  # Or use environment variable
+  sender_email: "pki@example.com"
+  sender_name: "HomeLab PKI"
+
+notifications:
+  enabled: true
+  recipients:
+    - "admin@example.com"
+    - "security@example.com"
+  thresholds:
+    - 90   # First warning at 90 days
+    - 60
+    - 30
+    - 14
+    - 7
+    - 3
+    - 1    # Final warning at 1 day
+  check_interval_hours: 24
+  check_on_startup: true
+  include_ca_expiry: true
+  include_cert_expiry: true
+  include_crl_expiry: true
+```
+
+### Using Environment Variables for Passwords
+
+For better security, use environment variables for SMTP credentials:
+
+```yaml
+smtp:
+  password: ${SMTP_PASSWORD}
+```
+
+Then set the environment variable before starting the application:
+
+```bash
+# Linux/Mac
+export SMTP_PASSWORD="your-app-password"
+python main.py
+
+# Windows PowerShell
+$env:SMTP_PASSWORD="your-app-password"
+python main.py
+```
+
+### Testing SMTP Configuration
+
+Use the Settings page in the web UI to:
+- Test SMTP connection
+- Send a test email
+- View notification status
+- Manually trigger expiration checks
+
+Or use the API:
+
+```bash
+# Test SMTP connection
+curl -X POST http://localhost:8000/api/notifications/smtp/test \
+  -H "Authorization: Bearer <token>"
+
+# Send test email
+curl -X POST http://localhost:8000/api/notifications/test \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"recipient": "admin@example.com"}'
+
+# Manually trigger expiration check
+curl -X POST http://localhost:8000/api/notifications/check \
+  -H "Authorization: Bearer <token>"
+```
+
+### Per-Entity Notification Overrides
+
+You can customize notification settings for individual CAs or certificates by editing their `config.yaml`:
+
+```yaml
+# ca-data/root-ca-example/config.yaml
+notifications:
+  enabled: true
+  recipients:
+    - "ca-admin@example.com"  # Additional recipients
+  thresholds: [180, 90, 30]   # Custom thresholds for this CA
+```
+
+**Note:** Entity-specific recipients are **added** to global recipients. Entity-specific thresholds **replace** global thresholds.
 
 ## API Documentation
 
