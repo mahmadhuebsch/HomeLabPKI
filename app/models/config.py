@@ -52,6 +52,17 @@ class AuthSettings(BaseModel):
     session_expiry_hours: int = 24
 
 
+class CRLSettings(BaseModel):
+    """CRL (Certificate Revocation List) settings."""
+
+    # Base URL for CRL distribution (e.g., "http://pki.example.com:8000")
+    # If set, certificates will include a CRL Distribution Point extension
+    # pointing to: {base_url}/download/crl/{ca_id}.crl
+    base_url: Optional[str] = None
+    # CRL validity period in days (default 30)
+    validity_days: int = 30
+
+
 class AppConfig(BaseModel):
     """Main application configuration."""
 
@@ -61,3 +72,4 @@ class AppConfig(BaseModel):
     security: SecuritySettings
     logging: LoggingSettings
     auth: AuthSettings = AuthSettings()
+    crl: CRLSettings = CRLSettings()

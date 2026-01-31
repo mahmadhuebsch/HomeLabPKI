@@ -31,3 +31,12 @@ auth:
   # Set to null to reset password to default: "adminadmin"
   password_hash: "$2b$12$uhPKRoTY./hfl9PZ2HX6VODCYSoWNOOS5.70dvY.ELicYE.KmV7oC"
   session_expiry_hours: 24
+crl:
+  # Base URL for CRL Distribution Point (CDP) in certificates
+  # Example: "http://pki.example.com:8000"
+  # If set, certificates will include CDP extension pointing to:
+  # {base_url}/download/crl/{ca_id}.crl
+  # Use HTTP (not HTTPS) per RFC 2585 to avoid circular dependencies
+  base_url: null
+  # CRL validity period in days
+  validity_days: 30

@@ -109,6 +109,12 @@ class CAService:
             config_dict = ca_config.model_dump()
             YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
 
+            # Initialize CRL files
+            from app.services.crl_service import CRLService
+
+            crl_service = CRLService(self.ca_data_dir, self.openssl_service)
+            crl_service.initialize_crl_files(ca_dir)
+
             logger.info(f"Created Root CA '{request.subject.common_name}' at {ca_dir}")
             return self._build_ca_response(ca_id, ca_config, ca_dir)
 
@@ -196,6 +202,12 @@ class CAService:
 
             config_dict = ca_config.model_dump()
             YAMLService.save_config_yaml(ca_dir / "config.yaml", config_dict)
+
+            # Initialize CRL files
+            from app.services.crl_service import CRLService
+
+            crl_service = CRLService(self.ca_data_dir, self.openssl_service)
+            crl_service.initialize_crl_files(ca_dir)
 
             logger.info(f"Created Intermediate CA '{request.subject.common_name}' under {parent_ca_id}")
             return self._build_ca_response(ca_id, ca_config, ca_dir)

@@ -28,6 +28,15 @@
                 {% endif %}
             </div>
             <div class="col-md-4 text-end">
+                {% if not cert_config.get('revoked_at') %}
+                <button class="btn btn-warning me-2" onclick="showRevokeModal()">
+                    <i class="bi bi-shield-x"></i> Revoke
+                </button>
+                {% elif cert_config.get('revocation_reason') == 'certificateHold' %}
+                <button class="btn btn-success me-2" onclick="showUnrevokeModal()">
+                    <i class="bi bi-shield-check"></i> Remove Hold
+                </button>
+                {% endif %}
                 <button class="btn btn-danger" onclick="confirmDelete()">
                     <i class="bi bi-trash"></i> Delete
                 </button>
@@ -91,6 +100,15 @@
                     <span class="badge bg-{{ cert.validity_status }}">{{ cert.validity_text }}</span>
                 </td>
             </tr>
+            {% if cert_config.get('revoked_at') %}
+            <tr>
+                <th>Revocation Details:</th>
+                <td>
+                    <strong>Revoked At:</strong> {{ cert_config.revoked_at }}<br>
+                    <strong>Reason:</strong> {{ cert_config.revocation_reason }}
+                </td>
+            </tr>
+            {% endif %}
             <tr>
                 <th>Serial Number:</th>
                 <td><code>{{ cert.serial_number }}</code></td>
@@ -227,6 +245,21 @@
                     <li><strong>Full Chain</strong> - Certificate + all CA certs in chain</li>
                 </ul>
 
+                <hr>
+
+                <p><strong>Certificate Revocation</strong></p>
+                <p class="text-muted small">
+                    Revoked certificates are added to the CA's CRL (Certificate Revocation List)
+                    per RFC 5280. Clients can check the CRL to verify certificate validity.
+                </p>
+                <ul class="text-muted small">
+                    <li><strong>Revoke</strong> - Permanently invalidate this certificate</li>
+                    <li><strong>Certificate Hold</strong> - Temporary revocation (reversible)</li>
+                </ul>
+                <p class="text-muted small">
+                    Only certificates revoked with "Certificate Hold" reason can be unrevoked.
+                </p>
+
                 {% if cert.source == 'external' %}
                 <div class="alert alert-info small mt-3 mb-0">
                     <i class="bi bi-info-circle"></i>
@@ -237,10 +270,102 @@
         </div>
     </div>
 </div>
+
+<!-- Revoke Certificate Modal -->
+<div class="modal fade" id="revokeModal" tabindex="-1" aria-labelledby="revokeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="revokeModalLabel">
+                    <i class="bi bi-shield-x"></i> Revoke Certificate
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Warning:</strong> This will revoke the certificate and add it to the CRL.
+                    Only certificates with reason "certificateHold" can be unrevoked.
+                </div>
+                <div class="mb-3">
+                    <label for="revocationReason" class="form-label">Revocation Reason</label>
+                    <select class="form-select" id="revocationReason" required>
+                        <option value="unspecified">Unspecified</option>
+                        <option value="keyCompromise">Key Compromise</option>
+                        <option value="cACompromise">CA Compromise</option>
+                        <option value="affiliationChanged">Affiliation Changed</option>
+                        <option value="superseded">Superseded</option>
+                        <option value="cessationOfOperation">Cessation of Operation</option>
+                        <option value="certificateHold">Certificate Hold (Reversible)</option>
+                        <option value="removeFromCRL">Remove from CRL</option>
+                        <option value="privilegeWithdrawn">Privilege Withdrawn</option>
+                        <option value="aACompromise">AA Compromise</option>
+                    </select>
+                    <div class="form-text">
+                        Select "Certificate Hold" if this revocation might be temporary.
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="revokeCAPassword" class="form-label">Issuing CA Password</label>
+                    <input type="password" class="form-control" id="revokeCAPassword" required
+                           placeholder="Enter password for {{ ca_id }}">
+                    <div class="form-text">
+                        Password is required to sign the updated CRL.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="revokeCertificate()">
+                    <i class="bi bi-shield-x"></i> Revoke Certificate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unrevoke Certificate Modal -->
+<div class="modal fade" id="unrevokeModal" tabindex="-1" aria-labelledby="unrevokeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="unrevokeModalLabel">
+                    <i class="bi bi-shield-check"></i> Remove Certificate Hold
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    This will remove the certificate from the CRL and restore it to active status.
+                </div>
+                <div class="mb-3">
+                    <label for="unrevokeCAPassword" class="form-label">Issuing CA Password</label>
+                    <input type="password" class="form-control" id="unrevokeCAPassword" required
+                           placeholder="Enter password for {{ ca_id }}">
+                    <div class="form-text">
+                        Password is required to sign the updated CRL.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="unrevokeCertificate()">
+                    <i class="bi bi-shield-check"></i> Remove Hold
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/crl.js"></script>
 <script>
+// Set certificate ID for CRL functions
+window.certId = '{{ cert.id }}';
+window.caId = '{{ ca_id }}';
+
 function copyActiveTabContent() {
     // Determine which tab is active
     const activeTab = document.querySelector('#certTabs .nav-link.active');
@@ -268,6 +393,84 @@ function confirmKeyDownload(event, href) {
         }
     });
     return false;
+}
+
+function showRevokeModal() {
+    const modal = new bootstrap.Modal(document.getElementById('revokeModal'));
+    modal.show();
+}
+
+function showUnrevokeModal() {
+    const modal = new bootstrap.Modal(document.getElementById('unrevokeModal'));
+    modal.show();
+}
+
+async function revokeCertificate() {
+    const reason = document.getElementById('revocationReason').value;
+    const caPassword = document.getElementById('revokeCAPassword').value;
+
+    if (!caPassword) {
+        showError('CA password is required');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/certs/${window.certId}/revoke`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                reason: reason,
+                ca_password: caPassword
+            })
+        });
+
+        if (response.ok) {
+            showSuccess('Certificate revoked successfully');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const error = await response.json();
+            showError('Error revoking certificate: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        showError('Error revoking certificate: ' + error.message);
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('revokeModal'));
+    modal.hide();
+}
+
+async function unrevokeCertificate() {
+    const caPassword = document.getElementById('unrevokeCAPassword').value;
+
+    if (!caPassword) {
+        showError('CA password is required');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/certs/${window.certId}/unrevoke`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ca_password: caPassword
+            })
+        });
+
+        if (response.ok) {
+            showSuccess('Certificate hold removed successfully');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const error = await response.json();
+            showError('Error removing hold: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        showError('Error removing hold: ' + error.message);
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('unrevokeModal'));
+    modal.hide();
 }
 
 async function confirmDelete() {

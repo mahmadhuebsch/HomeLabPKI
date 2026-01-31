@@ -166,7 +166,44 @@ HomeLabPKI/
   4. User imports signed certificate (system validates public key match)
   5. CSR status changes to `signed`
 
-### 5. Parser Service (`app/services/parser_service.py`)
+### 5. CRL Service (`app/services/crl_service.py`)
+- Manages Certificate Revocation Lists for each CA
+- **RFC Compliance**: Implements RFC 5280 (CRL profile) and RFC 2585 (HTTP distribution)
+- Each CA maintains: index.txt (OpenSSL database), crlnumber, crl/ directory
+- Key methods:
+  - `initialize_crl_files()` - Create CRL infrastructure for CA
+  - `revoke_certificate()` - Add cert to CRL + auto-regenerate
+  - `unrevoke_certificate()` - Remove hold (certificateHold only)
+  - `generate_crl()` - Generate/regenerate CRL
+  - `get_crl_info()` - Get CRL metadata
+  - `list_revoked_certificates()` - List revoked certs for CA
+- Supports all 10 RFC 5280 revocation reasons
+- Auto-generates both PEM and DER format CRLs
+- **Public CRL Endpoint**: `/download/crl/{ca_id}.crl` (no authentication per RFC 2585)
+- CRL Directory Structure:
+  ```
+  ca-data/root-ca-example/
+  ├── index.txt          # OpenSSL certificate database
+  ├── index.txt.attr     # Database attributes
+  ├── crlnumber          # CRL serial counter
+  ├── crl/
+  │   ├── crl.pem        # CRL in PEM format
+  │   ├── crl.der        # CRL in DER format
+  │   └── config.yaml    # CRL metadata
+  ```
+- **RFC 5280 Revocation Reasons**:
+  - `unspecified` - No specific reason
+  - `keyCompromise` - Private key compromised
+  - `cACompromise` - CA compromised
+  - `affiliationChanged` - Subject's affiliation changed
+  - `superseded` - Certificate replaced
+  - `cessationOfOperation` - CA/subject ceased operations
+  - `certificateHold` - Temporary hold (only reversible reason)
+  - `removeFromCRL` - Remove from CRL (delta CRL)
+  - `privilegeWithdrawn` - Privilege withdrawn
+  - `aACompromise` - Attribute Authority compromised
+
+### 6. Parser Service (`app/services/parser_service.py`)
 - Parses X.509 certificates using cryptography library
 - Converts certificates to text format using OpenSSL
 - Converts CSRs to text format using OpenSSL
@@ -182,7 +219,7 @@ HomeLabPKI/
   - `_extract_key_usage()` - Extract Key Usage extension values
   - `_extract_extended_key_usage()` - Extract Extended Key Usage values
 
-### 6. YAML Service (`app/services/yaml_service.py`)
+### 7. YAML Service (`app/services/yaml_service.py`)
 - Handles YAML serialization/deserialization
 - **IMPORTANT**: Custom Enum handling to prevent serialization errors
 - Converts Enum objects to their `.value` property before saving
@@ -408,7 +445,6 @@ If you forget your password:
 - **In-memory Sessions**: Sessions lost on application restart
 
 ### Limitations
-- No certificate revocation lists (CRL)
 - No OCSP responder
 - No HSM support
 - No multi-user support
@@ -524,6 +560,13 @@ defaults:
     validity_days: 1825
   server_cert:
     validity_days: 365
+
+crl:
+  # Base URL for CRL Distribution Point in certificates
+  # Example: "http://pki.example.com:8000"
+  # If set, certificates will include CDP extension
+  base_url: null
+  validity_days: 30
 ```
 
 ## API Endpoints
@@ -548,6 +591,16 @@ defaults:
 - `POST /api/csrs/{csr_id}/signed` - Import signed certificate
 - `GET /api/csrs/{csr_id}/download/csr` - Download CSR file
 - `GET /api/csrs/{csr_id}/download/key` - Download private key
+
+### CRLs
+- `POST /api/certs/{cert_id}/revoke` - Revoke certificate
+- `POST /api/certs/{cert_id}/unrevoke` - Remove hold
+- `GET /api/cas/{ca_id}/crl` - Get CRL info
+- `GET /api/cas/{ca_id}/crl/revoked` - List revoked certs
+- `POST /api/cas/{ca_id}/crl/regenerate` - Manual regenerate
+- `GET /download/ca/{ca_id}/crl` - Download CRL (PEM, requires auth)
+- `GET /download/ca/{ca_id}/crl/der` - Download CRL (DER, requires auth)
+- `GET /download/crl/{ca_id}.crl` - **PUBLIC** CRL endpoint (DER, no auth per RFC 2585)
 
 ### Downloads
 - `GET /download/ca/{ca_id}/cert` - Download CA certificate
@@ -631,7 +684,6 @@ defaults:
 ## Future Considerations
 
 ### Roadmap Items
-- Certificate Revocation Lists (CRL)
 - OCSP Responder
 - Certificate Templates
 - Bulk Operations
@@ -639,10 +691,9 @@ defaults:
 - Email Notifications
 - HSM Support
 - ACME Protocol
-- Docker Image
 - Multi-User Support
 
 ---
 
-**Last Updated**: December 2025
+**Last Updated**: January 2026
 **Maintained for**: Claude AI Assistant context

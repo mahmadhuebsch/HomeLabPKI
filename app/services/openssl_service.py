@@ -82,6 +82,31 @@ class OpenSSLService:
             logger.warning(f"Password verification failed for {key_path}: {e}")
             return False
 
+    def build_crl_command(self, ca_dir: Path, ca_password: str, validity_days: int = 30) -> str:
+        """
+        Build OpenSSL command to generate CRL.
+
+        Args:
+            ca_dir: CA directory
+            ca_password: CA private key password
+            validity_days: CRL validity period
+
+        Returns:
+            OpenSSL command string
+        """
+        crl_path = ca_dir / "crl" / "crl.pem"
+
+        # Use ca command with gencrl - key and cert come from openssl.cnf
+        cmd = (
+            f"{self.openssl_path} ca -gencrl "
+            f"-config openssl.cnf "
+            f"-passin pass:{ca_password} "
+            f"-out {self._path_to_posix(crl_path)} "
+            f"-crldays {validity_days}"
+        )
+
+        return cmd
+
     def build_root_ca_command(self, config: CAConfig, output_dir: Path, key_password: str) -> str:
         """
         Generate OpenSSL command for Root CA creation.
@@ -437,6 +462,7 @@ class OpenSSLService:
         sans: Optional[list[str]] = None,
         key_usage: Optional[list[str]] = None,
         extended_key_usage: Optional[list[str]] = None,
+        crl_distribution_url: Optional[str] = None,
     ) -> None:
         """
         Generate openssl.cnf file.
@@ -447,13 +473,14 @@ class OpenSSLService:
             sans: List of Subject Alternative Names (for server_cert)
             key_usage: List of Key Usage values (for server_cert)
             extended_key_usage: List of Extended Key Usage values (for server_cert)
+            crl_distribution_url: URL for CRL Distribution Point (for server_cert)
         """
         if config_type == "root_ca":
             content = self._get_root_ca_config()
         elif config_type == "intermediate_ca":
             content = self._get_intermediate_ca_config()
         elif config_type == "server_cert":
-            content = self._get_server_cert_config(sans or [], key_usage, extended_key_usage)
+            content = self._get_server_cert_config(sans or [], key_usage, extended_key_usage, crl_distribution_url)
         else:
             raise ValueError(f"Unknown config type: {config_type}")
 
@@ -464,8 +491,37 @@ class OpenSSLService:
         logger.debug(f"Generated OpenSSL config: {output_file}")
 
     def _get_root_ca_config(self) -> str:
-        """Get OpenSSL config for Root CA."""
-        return """[ req ]
+        """Get OpenSSL config for Root CA with CRL support."""
+        return """[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+dir               = .
+certs             = $dir/certs
+crl_dir           = $dir/crl
+database          = $dir/index.txt
+new_certs_dir     = $dir/certs
+certificate       = $dir/ca.crt
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+crl               = $dir/crl/crl.pem
+private_key       = $dir/ca.key
+default_days      = 365
+default_crl_days  = 30
+default_md        = sha256
+preserve          = no
+policy            = policy_anything
+
+[ policy_anything ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
 distinguished_name = req_distinguished_name
 x509_extensions = v3_ca
 prompt = no
@@ -480,8 +536,37 @@ keyUsage = critical, digitalSignature, cRLSign, keyCertSign
 """
 
     def _get_intermediate_ca_config(self) -> str:
-        """Get OpenSSL config for Intermediate CA."""
-        return """[ req ]
+        """Get OpenSSL config for Intermediate CA with CRL support."""
+        return """[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+dir               = .
+certs             = $dir/certs
+crl_dir           = $dir/crl
+database          = $dir/index.txt
+new_certs_dir     = $dir/certs
+certificate       = $dir/ca.crt
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+crl               = $dir/crl/crl.pem
+private_key       = $dir/ca.key
+default_days      = 365
+default_crl_days  = 30
+default_md        = sha256
+preserve          = no
+policy            = policy_anything
+
+[ policy_anything ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
 distinguished_name = req_distinguished_name
 prompt = no
 
@@ -499,6 +584,7 @@ keyUsage = critical, digitalSignature, cRLSign, keyCertSign
         sans: list[str],
         key_usage: list[str] | None = None,
         extended_key_usage: list[str] | None = None,
+        crl_distribution_url: str | None = None,
     ) -> str:
         """
         Get OpenSSL config for Server Certificate.
@@ -507,6 +593,7 @@ keyUsage = critical, digitalSignature, cRLSign, keyCertSign
             sans: List of Subject Alternative Names
             key_usage: List of Key Usage values (default: digitalSignature, keyEncipherment)
             extended_key_usage: List of Extended Key Usage values (default: serverAuth)
+            crl_distribution_url: URL for CRL Distribution Point (optional)
 
         Returns:
             OpenSSL config content
@@ -521,6 +608,11 @@ keyUsage = critical, digitalSignature, cRLSign, keyCertSign
         eku_str = ", ".join(extended_key_usage)
         san_entries = "\n".join([f"DNS.{i+1} = {san}" for i, san in enumerate(sans)])
 
+        # Build CRL Distribution Point extension if URL is provided
+        cdp_extension = ""
+        if crl_distribution_url:
+            cdp_extension = f"crlDistributionPoints = URI:{crl_distribution_url}\n"
+
         return f"""[ req ]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -532,7 +624,7 @@ prompt = no
 keyUsage = critical, {ku_str}
 extendedKeyUsage = {eku_str}
 subjectAltName = @alt_names
-
+{cdp_extension}
 [ alt_names ]
 {san_entries}
 """
@@ -652,6 +744,7 @@ subjectAltName = @alt_names
         ca_password: str,
         key_usage: Optional[list[str]] = None,
         extended_key_usage: Optional[list[str]] = None,
+        crl_distribution_url: Optional[str] = None,
     ) -> str:
         """
         Sign a CSR to generate a certificate.
@@ -667,6 +760,7 @@ subjectAltName = @alt_names
             ca_password: Password for CA's private key
             key_usage: List of Key Usage values
             extended_key_usage: List of Extended Key Usage values
+            crl_distribution_url: URL for CRL Distribution Point (optional)
 
         Returns:
             OpenSSL command executed
@@ -684,7 +778,9 @@ subjectAltName = @alt_names
 
             # Generate SAN config with extensions
             san_config = output_cert.parent / "san.cnf"
-            self.generate_openssl_config("server_cert", san_config, sans, key_usage, extended_key_usage)
+            self.generate_openssl_config(
+                "server_cert", san_config, sans, key_usage, extended_key_usage, crl_distribution_url
+            )
 
             try:
                 # Convert paths to POSIX format

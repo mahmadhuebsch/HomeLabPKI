@@ -33,6 +33,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Intermediate CA Support** - Build certificate chains with Intermediate CAs
 - **Server Certificates** - Issue certificates with Subject Alternative Names (SANs)
 - **Certificate Extensions** - Customize Key Usage and Extended Key Usage with presets (TLS Server, TLS Client, Code Signing, etc.) or custom selection
+- **Certificate Revocation (CRL)** - Full RFC 5280/2585 compliant CRL support: revoke certificates with 10 standard reasons, auto-regenerate CRL on revocation, public CRL endpoint for clients (no auth required), download in PEM or DER format, support for certificate hold (reversible)
 - **CSR Management** - Create Certificate Signing Requests for external CAs (DigiCert, Let's Encrypt, etc.) with encrypted private keys stored locally
 - **CSR Signing** - Sign external Certificate Signing Requests where private keys are managed externally
 - **Importing** - Import and track externally-signed CAs and certificates, or import signed certificates back into CSRs
@@ -53,6 +54,7 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
 - [Authentication](#authentication)
+- [Certificate Revocation Lists (CRL)](#certificate-revocation-lists-crl)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Security Considerations](#security-considerations)
@@ -200,6 +202,10 @@ defaults:
 security:
   warn_on_key_download: true
 
+crl:
+  base_url: null            # Set to embed CDP in certs (e.g., "http://pki.example.com:8000")
+  validity_days: 30         # CRL validity period
+
 logging:
   level: "INFO"
 ```
@@ -253,6 +259,69 @@ To disable authentication entirely (not recommended for networked deployments):
 auth:
   enabled: false
 ```
+
+## Certificate Revocation Lists (CRL)
+
+HomeLab PKI supports Certificate Revocation Lists per [RFC 5280](https://datatracker.ietf.org/doc/html/rfc5280) and [RFC 2585](https://www.rfc-editor.org/rfc/rfc2585).
+
+### Public CRL Endpoint
+
+CRLs are served via a public endpoint that requires no authentication (per RFC 2585):
+
+```
+GET /download/crl/{ca_id}.crl
+```
+
+**Example:**
+```bash
+# Download CRL for a Root CA
+curl http://localhost:8000/download/crl/root-ca-example.crl -o crl.der
+
+# Download CRL for an Intermediate CA
+curl http://localhost:8000/download/crl/root-ca-example/intermediate-ca-web.crl -o crl.der
+```
+
+### CRL Distribution Point (CDP)
+
+HomeLab PKI can automatically embed CRL Distribution Point URLs in certificates. Configure the base URL in `config.yaml`:
+
+```yaml
+crl:
+  # Base URL for CDP extension in certificates
+  base_url: "http://pki.example.com:8000"
+  validity_days: 30
+```
+
+When `base_url` is set, new certificates will include the CDP extension pointing to:
+```
+http://pki.example.com:8000/download/crl/{ca_id}.crl
+```
+
+Clients validating certificates will automatically fetch and check the CRL from this URL.
+
+**Note:** Per RFC 2585, use HTTP (not HTTPS) for CRL distribution to avoid circular certificate validation dependencies.
+
+### CRL Format
+
+| Format | Content-Type | Use Case |
+|--------|--------------|----------|
+| DER (.crl) | `application/pkix-crl` | Standard format, used by most clients |
+| PEM | `application/x-pem-file` | For OpenSSL tools and debugging |
+
+### Revocation Reasons (RFC 5280)
+
+- `unspecified` - No specific reason
+- `keyCompromise` - Private key was compromised
+- `cACompromise` - CA was compromised
+- `affiliationChanged` - Subject's affiliation changed
+- `superseded` - Certificate was replaced
+- `cessationOfOperation` - CA or subject ceased operations
+- `certificateHold` - Temporary hold (reversible)
+- `removeFromCRL` - Remove from CRL (delta CRL)
+- `privilegeWithdrawn` - Privilege was withdrawn
+- `aACompromise` - Attribute Authority compromised
+
+Only certificates revoked with `certificateHold` can be unrevoked.
 
 ## API Documentation
 
@@ -313,7 +382,7 @@ isort app/ tests/
 - [x] Password support
 - [ ] Email notifications for expiring certificates
 - [ ] ACME Protocol support
-- [ ] CRL support
+- [x] CRL support
 - [ ] Certificate chain import
 - [x] Docker containerization
 

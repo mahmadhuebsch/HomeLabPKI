@@ -3,13 +3,63 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from app.api.dependencies import get_ca_data_dir, get_cert_service, require_auth
 from app.models.auth import Session
 from app.services.cert_service import CertificateService
 
 router = APIRouter(prefix="/download", tags=["Downloads"])
+
+
+# =============================================================================
+# PUBLIC CRL ENDPOINTS (RFC 2585 - No Authentication Required)
+# =============================================================================
+# These endpoints are intentionally public to allow clients to fetch CRLs
+# without authentication. Per RFC 2585: "Authentication is not necessary
+# to retrieve certificates and CRLs."
+#
+# Use these URLs as CRL Distribution Points (CDP) in your certificates.
+# =============================================================================
+
+
+@router.get("/crl/{ca_id:path}.crl", include_in_schema=True)
+def download_crl_public(
+    ca_id: str,
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
+    """
+    Download CRL in DER format (public, no authentication required).
+
+    This endpoint follows RFC 2585 requirements for CRL distribution:
+    - No authentication required
+    - DER format with .crl extension
+    - Content-Type: application/pkix-crl
+
+    Use this URL as the CRL Distribution Point (CDP) in your certificates.
+    Example: http://your-server:8000/download/crl/root-ca-example.crl
+    """
+    try:
+        crl_path = ca_data_dir / ca_id / "crl" / "crl.der"
+
+        if not crl_path.exists():
+            raise HTTPException(status_code=404, detail="CRL not found")
+
+        # Read file and return with proper headers per RFC 2585
+        crl_content = crl_path.read_bytes()
+        return Response(
+            content=crl_content,
+            media_type="application/pkix-crl",
+            headers={
+                "Content-Disposition": f"attachment; filename={ca_id.replace('/', '-')}.crl",
+                # Caching headers - CRLs should be cached but checked for updates
+                "Cache-Control": "public, max-age=3600",  # 1 hour cache
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
 @router.get("/ca/{ca_id:path}/cert")
@@ -119,5 +169,45 @@ def download_cert_fullchain(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.get("/ca/{ca_id:path}/crl")
+def download_crl_pem(
+    ca_id: str,
+    session: Session = Depends(require_auth),
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
+    """Download CRL in PEM format."""
+    try:
+        crl_path = ca_data_dir / ca_id / "crl" / "crl.pem"
+
+        if not crl_path.exists():
+            raise HTTPException(status_code=404, detail="CRL not found")
+
+        return FileResponse(path=crl_path, media_type="application/x-pem-file", filename="crl.pem")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.get("/ca/{ca_id:path}/crl/der")
+def download_crl_der(
+    ca_id: str,
+    session: Session = Depends(require_auth),
+    ca_data_dir: Path = Depends(get_ca_data_dir),
+):
+    """Download CRL in DER format."""
+    try:
+        crl_path = ca_data_dir / ca_id / "crl" / "crl.der"
+
+        if not crl_path.exists():
+            raise HTTPException(status_code=404, detail="CRL not found")
+
+        return FileResponse(path=crl_path, media_type="application/pkix-crl", filename="crl.der")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
