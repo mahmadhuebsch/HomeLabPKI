@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.models.config import (
     AppConfig,
@@ -57,7 +57,10 @@ class NotificationService:
 
         # Initialize Jinja2 for email templates
         template_dir = Path(__file__).parent.parent / "templates" / "email"
-        self.jinja_env = Environment(loader=FileSystemLoader(str(template_dir)))
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=select_autoescape(enabled_extensions=("html", "txt"), default_for_string=True),
+        )
 
     def _load_state(self) -> dict[str, NotificationState]:
         """Load notification state from disk.

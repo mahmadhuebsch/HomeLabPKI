@@ -35,7 +35,7 @@ class YAMLService:
             return [YAMLService._expand_env_vars(item) for item in data]
         elif isinstance(data, str):
             # Match ${VAR_NAME} or ${VAR_NAME:default_value}
-            pattern = r'\$\{([^:}]+)(?::([^}]*))?\}'
+            pattern = r"\$\{([^:}]+)(?::([^}]*))?\}"
 
             def replace_var(match):
                 var_name = match.group(1)

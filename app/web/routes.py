@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import select_autoescape
 
 from app.api.dependencies import (
     get_auth_service,
@@ -22,7 +23,10 @@ from app.services.cert_service import CertificateService
 from app.services.csr_service import CSRService
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(
+    directory="app/templates",
+    autoescape=select_autoescape(enabled_extensions=("html", "xml"), default_for_string=True),
+)
 
 
 def build_certificate_chain(ca_id: str, ca_service: CAService) -> list[dict]:
