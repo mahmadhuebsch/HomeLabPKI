@@ -119,7 +119,7 @@ docker run -d \
 
 Available tags:
 - `latest` - Latest stable release
-- `v1.1.0` - Specific version
+- `v1.2.0` - Specific version
 - `main` - Latest from main branch
 
 ### Build from Source
