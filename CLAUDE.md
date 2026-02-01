@@ -166,7 +166,92 @@ HomeLabPKI/
   4. User imports signed certificate (system validates public key match)
   5. CSR status changes to `signed`
 
-### 5. Parser Service (`app/services/parser_service.py`)
+### 5. CRL Service (`app/services/crl_service.py`)
+- Manages Certificate Revocation Lists for each CA
+- **RFC Compliance**: Implements RFC 5280 (CRL profile) and RFC 2585 (HTTP distribution)
+- Each CA maintains: index.txt (OpenSSL database), crlnumber, crl/ directory
+- Key methods:
+  - `initialize_crl_files()` - Create CRL infrastructure for CA
+  - `revoke_certificate()` - Add cert to CRL + auto-regenerate
+  - `unrevoke_certificate()` - Remove hold (certificateHold only)
+  - `generate_crl()` - Generate/regenerate CRL
+  - `get_crl_info()` - Get CRL metadata
+  - `list_revoked_certificates()` - List revoked certs for CA
+- Supports all 10 RFC 5280 revocation reasons
+- Auto-generates both PEM and DER format CRLs
+- **Public CRL Endpoint**: `/download/crl/{ca_id}.crl` (no authentication per RFC 2585)
+- CRL Directory Structure:
+  ```
+  ca-data/root-ca-example/
+  ├── index.txt          # OpenSSL certificate database
+  ├── index.txt.attr     # Database attributes
+  ├── crlnumber          # CRL serial counter
+  ├── crl/
+  │   ├── crl.pem        # CRL in PEM format
+  │   ├── crl.der        # CRL in DER format
+  │   └── config.yaml    # CRL metadata
+  ```
+- **RFC 5280 Revocation Reasons**:
+  - `unspecified` - No specific reason
+  - `keyCompromise` - Private key compromised
+  - `cACompromise` - CA compromised
+  - `affiliationChanged` - Subject's affiliation changed
+  - `superseded` - Certificate replaced
+  - `cessationOfOperation` - CA/subject ceased operations
+  - `certificateHold` - Temporary hold (only reversible reason)
+  - `removeFromCRL` - Remove from CRL (delta CRL)
+  - `privilegeWithdrawn` - Privilege withdrawn
+  - `aACompromise` - Attribute Authority compromised
+
+### 6. SMTP Service (`app/services/smtp_service.py`)
+- Handles email sending via SMTP
+- Supports multiple encryption modes (none, STARTTLS, SSL)
+- Key methods:
+  - `test_connection()` - Test SMTP server connection and authentication
+  - `send_email()` - Send single email with HTML and text versions
+  - `send_bulk_email()` - Send to multiple recipients
+- Async implementation using aiosmtplib
+- Handles authentication, timeouts, and error reporting
+- Encryption modes:
+  - `none` - Plain SMTP (port 25)
+  - `starttls` - Start unencrypted, upgrade to TLS (port 587, recommended)
+  - `ssl` - Implicit TLS from start (port 465)
+
+### 7. Notification Service (`app/services/notification_service.py`)
+- Manages certificate expiration notifications
+- **Key Features**:
+  - Automated expiration checking with configurable thresholds
+  - State tracking to prevent duplicate notifications
+  - Per-entity notification overrides
+  - Email template rendering with Jinja2
+  - Background scheduling via APScheduler
+- Key methods:
+  - `check_expirations()` - Check all entities for expiration and send notifications
+  - `send_test_email()` - Send test email to verify SMTP configuration
+  - `reset_state()` - Reset notification state (all or specific entity)
+  - `_check_entity()` - Check single entity against thresholds
+  - `_send_expiry_notification()` - Send notification email
+- State tracking:
+  - Stored in `ca-data/.notifications/state.yaml`
+  - Tracks which thresholds have been sent per entity
+  - Prevents duplicate notifications
+- Notification logs:
+  - Monthly log files in `ca-data/.notifications/log/`
+  - Records all sent notifications with status
+- Entity overrides:
+  - Stored in entity's `config.yaml` under `notifications` key
+  - Can customize recipients, thresholds, and enabled state
+  - Recipients are **added** to global list, thresholds **replace** global
+- Email templates:
+  - HTML and text versions in `app/templates/email/`
+  - Variables: entity_type, entity_name, expiry_date, days_remaining, etc.
+  - Supports internal URLs if CRL base_url is configured
+- Background scheduler:
+  - Runs in main.py using APScheduler
+  - Configurable interval (default 24 hours)
+  - Optional startup check
+
+### 8. Parser Service (`app/services/parser_service.py`)
 - Parses X.509 certificates using cryptography library
 - Converts certificates to text format using OpenSSL
 - Converts CSRs to text format using OpenSSL
@@ -182,7 +267,7 @@ HomeLabPKI/
   - `_extract_key_usage()` - Extract Key Usage extension values
   - `_extract_extended_key_usage()` - Extract Extended Key Usage values
 
-### 6. YAML Service (`app/services/yaml_service.py`)
+### 9. YAML Service (`app/services/yaml_service.py`)
 - Handles YAML serialization/deserialization
 - **IMPORTANT**: Custom Enum handling to prevent serialization errors
 - Converts Enum objects to their `.value` property before saving
@@ -191,6 +276,18 @@ HomeLabPKI/
   - `load_config_yaml()` - Load config
 
 ## Recent Features & Changes
+
+### Email Notifications (v1.1.0)
+- **Automated Expiration Monitoring**: Background scheduler checks for expiring CAs, certificates, and CRLs
+- **SMTP Integration**: Send notifications via any SMTP server (Gmail, Outlook, internal mail servers)
+- **Configurable Thresholds**: Multiple notification intervals (e.g., 90, 60, 30, 14, 7 days before expiry)
+- **State Tracking**: Prevents duplicate notifications for same threshold
+- **Per-Entity Overrides**: Custom notification settings in entity's config.yaml
+- **Web UI Integration**: Settings page with SMTP testing, test email sending, and manual expiration checks
+- **API Endpoints**: Full REST API for notification management
+- **Email Templates**: HTML and text templates with Jinja2 rendering
+- **Background Scheduler**: APScheduler runs periodic checks based on configured interval
+- **Security Options**: Environment variable support for SMTP passwords, configurable email content
 
 ### Navigation Restructure
 - Separated navigation into four sections:
@@ -408,7 +505,6 @@ If you forget your password:
 - **In-memory Sessions**: Sessions lost on application restart
 
 ### Limitations
-- No certificate revocation lists (CRL)
 - No OCSP responder
 - No HSM support
 - No multi-user support
@@ -524,6 +620,40 @@ defaults:
     validity_days: 1825
   server_cert:
     validity_days: 365
+
+crl:
+  # Base URL for CRL Distribution Point in certificates
+  # Example: "http://pki.example.com:8000"
+  # If set, certificates will include CDP extension
+  base_url: null
+  validity_days: 30
+
+smtp:
+  enabled: false
+  host: smtp.example.com
+  port: 587
+  encryption: starttls  # none, starttls, ssl
+  username: null
+  password: null  # Consider using environment variables
+  sender_email: pki@example.com
+  sender_name: HomeLab PKI
+  timeout_seconds: 30
+
+notifications:
+  enabled: false
+  recipients: []
+  thresholds: [90, 60, 30, 14, 7, 3, 1]
+  check_interval_hours: 24
+  check_on_startup: true
+  include_ca_expiry: true
+  include_cert_expiry: true
+  include_crl_expiry: true
+  digest_mode: false
+
+email_templates:
+  subject_warning: "[HomeLab PKI] {{ entity_type }} '{{ entity_name }}' expires in {{ days_remaining }} days"
+  subject_expired: "[HomeLab PKI] EXPIRED: {{ entity_type }} '{{ entity_name }}'"
+  subject_test: "[HomeLab PKI] Test Email"
 ```
 
 ## API Endpoints
@@ -548,6 +678,25 @@ defaults:
 - `POST /api/csrs/{csr_id}/signed` - Import signed certificate
 - `GET /api/csrs/{csr_id}/download/csr` - Download CSR file
 - `GET /api/csrs/{csr_id}/download/key` - Download private key
+
+### CRLs
+- `POST /api/certs/{cert_id}/revoke` - Revoke certificate
+- `POST /api/certs/{cert_id}/unrevoke` - Remove hold
+- `GET /api/cas/{ca_id}/crl` - Get CRL info
+- `GET /api/cas/{ca_id}/crl/revoked` - List revoked certs
+- `POST /api/cas/{ca_id}/crl/regenerate` - Manual regenerate
+- `GET /download/ca/{ca_id}/crl` - Download CRL (PEM, requires auth)
+- `GET /download/ca/{ca_id}/crl/der` - Download CRL (DER, requires auth)
+- `GET /download/crl/{ca_id}.crl` - **PUBLIC** CRL endpoint (DER, no auth per RFC 2585)
+
+### Notifications
+- `GET /api/notifications/status` - Get notification system status
+- `POST /api/notifications/check` - Trigger manual expiration check
+- `POST /api/notifications/test` - Send test email
+- `POST /api/notifications/smtp/test` - Test SMTP connection
+- `POST /api/notifications/reset` - Reset all notification state
+- `POST /api/notifications/reset/{entity_id}` - Reset state for specific entity
+- `GET /api/notifications/config` - Get notification configuration
 
 ### Downloads
 - `GET /download/ca/{ca_id}/cert` - Download CA certificate
@@ -648,7 +797,6 @@ defaults:
 ## Future Considerations
 
 ### Roadmap Items
-- Certificate Revocation Lists (CRL)
 - OCSP Responder
 - Certificate Templates
 - Bulk Operations
@@ -656,10 +804,9 @@ defaults:
 - Email Notifications
 - HSM Support
 - ACME Protocol
-- Docker Image
 - Multi-User Support
 
 ---
 
-**Last Updated**: December 2025
+**Last Updated**: January 2026
 **Maintained for**: Claude AI Assistant context

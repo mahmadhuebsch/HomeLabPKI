@@ -68,3 +68,30 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 
 # Command to run the application using the virtual environment's uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# ---- Environment Variables for Email Notifications ----
+# To enable email notifications, pass SMTP credentials as environment variables:
+#
+# Example usage:
+#   docker run -d \
+#     -p 8000:8000 \
+#     -v homelabpki_data:/app/ca-data \
+#     -e SMTP_PASSWORD="your-smtp-password" \
+#     -e SMTP_USERNAME="your-email@gmail.com" \
+#     -e SMTP_HOST="smtp.gmail.com" \
+#     --name homelabpki \
+#     homelabpki
+#
+# Or using docker-compose.yml:
+#   environment:
+#     - SMTP_PASSWORD=${SMTP_PASSWORD}
+#     - SMTP_USERNAME=your-email@gmail.com
+#     - SMTP_HOST=smtp.gmail.com
+#
+# Or using a .env file with docker-compose:
+#   Create a .env file:
+#     SMTP_PASSWORD=your-smtp-password
+#     SMTP_USERNAME=your-email@gmail.com
+#   Then run: docker-compose up -d
+#
+# See config.yaml and MAIL.md for full configuration options

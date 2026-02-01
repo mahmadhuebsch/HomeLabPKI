@@ -1,6 +1,8 @@
 """YAML file operations service."""
 
 import logging
+import os
+import re
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -15,15 +17,48 @@ class YAMLService:
     """Service for YAML file operations."""
 
     @staticmethod
+    def _expand_env_vars(data: Any) -> Any:
+        """
+        Recursively expand environment variables in YAML data.
+
+        Replaces ${VAR_NAME} or ${VAR_NAME:default} with environment variable values.
+
+        Args:
+            data: YAML data (can be dict, list, str, or other types)
+
+        Returns:
+            Data with environment variables expanded
+        """
+        if isinstance(data, dict):
+            return {key: YAMLService._expand_env_vars(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            return [YAMLService._expand_env_vars(item) for item in data]
+        elif isinstance(data, str):
+            # Match ${VAR_NAME} or ${VAR_NAME:default_value}
+            pattern = r"\$\{([^:}]+)(?::([^}]*))?\}"
+
+            def replace_var(match):
+                var_name = match.group(1)
+                default_value = match.group(2) if match.group(2) is not None else ""
+                env_value = os.environ.get(var_name, default_value)
+                if env_value == "" and default_value == "":
+                    logger.warning(f"Environment variable {var_name} not set and no default provided")
+                return env_value
+
+            return re.sub(pattern, replace_var, data)
+        else:
+            return data
+
+    @staticmethod
     def load_yaml(file_path: Path) -> Dict[str, Any]:
         """
-        Load YAML file and return as dictionary.
+        Load YAML file and return as dictionary with environment variables expanded.
 
         Args:
             file_path: Path to YAML file
 
         Returns:
-            Parsed YAML content as dictionary
+            Parsed YAML content as dictionary with ${VAR} expanded
 
         Raises:
             FileNotFoundError: If file doesn't exist
@@ -36,7 +71,9 @@ class YAMLService:
             try:
                 data = yaml.safe_load(f)
                 logger.debug(f"Loaded YAML from: {file_path}")
-                return data or {}
+                # Expand environment variables
+                expanded_data = YAMLService._expand_env_vars(data or {})
+                return expanded_data
             except yaml.YAMLError as e:
                 logger.error(f"Error parsing YAML file {file_path}: {e}")
                 raise

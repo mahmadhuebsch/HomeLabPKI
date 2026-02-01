@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+    .header { background: #dc3545; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+    .warning strong { color: #856404; }
+    .details { background: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 5px; }
+    .details h3 { margin-top: 0; color: #495057; }
+    .details table { width: 100%; border-collapse: collapse; }
+    .details td { padding: 8px; border-bottom: 1px solid #dee2e6; }
+    .details td:first-child { font-weight: bold; width: 150px; color: #6c757d; }
+    .action { margin: 20px 0; text-align: center; }
+    .btn { display: inline-block; background: #0d6efd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; }
+    .btn:hover { background: #0b5ed7; }
+    .footer { color: #6c757d; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Certificate Expiration Warning</h1>
+  </div>
+
+  <div class="warning">
+    <strong>{{ entity_type }}</strong> "{{ entity_name }}" will expire in
+    <strong>{{ days_remaining }} days</strong> on {{ expiry_date }}.
+  </div>
+
+  <div class="details">
+    <h3>Details</h3>
+    <table>
+      <tr><td>Name:</td><td>{{ entity_name }}</td></tr>
+      <tr><td>Type:</td><td>{{ entity_type }}</td></tr>
+      {% if serial_number %}
+      <tr><td>Serial:</td><td>{{ serial_number }}</td></tr>
+      {% endif %}
+      {% if subject %}
+      <tr><td>Subject:</td><td>{{ subject }}</td></tr>
+      {% endif %}
+      {% if issuer %}
+      <tr><td>Issuer:</td><td>{{ issuer }}</td></tr>
+      {% endif %}
+      {% if ca_chain %}
+      <tr><td>CA Chain:</td><td>{{ ca_chain }}</td></tr>
+      {% endif %}
+      <tr><td>Expires:</td><td>{{ expiry_date }}</td></tr>
+      <tr><td>Days Remaining:</td><td>{{ days_remaining }}</td></tr>
+      {% if key_algorithm %}
+      <tr><td>Algorithm:</td><td>{{ key_algorithm }}</td></tr>
+      {% endif %}
+    </table>
+  </div>
+
+  {% if entity_url %}
+  <div class="action">
+    <a href="{{ entity_url }}" class="btn">View in PKI Dashboard</a>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    <p>This is an automated message from HomeLab PKI.</p>
+    <p>Sent: {{ timestamp }}</p>
+  </div>
+</body>
+</html>

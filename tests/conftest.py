@@ -64,6 +64,14 @@ def csr_service(ca_data_dir, openssl_service):
 
 
 @pytest.fixture
+def crl_service(ca_data_dir, openssl_service):
+    """Create CRL service instance with test directory."""
+    from app.services.crl_service import CRLService
+
+    return CRLService(ca_data_dir, openssl_service)
+
+
+@pytest.fixture
 def sample_ca_subject():
     """Create a sample CA subject."""
     return Subject(
@@ -145,10 +153,12 @@ def client(ca_data_dir, openssl_service):
         get_ca_data_dir,
         get_ca_service,
         get_cert_service,
+        get_crl_service,
         reset_auth_service,
     )
     from app.services.ca_service import CAService
     from app.services.cert_service import CertificateService
+    from app.services.crl_service import CRLService
     from main import app
 
     # Reset auth service singleton before tests
@@ -168,12 +178,16 @@ def client(ca_data_dir, openssl_service):
     def override_cert_service():
         return CertificateService(ca_data_dir, openssl_service, override_ca_service())
 
+    def override_crl_service():
+        return CRLService(ca_data_dir, openssl_service)
+
     def override_auth_service():
         return disabled_auth_service
 
     app.dependency_overrides[get_ca_data_dir] = override_ca_data_dir
     app.dependency_overrides[get_ca_service] = override_ca_service
     app.dependency_overrides[get_cert_service] = override_cert_service
+    app.dependency_overrides[get_crl_service] = override_crl_service
     app.dependency_overrides[get_auth_service] = override_auth_service
 
     client = TestClient(app)
@@ -192,10 +206,12 @@ def client_with_auth(ca_data_dir, openssl_service, auth_service, auth_token):
         get_ca_data_dir,
         get_ca_service,
         get_cert_service,
+        get_crl_service,
         reset_auth_service,
     )
     from app.services.ca_service import CAService
     from app.services.cert_service import CertificateService
+    from app.services.crl_service import CRLService
     from main import app
 
     # Reset auth service singleton before tests
@@ -214,9 +230,13 @@ def client_with_auth(ca_data_dir, openssl_service, auth_service, auth_token):
     def override_auth_service():
         return auth_service
 
+    def override_crl_service():
+        return CRLService(ca_data_dir, openssl_service)
+
     app.dependency_overrides[get_ca_data_dir] = override_ca_data_dir
     app.dependency_overrides[get_ca_service] = override_ca_service
     app.dependency_overrides[get_cert_service] = override_cert_service
+    app.dependency_overrides[get_crl_service] = override_crl_service
     app.dependency_overrides[get_auth_service] = override_auth_service
 
     client = TestClient(app)

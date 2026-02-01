@@ -89,7 +89,9 @@ def get_cert_service() -> CertificateService:
     ca_data_dir = Path(config.paths.ca_data)
     openssl_service = get_openssl_service()
     ca_service = get_ca_service()
-    return CertificateService(ca_data_dir, openssl_service, ca_service)
+    # Get CRL base URL from config for embedding CDP in certificates
+    crl_base_url = config.crl.base_url if hasattr(config, "crl") else None
+    return CertificateService(ca_data_dir, openssl_service, ca_service, crl_base_url)
 
 
 def get_csr_service() -> CSRService:
@@ -103,6 +105,34 @@ def get_csr_service() -> CSRService:
     ca_data_dir = Path(config.paths.ca_data)
     openssl_service = get_openssl_service()
     return CSRService(ca_data_dir, openssl_service)
+
+
+def get_crl_service():
+    """Get CRL service instance."""
+    from app.services.crl_service import CRLService
+
+    config = get_config()
+    ca_data_dir = Path(config.paths.ca_data)
+    openssl_service = get_openssl_service()
+    return CRLService(ca_data_dir, openssl_service)
+
+
+def get_smtp_service():
+    """Get SMTP service instance."""
+    from app.services.smtp_service import SMTPService
+
+    config = get_config()
+    return SMTPService(config.smtp)
+
+
+def get_notification_service():
+    """Get notification service instance."""
+    from app.services.notification_service import NotificationService
+
+    config = get_config()
+    ca_data_dir = Path(config.paths.ca_data)
+    smtp_service = get_smtp_service()
+    return NotificationService(ca_data_dir, config, smtp_service)
 
 
 def get_auth_service() -> AuthService:

@@ -66,6 +66,8 @@ class ServerCertConfig(BaseModel):
     source: Literal["internal", "external"] = "internal"  # internal=we have key, external=CSR/imported
     key_usage: list[str] = Field(default_factory=lambda: DEFAULT_KEY_USAGE.copy())
     extended_key_usage: list[str] = Field(default_factory=lambda: DEFAULT_EXTENDED_KEY_USAGE.copy())
+    revoked_at: Optional[datetime] = None
+    revocation_reason: Optional[str] = None  # Store as string for YAML compatibility
 
     @field_validator("sans", mode="before")
     @classmethod
@@ -257,6 +259,9 @@ class CertResponse(BaseModel):
     source: Literal["internal", "external"] = "internal"
     key_usage: list[str] = Field(default_factory=list)
     extended_key_usage: list[str] = Field(default_factory=list)
+    revoked: bool = False
+    revoked_at: Optional[datetime] = None
+    revocation_reason: Optional[str] = None
 
     @field_validator("sans", mode="before")
     @classmethod

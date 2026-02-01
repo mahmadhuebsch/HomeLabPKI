@@ -28,7 +28,13 @@ logger = logging.getLogger("homelabpki")
 class CertificateService:
     """Service for certificate management operations."""
 
-    def __init__(self, ca_data_dir: Path, openssl_service: OpenSSLService, ca_service: "CAService"):
+    def __init__(
+        self,
+        ca_data_dir: Path,
+        openssl_service: OpenSSLService,
+        ca_service: "CAService",
+        crl_base_url: Optional[str] = None,
+    ):
         """
         Initialize certificate service.
 
@@ -36,10 +42,28 @@ class CertificateService:
             ca_data_dir: Base directory for CA data storage
             openssl_service: OpenSSL service instance
             ca_service: CA service instance
+            crl_base_url: Base URL for CRL distribution (e.g., "http://pki.example.com:8000")
         """
         self.ca_data_dir = ca_data_dir
         self.openssl_service = openssl_service
         self.ca_service = ca_service
+        self.crl_base_url = crl_base_url
+
+    def _build_crl_distribution_url(self, ca_id: str) -> Optional[str]:
+        """
+        Build CRL Distribution Point URL for a certificate.
+
+        Args:
+            ca_id: ID of the issuing CA
+
+        Returns:
+            Full CRL URL or None if base URL not configured
+        """
+        if not self.crl_base_url:
+            return None
+        # Build URL: {base_url}/download/crl/{ca_id}.crl
+        base = self.crl_base_url.rstrip("/")
+        return f"{base}/download/crl/{ca_id}.crl"
 
     def create_server_certificate(self, request: CertCreateRequest) -> CertResponse:
         """
@@ -114,12 +138,14 @@ class CertificateService:
 
             # Generate SAN config file with extensions
             san_cnf = cert_dir / "san.cnf"
+            crl_url = self._build_crl_distribution_url(request.issuing_ca_id)
             self.openssl_service.generate_openssl_config(
                 "server_cert",
                 san_cnf,
                 cert_config.sans,
                 cert_config.key_usage,
                 cert_config.extended_key_usage,
+                crl_url,
             )
 
             # Build OpenSSL command (pass passwords, not stored in config)
@@ -380,6 +406,12 @@ class CertificateService:
         # Get validity status
         status_class, status_text = CertificateParser.get_validity_status(cert_config.not_before, cert_config.not_after)
 
+        # Check if revoked - revocation takes precedence over date-based validity
+        revoked = cert_config.revoked_at is not None
+        if revoked:
+            status_class = "danger"
+            status_text = "Revoked"
+
         # Get key_usage and extended_key_usage from config or parse from certificate
         key_usage = getattr(cert_config, "key_usage", [])
         extended_key_usage = getattr(cert_config, "extended_key_usage", [])
@@ -413,6 +445,9 @@ class CertificateService:
             source=cert_config.source,
             key_usage=key_usage,
             extended_key_usage=extended_key_usage,
+            revoked=revoked,
+            revoked_at=cert_config.revoked_at,
+            revocation_reason=cert_config.revocation_reason,
         )
 
     def sign_csr(self, request: CSRSignRequest) -> CertResponse:
@@ -500,6 +535,7 @@ class CertificateService:
             ca_cert = issuing_ca_dir / "ca.crt"
             ca_key = issuing_ca_dir / "ca.key"
 
+            crl_url = self._build_crl_distribution_url(request.issuing_ca_id)
             openssl_cmd = self.openssl_service.sign_csr(
                 csr_content=request.csr_content,
                 ca_cert=ca_cert,
@@ -511,6 +547,7 @@ class CertificateService:
                 ca_password=request.issuing_ca_password,
                 key_usage=request.key_usage,
                 extended_key_usage=request.extended_key_usage,
+                crl_distribution_url=crl_url,
             )
 
             # Parse the generated certificate for exact dates
