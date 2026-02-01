@@ -756,7 +756,31 @@ email_templates:
 
 ## Version History
 
-### Current Version: 1.1.0
+### Current Version: 1.2.0
+
+**v1.2.0 Release (February 2026):**
+- **Certificate Revocation Lists (CRL)**: Full RFC 5280/2585 compliant CRL support
+  - Revoke certificates with 10 standard revocation reasons (keyCompromise, cACompromise, etc.)
+  - Auto-regenerate CRL on certificate revocation
+  - Public CRL endpoint (no authentication required per RFC 2585)
+  - CRL Distribution Point (CDP) extension in certificates
+  - Support for certificate hold (reversible revocation)
+  - Download CRLs in PEM and DER formats
+  - Per-CA CRL management with index.txt database
+  - Revoked certificate listing and status tracking
+- **Email Notifications**: Automated certificate expiration monitoring via SMTP
+  - Configurable thresholds for expiration warnings (e.g., 90, 60, 30, 14, 7 days)
+  - Background scheduler for periodic expiration checks
+  - Per-entity notification overrides (custom recipients and thresholds)
+  - State tracking to prevent duplicate notifications
+  - Support for CA, certificate, and CRL expiration monitoring
+  - HTML and text email templates with Jinja2 rendering
+  - Environment variable support for SMTP credentials
+  - Web UI integration: test SMTP, send test emails, manual checks
+  - Rate limiting and error handling for reliable delivery
+  - Digest mode for consolidated expiration reports
+- **Enhanced Configuration**: Extended config.yaml with CRL and SMTP/notification settings
+- **Bug Fixes**: Import sorting and CI pipeline improvements
 
 **v1.1.0 Release (January 2026):**
 - **CSR (Certificate Signing Request) Feature**: Generate CSRs for external CAs with encrypted private keys
@@ -801,12 +825,11 @@ email_templates:
 - Certificate Templates
 - Bulk Operations
 - Certificate Renewal
-- Email Notifications
 - HSM Support
 - ACME Protocol
 - Multi-User Support
 
 ---
 
-**Last Updated**: January 2026
+**Last Updated**: February 2026
 **Maintained for**: Claude AI Assistant context

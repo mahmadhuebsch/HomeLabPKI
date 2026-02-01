@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "homelabpki"
-version = "1.1.0-prod"
+version = "1.2.0-prod"
 description = "HomeLab PKI - A web-based Certificate Authority Management System"
 readme = "README.md"
 license = {text = "MIT"}

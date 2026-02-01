@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.2.0] - 2026-02-01
+
+### Added
+- **Certificate Revocation Lists (CRL)**: Full RFC 5280/2585 compliant CRL support
+  - Revoke certificates with 10 standard RFC 5280 revocation reasons
+  - Auto-regenerate CRL on certificate revocation
+  - Public CRL endpoint for client access (no authentication required per RFC 2585)
+  - Download CRLs in both PEM and DER formats
+  - Support for certificate hold (reversible revocation)
+  - CRL Distribution Point (CDP) extension in certificates
+  - Per-CA CRL management and tracking
+  - Revoked certificate listing and status tracking
+- **Email Notifications**: Automated certificate expiration monitoring
+  - SMTP integration for sending email notifications
+  - Configurable expiration thresholds (e.g., 90, 60, 30, 14, 7 days before expiry)
+  - Background scheduler for periodic expiration checks
+  - Per-entity notification overrides (custom recipients and thresholds)
+  - State tracking to prevent duplicate notifications
+  - Support for CA, certificate, and CRL expiration monitoring
+  - HTML and text email templates with Jinja2 rendering
+  - Environment variable support for SMTP credentials
+  - Web UI integration: test SMTP connection, send test emails, manual checks
+  - Rate limiting and error handling for reliable delivery
+  - Digest mode for consolidated expiration reports
+- **Enhanced API**: New endpoints for CRL and notification management
+
+### Changed
+- **Documentation**: Updated README.md and CLAUDE.md with CRL and notification features
+- **Configuration**: Extended config.yaml with CRL and SMTP/notification settings
+
+### Fixed
+- **Import Sorting**: Fixed import ordering in notifications.py
+- **CI Pipeline**: Resolved CI pipeline failures
+
 ## [1.1.0] - 2026-01-09
 
 ### Added
