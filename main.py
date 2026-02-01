@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.dependencies import AuthRedirect, get_config
-from app.api.routes import auth, ca, cert, csr, download
+from app.api.dependencies import AuthRedirect, get_config, get_notification_service
+from app.api import notifications
+from app.api.routes import auth, ca, cert, crl, csr, download
 from app.utils.logger import setup_logger
 from app.web import routes as web_routes
 
@@ -20,6 +22,9 @@ config = get_config()
 # Setup logging
 setup_logger(config)
 logger = logging.getLogger("homelabpki")
+
+# Background scheduler for notifications
+scheduler = AsyncIOScheduler()
 
 
 @asynccontextmanager
@@ -37,9 +42,44 @@ async def lifespan(app: FastAPI):
     logs_path = Path(config.paths.logs)
     logs_path.mkdir(parents=True, exist_ok=True)
 
+    # Setup notification scheduler if enabled
+    if config.notifications.enabled and config.smtp.enabled:
+        logger.info("Setting up notification scheduler")
+
+        async def check_expirations_job():
+            """Background job to check for expiring certificates."""
+            try:
+                logger.info("Running scheduled expiration check")
+                notification_service = get_notification_service()
+                result = await notification_service.check_expirations()
+                logger.info(
+                    f"Expiration check complete: {result.notifications_sent} sent, "
+                    f"{result.notifications_skipped} skipped, {len(result.errors)} errors"
+                )
+            except Exception as e:
+                logger.error(f"Expiration check failed: {e}")
+
+        # Add scheduled job
+        scheduler.add_job(
+            check_expirations_job,
+            "interval",
+            hours=config.notifications.check_interval_hours,
+            id="expiration_check",
+        )
+        scheduler.start()
+        logger.info(f"Notification scheduler started (check every {config.notifications.check_interval_hours} hours)")
+
+        # Run initial check on startup if configured
+        if config.notifications.check_on_startup:
+            logger.info("Running initial expiration check on startup")
+            await check_expirations_job()
+
     yield
 
     # Shutdown
+    if scheduler.running:
+        logger.info("Shutting down notification scheduler")
+        scheduler.shutdown()
     logger.info(f"Shutting down {config.app.title}")
 
 
@@ -88,8 +128,10 @@ async def auth_redirect_handler(request: Request, exc: AuthRedirect):
 app.include_router(auth.router)
 app.include_router(ca.router)
 app.include_router(cert.router)
+app.include_router(crl.router)
 app.include_router(csr.router)
 app.include_router(download.router)
+app.include_router(notifications.router)
 
 # Include web UI router
 app.include_router(web_routes.router)

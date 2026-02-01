@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import select_autoescape
 
 from app.api.dependencies import (
     get_auth_service,
@@ -22,7 +23,10 @@ from app.services.cert_service import CertificateService
 from app.services.csr_service import CSRService
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(
+    directory="app/templates",
+    autoescape=select_autoescape(enabled_extensions=("html", "xml"), default_for_string=True),
+)
 
 
 def build_certificate_chain(ca_id: str, ca_service: CAService) -> list[dict]:
@@ -389,11 +393,19 @@ async def rootca_detail(
 ):
     """Root CA detail page."""
     try:
+        from datetime import datetime
+
+        from app.api.dependencies import get_crl_service
         from app.services.parser_service import CertificateParser
         from app.utils.file_utils import FileUtils
 
         ca = ca_service.get_ca(ca_id)
         certificates = cert_service.list_certificates(ca_id)
+
+        # Get CRL info
+        crl_service = get_crl_service()
+        crl_info = crl_service.get_crl_info(ca_id)
+        revoked_certs = crl_service.list_revoked_certificates(ca_id) if crl_info else []
 
         # Get intermediate CAs under this root CA
         intermediate_cas = []
@@ -432,6 +444,9 @@ async def rootca_detail(
                 "ca_cert_content": ca_cert_content,
                 "ca_cert_text": ca_cert_text,
                 "cert_chain": cert_chain,
+                "crl_info": crl_info,
+                "revoked_certs": revoked_certs,
+                "now": datetime.now(),
                 "auth_enabled": auth_service.is_enabled,
             },
         )
@@ -536,11 +551,19 @@ async def intermediate_detail(
 ):
     """Intermediate CA detail page."""
     try:
+        from datetime import datetime
+
+        from app.api.dependencies import get_crl_service
         from app.services.parser_service import CertificateParser
         from app.utils.file_utils import FileUtils
 
         ca = ca_service.get_ca(ca_id)
         certificates = cert_service.list_certificates(ca_id)
+
+        # Get CRL info
+        crl_service = get_crl_service()
+        crl_info = crl_service.get_crl_info(ca_id)
+        revoked_certs = crl_service.list_revoked_certificates(ca_id) if crl_info else []
 
         # Get nested intermediate CAs under this intermediate CA
         intermediate_cas = []
@@ -579,6 +602,9 @@ async def intermediate_detail(
                 "ca_cert_content": ca_cert_content,
                 "ca_cert_text": ca_cert_text,
                 "cert_chain": cert_chain,
+                "crl_info": crl_info,
+                "revoked_certs": revoked_certs,
+                "now": datetime.now(),
                 "auth_enabled": auth_service.is_enabled,
             },
         )
@@ -843,6 +869,7 @@ async def cert_detail(
     """Certificate detail page."""
     try:
         from app.services.parser_service import CertificateParser
+        from app.services.yaml_service import YAMLService
         from app.utils.file_utils import FileUtils
 
         cert = cert_service.get_certificate(cert_id)
@@ -867,6 +894,12 @@ async def cert_detail(
             except Exception as e:
                 cert_text = f"Error converting to text format: {str(e)}"
 
+        # Load certificate config for revocation status
+        cert_config_path = cert_service.ca_data_dir / cert_id / "config.yaml"
+        cert_config = {}
+        if cert_config_path.exists():
+            cert_config = YAMLService.load_config_yaml(cert_config_path)
+
         return templates.TemplateResponse(
             "cert/detail.html",
             {
@@ -875,6 +908,8 @@ async def cert_detail(
                 "cert_content": cert_content,
                 "cert_text": cert_text,
                 "cert_chain": cert_chain,
+                "cert_config": cert_config,
+                "ca_id": issuing_ca_id,
                 "auth_enabled": auth_service.is_enabled,
             },
         )

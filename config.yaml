@@ -31,3 +31,69 @@ auth:
   # Set to null to reset password to default: "adminadmin"
   password_hash:
   session_expiry_hours: 24
+crl:
+  # Base URL for CRL Distribution Point (CDP) in certificates
+  # Example: "http://pki.example.com:8000"
+  # If set, certificates will include CDP extension pointing to:
+  # {base_url}/download/crl/{ca_id}.crl
+  # Use HTTP (not HTTPS) per RFC 2585 to avoid circular dependencies
+  base_url: null
+  # CRL validity period in days
+  validity_days: 30
+smtp:
+  enabled: false
+  host: smtp.example.com  # Or use ${SMTP_HOST} or ${SMTP_HOST:smtp.gmail.com}
+  port: 587
+  encryption: starttls  # Options: none, starttls, ssl
+  username: null  # Or use ${SMTP_USERNAME} for security
+  password: null  # Or use ${SMTP_PASSWORD} for security (recommended)
+  sender_email: pki@example.com  # Or use ${SMTP_SENDER_EMAIL}
+  sender_name: HomeLab PKI
+  timeout_seconds: 30
+  # Environment variable syntax:
+  #   ${VAR_NAME} - Use environment variable (empty string if not set)
+  #   ${VAR_NAME:default} - Use environment variable with fallback default
+  # Examples:
+  #   Linux/Mac: export SMTP_PASSWORD="your-password" && python main.py
+  #   Windows PowerShell: $env:SMTP_PASSWORD="your-password"; python main.py
+  #   Docker: docker run -e SMTP_PASSWORD="your-password" ...
+  #   See Dockerfile for more Docker examples
+notifications:
+  enabled: false
+  recipients: []  # Example: ["admin@example.com", "security@example.com"]
+  # Note: Any config value can use environment variables with ${VAR_NAME} syntax
+  thresholds:
+    - 90
+    - 60
+    - 30
+    - 14
+    - 7
+    - 3
+    - 1
+  check_interval_hours: 24
+  check_on_startup: true
+  include_ca_expiry: true
+  include_cert_expiry: true
+  include_crl_expiry: true
+  digest_mode: false
+  security:
+    include_internal_urls: true
+    include_serial_number: true
+    include_subject_dn: true
+    mask_email_addresses: false
+  rate_limit:
+    max_emails_per_hour: 50
+    max_emails_per_day: 200
+    cooldown_minutes: 5
+  error_handling:
+    max_retries: 3
+    retry_delays:
+      - 5
+      - 15
+      - 60
+    fail_silently: false
+email_templates:
+  subject_warning: "[HomeLab PKI] {{ entity_type }} '{{ entity_name }}' expires in {{ days_remaining }} days"
+  subject_expired: "[HomeLab PKI] EXPIRED: {{ entity_type }} '{{ entity_name }}'"
+  subject_digest: "[HomeLab PKI] Certificate Expiry Summary - {{ item_count }} items"
+  subject_test: "[HomeLab PKI] Test Email"

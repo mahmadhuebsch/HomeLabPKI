@@ -33,6 +33,8 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - **Intermediate CA Support** - Build certificate chains with Intermediate CAs
 - **Server Certificates** - Issue certificates with Subject Alternative Names (SANs)
 - **Certificate Extensions** - Customize Key Usage and Extended Key Usage with presets (TLS Server, TLS Client, Code Signing, etc.) or custom selection
+- **Certificate Revocation (CRL)** - Full RFC 5280/2585 compliant CRL support: revoke certificates with 10 standard reasons, auto-regenerate CRL on revocation, public CRL endpoint for clients (no auth required), download in PEM or DER format, support for certificate hold (reversible)
+- **Email Notifications** - Automated expiration warnings via SMTP with configurable thresholds, per-entity overrides, and background scheduling
 - **CSR Management** - Create Certificate Signing Requests for external CAs (DigiCert, Let's Encrypt, etc.) with encrypted private keys stored locally
 - **CSR Signing** - Sign external Certificate Signing Requests where private keys are managed externally
 - **Importing** - Import and track externally-signed CAs and certificates, or import signed certificates back into CSRs
@@ -53,6 +55,8 @@ Designed for development environments, testing infrastructure, internal PKI depl
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
 - [Authentication](#authentication)
+- [Certificate Revocation Lists (CRL)](#certificate-revocation-lists-crl)
+- [Email Notifications](#email-notifications)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Security Considerations](#security-considerations)
@@ -200,6 +204,10 @@ defaults:
 security:
   warn_on_key_download: true
 
+crl:
+  base_url: null            # Set to embed CDP in certs (e.g., "http://pki.example.com:8000")
+  validity_days: 30         # CRL validity period
+
 logging:
   level: "INFO"
 ```
@@ -253,6 +261,179 @@ To disable authentication entirely (not recommended for networked deployments):
 auth:
   enabled: false
 ```
+
+## Certificate Revocation Lists (CRL)
+
+HomeLab PKI supports Certificate Revocation Lists per [RFC 5280](https://datatracker.ietf.org/doc/html/rfc5280) and [RFC 2585](https://www.rfc-editor.org/rfc/rfc2585).
+
+### Public CRL Endpoint
+
+CRLs are served via a public endpoint that requires no authentication (per RFC 2585):
+
+```
+GET /download/crl/{ca_id}.crl
+```
+
+**Example:**
+```bash
+# Download CRL for a Root CA
+curl http://localhost:8000/download/crl/root-ca-example.crl -o crl.der
+
+# Download CRL for an Intermediate CA
+curl http://localhost:8000/download/crl/root-ca-example/intermediate-ca-web.crl -o crl.der
+```
+
+### CRL Distribution Point (CDP)
+
+HomeLab PKI can automatically embed CRL Distribution Point URLs in certificates. Configure the base URL in `config.yaml`:
+
+```yaml
+crl:
+  # Base URL for CDP extension in certificates
+  base_url: "http://pki.example.com:8000"
+  validity_days: 30
+```
+
+When `base_url` is set, new certificates will include the CDP extension pointing to:
+```
+http://pki.example.com:8000/download/crl/{ca_id}.crl
+```
+
+Clients validating certificates will automatically fetch and check the CRL from this URL.
+
+**Note:** Per RFC 2585, use HTTP (not HTTPS) for CRL distribution to avoid circular certificate validation dependencies.
+
+### CRL Format
+
+| Format | Content-Type | Use Case |
+|--------|--------------|----------|
+| DER (.crl) | `application/pkix-crl` | Standard format, used by most clients |
+| PEM | `application/x-pem-file` | For OpenSSL tools and debugging |
+
+### Revocation Reasons (RFC 5280)
+
+- `unspecified` - No specific reason
+- `keyCompromise` - Private key was compromised
+- `cACompromise` - CA was compromised
+- `affiliationChanged` - Subject's affiliation changed
+- `superseded` - Certificate was replaced
+- `cessationOfOperation` - CA or subject ceased operations
+- `certificateHold` - Temporary hold (reversible)
+- `removeFromCRL` - Remove from CRL (delta CRL)
+- `privilegeWithdrawn` - Privilege was withdrawn
+- `aACompromise` - Attribute Authority compromised
+
+Only certificates revoked with `certificateHold` can be unrevoked.
+
+## Email Notifications
+
+HomeLab PKI can send email notifications when certificates, CAs, or CRLs are approaching expiration.
+
+### Features
+
+- **Automated Expiration Monitoring** - Periodic checks for expiring certificates
+- **Configurable Thresholds** - Send notifications at multiple intervals (e.g., 90, 60, 30, 14, 7 days before expiry)
+- **SMTP Support** - Send emails via any SMTP server (Gmail, Outlook, internal mail server, etc.)
+- **Per-Entity Overrides** - Custom notification settings for individual CAs or certificates
+- **Test Mode** - Send test emails to verify SMTP configuration
+- **State Tracking** - Prevents duplicate notifications for the same threshold
+
+### Configuration
+
+Edit `config.yaml` to configure email notifications:
+
+```yaml
+smtp:
+  enabled: true
+  host: "smtp.gmail.com"
+  port: 587
+  encryption: starttls  # Options: none, starttls, ssl
+  username: "your-email@gmail.com"
+  password: "your-app-password"  # Or use environment variable
+  sender_email: "pki@example.com"
+  sender_name: "HomeLab PKI"
+
+notifications:
+  enabled: true
+  recipients:
+    - "admin@example.com"
+    - "security@example.com"
+  thresholds:
+    - 90   # First warning at 90 days
+    - 60
+    - 30
+    - 14
+    - 7
+    - 3
+    - 1    # Final warning at 1 day
+  check_interval_hours: 24
+  check_on_startup: true
+  include_ca_expiry: true
+  include_cert_expiry: true
+  include_crl_expiry: true
+```
+
+### Using Environment Variables for Passwords
+
+For better security, use environment variables for SMTP credentials:
+
+```yaml
+smtp:
+  password: ${SMTP_PASSWORD}
+```
+
+Then set the environment variable before starting the application:
+
+```bash
+# Linux/Mac
+export SMTP_PASSWORD="your-app-password"
+python main.py
+
+# Windows PowerShell
+$env:SMTP_PASSWORD="your-app-password"
+python main.py
+```
+
+### Testing SMTP Configuration
+
+Use the Settings page in the web UI to:
+- Test SMTP connection
+- Send a test email
+- View notification status
+- Manually trigger expiration checks
+
+Or use the API:
+
+```bash
+# Test SMTP connection
+curl -X POST http://localhost:8000/api/notifications/smtp/test \
+  -H "Authorization: Bearer <token>"
+
+# Send test email
+curl -X POST http://localhost:8000/api/notifications/test \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"recipient": "admin@example.com"}'
+
+# Manually trigger expiration check
+curl -X POST http://localhost:8000/api/notifications/check \
+  -H "Authorization: Bearer <token>"
+```
+
+### Per-Entity Notification Overrides
+
+You can customize notification settings for individual CAs or certificates by editing their `config.yaml`:
+
+```yaml
+# ca-data/root-ca-example/config.yaml
+notifications:
+  enabled: true
+  recipients:
+    - "ca-admin@example.com"  # Additional recipients
+  thresholds: [180, 90, 30]   # Custom thresholds for this CA
+```
+
+**Note:** Entity-specific recipients are **added** to global recipients. Entity-specific thresholds **replace** global thresholds.
 
 ## API Documentation
 
@@ -314,9 +495,9 @@ isort app/ tests/
 - [x] Certificate chain import
 - [x] CSR (Certificate Signing Request) management
 - [x] Docker containerization
-- [ ] Email notifications for expiring certificates
+- [x] Email notifications for expiring certificates
+- [x] CRL support
 - [ ] ACME Protocol support
-- [ ] CRL support
 - [ ] OCSP Responder
 
 ## License

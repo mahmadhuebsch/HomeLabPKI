@@ -1,0 +1,22 @@
+========================================
+HomeLab PKI Test Email
+========================================
+
+Success! Your SMTP configuration is working correctly.
+
+SMTP CONFIGURATION
+------------------
+Server: {{ smtp_host }}:{{ smtp_port }}
+Encryption: {{ smtp_encryption }}
+Sender: {{ sender_email }}
+
+This test email confirms that HomeLab PKI can successfully send notifications using your SMTP settings.
+
+You will receive expiration warnings for:
+- Certificate Authorities (CAs)
+- Server Certificates
+- Certificate Revocation Lists (CRLs)
+
+----------------------------------------
+This is a test message from HomeLab PKI.
+Sent: {{ timestamp }}

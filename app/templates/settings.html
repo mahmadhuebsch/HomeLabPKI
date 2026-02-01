@@ -115,6 +115,147 @@
             </div>
         </div>
     </div>
+
+    <!-- Notification Settings -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h2 class="mb-3"><i class="bi bi-bell"></i> Email Notifications</h2>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-envelope"></i> SMTP Status
+                </div>
+                <div class="card-body">
+                    <div id="smtp-status-loading">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div> Loading SMTP status...
+                    </div>
+                    <div id="smtp-status-content" style="display: none;">
+                        <table class="table table-sm mb-3">
+                            <tr>
+                                <th width="40%">SMTP Enabled:</th>
+                                <td id="smtp-enabled">-</td>
+                            </tr>
+                            <tr>
+                                <th>Server:</th>
+                                <td id="smtp-server">-</td>
+                            </tr>
+                            <tr>
+                                <th>Port:</th>
+                                <td id="smtp-port">-</td>
+                            </tr>
+                            <tr>
+                                <th>Encryption:</th>
+                                <td id="smtp-encryption">-</td>
+                            </tr>
+                            <tr>
+                                <th>Connection:</th>
+                                <td id="smtp-connection">-</td>
+                            </tr>
+                        </table>
+
+                        <div class="d-grid gap-2">
+                            <button id="test-smtp-btn" class="btn btn-primary btn-sm" onclick="testSMTP()">
+                                <i class="bi bi-gear-fill"></i> Test SMTP Connection
+                            </button>
+                            <button id="test-email-btn" class="btn btn-outline-primary btn-sm" onclick="showTestEmailModal()">
+                                <i class="bi bi-envelope-fill"></i> Send Test Email
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Configuration
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><small class="text-muted">
+                        SMTP and notification settings are configured in <code>config.yaml</code>.
+                        See <code>MAIL.md</code> for full documentation.
+                    </small></p>
+                    <p class="mb-0"><small class="text-muted">
+                        Edit config.yaml to change SMTP server, notification recipients, and thresholds.
+                    </small></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-bell"></i> Notification Status
+                </div>
+                <div class="card-body">
+                    <div id="notif-status-loading">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div> Loading notification status...
+                    </div>
+                    <div id="notif-status-content" style="display: none;">
+                        <table class="table table-sm mb-3">
+                            <tr>
+                                <th width="40%">Notifications Enabled:</th>
+                                <td id="notif-enabled">-</td>
+                            </tr>
+                            <tr>
+                                <th>Last Check:</th>
+                                <td id="notif-last-check">-</td>
+                            </tr>
+                            <tr>
+                                <th>Next Check:</th>
+                                <td id="notif-next-check">-</td>
+                            </tr>
+                            <tr>
+                                <th>Check Interval:</th>
+                                <td id="notif-interval">-</td>
+                            </tr>
+                            <tr>
+                                <th>Recipients:</th>
+                                <td id="notif-recipients">-</td>
+                            </tr>
+                        </table>
+
+                        <div class="d-grid gap-2">
+                            <button id="check-expirations-btn" class="btn btn-success btn-sm" onclick="checkExpirations()">
+                                <i class="bi bi-arrow-repeat"></i> Check Expirations Now
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="resetNotifications()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset Notification State
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Email Modal -->
+<div class="modal fade" id="testEmailModal" tabindex="-1" aria-labelledby="testEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testEmailModalLabel">Send Test Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="test-email-recipient" class="form-label">Recipient Email</label>
+                    <input type="email" class="form-control" id="test-email-recipient" placeholder="admin@example.com" required>
+                </div>
+                <div id="test-email-result" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendTestEmail()">Send Test Email</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -140,5 +281,174 @@ document.getElementById('new_password').addEventListener('input', function() {
         }
     }
 });
+
+// Load notification status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotificationStatus();
+});
+
+async function loadNotificationStatus() {
+    try {
+        // Load notification status
+        const response = await fetch('/api/notifications/status');
+        const data = await response.json();
+
+        document.getElementById('notif-enabled').innerHTML = data.enabled
+            ? '<span class="badge bg-success">Enabled</span>'
+            : '<span class="badge bg-secondary">Disabled</span>';
+        document.getElementById('notif-last-check').textContent = data.last_check
+            ? new Date(data.last_check).toLocaleString()
+            : 'Never';
+        document.getElementById('notif-next-check').textContent = data.next_check
+            ? new Date(data.next_check).toLocaleString()
+            : 'Not scheduled';
+
+        document.getElementById('smtp-enabled').innerHTML = data.smtp_configured
+            ? '<span class="badge bg-success">Configured</span>'
+            : '<span class="badge bg-warning">Not Configured</span>';
+        document.getElementById('smtp-connection').innerHTML = data.smtp_connected
+            ? '<span class="badge bg-success">Connected</span>'
+            : '<span class="badge bg-danger">Not Connected</span>';
+
+        // Load config
+        const configResponse = await fetch('/api/notifications/config');
+        const config = await configResponse.json();
+
+        document.getElementById('smtp-server').textContent = config.smtp.host || '-';
+        document.getElementById('smtp-port').textContent = config.smtp.port || '-';
+        document.getElementById('smtp-encryption').textContent = config.smtp.encryption || '-';
+        document.getElementById('notif-interval').textContent = config.notifications.check_interval_hours + ' hours';
+        document.getElementById('notif-recipients').textContent = config.notifications.recipients.length > 0
+            ? config.notifications.recipients.join(', ')
+            : 'None configured';
+
+        document.getElementById('smtp-status-loading').style.display = 'none';
+        document.getElementById('smtp-status-content').style.display = 'block';
+        document.getElementById('notif-status-loading').style.display = 'none';
+        document.getElementById('notif-status-content').style.display = 'block';
+    } catch (error) {
+        console.error('Failed to load notification status:', error);
+        document.getElementById('smtp-status-loading').innerHTML = '<div class="alert alert-danger">Failed to load status</div>';
+        document.getElementById('notif-status-loading').innerHTML = '<div class="alert alert-danger">Failed to load status</div>';
+    }
+}
+
+async function testSMTP() {
+    const btn = document.getElementById('test-smtp-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Testing...';
+
+    try {
+        const response = await fetch('/api/notifications/smtp/test', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('success', 'SMTP connection successful!');
+            loadNotificationStatus();
+        } else {
+            showAlert('danger', 'SMTP connection failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        showAlert('danger', 'Failed to test SMTP: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function showTestEmailModal() {
+    const modal = new bootstrap.Modal(document.getElementById('testEmailModal'));
+    document.getElementById('test-email-result').style.display = 'none';
+    modal.show();
+}
+
+async function sendTestEmail() {
+    const recipient = document.getElementById('test-email-recipient').value;
+    if (!recipient) {
+        showAlert('warning', 'Please enter a recipient email address');
+        return;
+    }
+
+    const resultDiv = document.getElementById('test-email-result');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Sending...';
+    resultDiv.style.display = 'block';
+
+    try {
+        const response = await fetch('/api/notifications/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipient })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success mb-0">Test email sent successfully!</div>';
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('testEmailModal')).hide();
+                showAlert('success', 'Test email sent to ' + recipient);
+            }, 2000);
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger mb-0">Failed to send: ' + (data.error || 'Unknown error') + '</div>';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '<div class="alert alert-danger mb-0">Error: ' + error.message + '</div>';
+    }
+}
+
+async function checkExpirations() {
+    const btn = document.getElementById('check-expirations-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Checking...';
+
+    try {
+        const response = await fetch('/api/notifications/check', { method: 'POST' });
+        const data = await response.json();
+
+        showAlert('success',
+            `Expiration check complete! Checked: ${data.items_checked}, ` +
+            `Sent: ${data.notifications_sent}, Skipped: ${data.notifications_skipped}` +
+            (data.errors.length > 0 ? `, Errors: ${data.errors.length}` : '')
+        );
+        loadNotificationStatus();
+    } catch (error) {
+        showAlert('danger', 'Failed to check expirations: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function resetNotifications() {
+    if (!confirm('This will reset all notification state. Notifications may be resent. Continue?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/notifications/reset', { method: 'POST' });
+        const data = await response.json();
+        showAlert('success', 'Notification state reset successfully');
+        loadNotificationStatus();
+    } catch (error) {
+        showAlert('danger', 'Failed to reset notifications: ' + error.message);
+    }
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
 </script>
 {% endblock %}
