@@ -44,8 +44,9 @@ async def get_notification_status(
     last_check = None
     if state_file.exists():
         try:
-            from app.services.yaml_service import YAMLService
             from datetime import datetime
+
+            from app.services.yaml_service import YAMLService
 
             data = YAMLService.load_config_yaml(state_file)
             if "last_check_run" in data:
